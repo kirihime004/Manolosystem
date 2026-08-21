@@ -13,6 +13,7 @@ interface InvitePayload {
   firstName?: string;
   lastName?: string;
   roleIds?: string[];
+  redirectTo?: string;
 }
 
 Deno.serve(async (req) => {
@@ -75,34 +76,53 @@ Deno.serve(async (req) => {
           first_name: payload.firstName ?? null,
           last_name: payload.lastName ?? null,
         },
+        redirectTo: payload.redirectTo,
       });
 
     if (inviteError || !invited.user) {
       return json({ error: inviteError?.message ?? "Failed to invite user" }, 400);
     }
 
-    const { data: membership, error: membershipError } = await adminClient
+    // Idempotent: this endpoint doubles as "resend invite" when the invitee
+    // never finished setting a password (their link expired, they lost the
+    // email, etc). inviteUserByEmail itself resends in that case; the
+    // membership/role rows just need to not choke on already existing.
+    const { data: existingMembership } = await adminClient
       .from("company_users")
-      .insert({
-        company_id: payload.companyId,
-        user_id: invited.user.id,
-        status: "INVITED",
-      })
       .select("id")
-      .single();
+      .eq("company_id", payload.companyId)
+      .eq("user_id", invited.user.id)
+      .maybeSingle();
 
-    if (membershipError || !membership) {
-      return json({ error: membershipError?.message ?? "Failed to create membership" }, 400);
+    let membershipId: string;
+
+    if (existingMembership) {
+      membershipId = existingMembership.id;
+    } else {
+      const { data: newMembership, error: membershipError } = await adminClient
+        .from("company_users")
+        .insert({
+          company_id: payload.companyId,
+          user_id: invited.user.id,
+          status: "INVITED",
+        })
+        .select("id")
+        .single();
+
+      if (membershipError || !newMembership) {
+        return json({ error: membershipError?.message ?? "Failed to create membership" }, 400);
+      }
+      membershipId = newMembership.id;
     }
 
     if (payload.roleIds && payload.roleIds.length > 0) {
       const rows = payload.roleIds.map((roleId) => ({
-        company_user_id: membership.id,
+        company_user_id: membershipId,
         role_id: roleId,
       }));
       const { error: roleError } = await adminClient
         .from("user_roles")
-        .insert(rows);
+        .upsert(rows, { onConflict: "company_user_id,role_id", ignoreDuplicates: true });
       if (roleError) {
         return json({ error: roleError.message }, 400);
       }
@@ -116,11 +136,11 @@ Deno.serve(async (req) => {
       actor_user_id: callerUser.id,
       action: "USER_INVITED",
       resource_type: "company_user",
-      resource_id: membership.id,
+      resource_id: membershipId,
       metadata: { email: payload.email },
     });
 
-    return json({ userId: invited.user.id, companyUserId: membership.id }, 200);
+    return json({ userId: invited.user.id, companyUserId: membershipId }, 200);
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
   }

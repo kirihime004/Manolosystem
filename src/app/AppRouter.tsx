@@ -9,6 +9,7 @@ import PlatformLoginPage from "@/pages/platform/PlatformLoginPage";
 import PlatformDashboardPage from "@/pages/platform/PlatformDashboardPage";
 import PlatformCompaniesPage from "@/pages/platform/PlatformCompaniesPage";
 
+import AcceptInvitePage from "@/pages/AcceptInvitePage";
 import CompanySelectPage from "@/pages/company/CompanySelectPage";
 import CompanyLoginPage from "@/pages/company/CompanyLoginPage";
 import ForgotPasswordPage from "@/pages/company/ForgotPasswordPage";
@@ -27,6 +28,7 @@ export function AppRouter() {
       <Routes>
         <Route path="/" element={<Navigate to="/company" replace />} />
         <Route path="/company" element={<CompanySelectPage />} />
+        <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
         {/* Platform Superadmin */}
         <Route path="/platform/login" element={<PlatformLoginPage />} />

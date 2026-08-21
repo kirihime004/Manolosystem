@@ -91,6 +91,7 @@ export function CompanyDetailSheet({
         firstName,
         lastName,
         roleIds: adminRole ? [adminRole.id] : [],
+        redirectTo: `${window.location.origin}/accept-invite`,
       },
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
