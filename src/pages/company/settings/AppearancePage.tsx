@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { isColorDark } from "@/lib/color";
 import { cn } from "@/lib/utils";
 
@@ -24,10 +25,12 @@ const PRESET_COLORS = [
 export default function AppearancePage() {
   const { company, refresh } = useCompany();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<"color" | "image">("color");
   const [color, setColor] = useState("#0f172a");
   const [uploading, setUploading] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -51,6 +54,40 @@ export default function AppearancePage() {
       return;
     }
     toast.success("Sidebar color updated");
+    refresh();
+  };
+
+  const handleUploadLogo = async (file: File) => {
+    setUploadingLogo(true);
+
+    const ext = file.name.split(".").pop();
+    const path = `${company.id}/logo-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("company-logos").upload(path, file, {
+      upsert: true,
+    });
+
+    if (uploadError) {
+      setUploadingLogo(false);
+      toast.error(uploadError.message);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage.from("company-logos").getPublicUrl(path);
+
+    const { error: updateError } = await supabase
+      .from("companies")
+      .update({ logo_url: publicUrl.publicUrl })
+      .eq("id", company.id);
+
+    setUploadingLogo(false);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    toast.success("Company icon updated");
     refresh();
   };
 
@@ -121,15 +158,54 @@ export default function AppearancePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Sidebar appearance</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Appearance</h1>
         <p className="text-sm text-muted-foreground">
-          Customize the background of your company's navigation sidebar.
+          Customize your company's icon and the sidebar background.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Background</CardTitle>
+          <CardTitle className="text-base">Company icon</CardTitle>
+          <CardDescription>Shown at the top of the sidebar and wherever your company is listed.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <Avatar className="h-14 w-14 rounded-md">
+              <AvatarImage src={company.logo_url ?? undefined} />
+              <AvatarFallback className="rounded-md bg-primary text-primary-foreground">
+                {company.name?.slice(0, 2).toUpperCase() ?? "CO"}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingLogo}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {uploadingLogo ? "Uploading…" : "Change icon"}
+              </Button>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadLogo(file);
+                }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Sidebar background</CardTitle>
           <CardDescription>
             Choose a solid color or upload an image. Text and icons automatically switch to stay
             readable against whatever you pick.
