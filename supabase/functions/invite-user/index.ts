@@ -13,7 +13,14 @@ interface InvitePayload {
   firstName?: string;
   lastName?: string;
   roleIds?: string[];
+  departmentId?: string | null;
   redirectTo?: string;
+  // "invite" (default): emails a signup link, membership starts INVITED.
+  // "direct": creates the account with a password immediately, no email
+  // sent, email pre-confirmed, membership starts ACTIVE. The caller is
+  // responsible for getting that password to the employee out-of-band.
+  mode?: "invite" | "direct";
+  password?: string;
 }
 
 Deno.serve(async (req) => {
@@ -52,6 +59,9 @@ Deno.serve(async (req) => {
     if (!payload.companyId || !payload.email) {
       return json({ error: "companyId and email are required" }, 400);
     }
+    if (payload.mode === "direct" && (!payload.password || payload.password.length < 8)) {
+      return json({ error: "password must be at least 8 characters" }, 400);
+    }
 
     const { data: isSuperadmin } = await callerClient.rpc(
       "is_platform_superadmin",
@@ -70,17 +80,31 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: invited, error: inviteError } =
-      await adminClient.auth.admin.inviteUserByEmail(payload.email, {
-        data: {
-          first_name: payload.firstName ?? null,
-          last_name: payload.lastName ?? null,
-        },
-        redirectTo: payload.redirectTo,
-      });
+    const isDirect = payload.mode === "direct";
+
+    const { data: invited, error: inviteError } = isDirect
+      ? await adminClient.auth.admin.createUser({
+          email: payload.email,
+          password: payload.password,
+          email_confirm: true,
+          user_metadata: {
+            first_name: payload.firstName ?? null,
+            last_name: payload.lastName ?? null,
+          },
+        })
+      : await adminClient.auth.admin.inviteUserByEmail(payload.email, {
+          data: {
+            first_name: payload.firstName ?? null,
+            last_name: payload.lastName ?? null,
+          },
+          redirectTo: payload.redirectTo,
+        });
 
     if (inviteError || !invited.user) {
-      return json({ error: inviteError?.message ?? "Failed to invite user" }, 400);
+      return json(
+        { error: inviteError?.message ?? (isDirect ? "Failed to create user" : "Failed to invite user") },
+        400,
+      );
     }
 
     // Idempotent: this endpoint doubles as "resend invite" when the invitee
@@ -98,13 +122,20 @@ Deno.serve(async (req) => {
 
     if (existingMembership) {
       membershipId = existingMembership.id;
+      if (payload.departmentId !== undefined) {
+        await adminClient
+          .from("company_users")
+          .update({ department_id: payload.departmentId })
+          .eq("id", membershipId);
+      }
     } else {
       const { data: newMembership, error: membershipError } = await adminClient
         .from("company_users")
         .insert({
           company_id: payload.companyId,
           user_id: invited.user.id,
-          status: "INVITED",
+          status: isDirect ? "ACTIVE" : "INVITED",
+          department_id: payload.departmentId ?? null,
         })
         .select("id")
         .single();
@@ -134,7 +165,7 @@ Deno.serve(async (req) => {
     await adminClient.from("audit_logs").insert({
       company_id: payload.companyId,
       actor_user_id: callerUser.id,
-      action: "USER_INVITED",
+      action: isDirect ? "USER_CREATED" : "USER_INVITED",
       resource_type: "company_user",
       resource_id: membershipId,
       metadata: { email: payload.email },

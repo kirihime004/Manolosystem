@@ -18,7 +18,7 @@ export interface EnrichedTicket extends Ticket {
 
 export interface TicketDetail extends EnrichedTicket {
   comments: (TicketComment & { author: Pick<Profile, "id" | "first_name" | "last_name" | "avatar_url"> | null })[];
-  attachments: TicketAttachment[];
+  attachments: (TicketAttachment & { uploader: Pick<Profile, "id" | "first_name" | "last_name" | "avatar_url"> | null })[];
   assignments: TicketAssignment[];
   statusHistory: TicketStatusHistory[];
   requesterDepartment: string | null;

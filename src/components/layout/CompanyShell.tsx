@@ -9,6 +9,8 @@ import {
   Clapperboard,
   LogOut,
   ChevronsUpDown,
+  UserCog,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -22,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { PERMISSIONS } from "@/lib/permissions/keys";
 import type { ModuleKey } from "@/types/database";
 
 const MODULE_NAV: { key: ModuleKey; label: string; icon: LucideIcon; path: string }[] = [
@@ -32,9 +35,15 @@ const MODULE_NAV: { key: ModuleKey; label: string; icon: LucideIcon; path: strin
   { key: "PRODUCTION", label: "Production", icon: Clapperboard, path: "production" },
 ];
 
+const SETTINGS_NAV: { label: string; icon: LucideIcon; path: string; permissions: string[] }[] = [
+  { label: "Users", icon: UserCog, path: "settings/users", permissions: [PERMISSIONS.ADMIN_USERS_VIEW, PERMISSIONS.ADMIN_USERS_MANAGE] },
+  { label: "Departments", icon: Building2, path: "settings/departments", permissions: [PERMISSIONS.ADMIN_DEPARTMENTS_MANAGE] },
+  { label: "Roles", icon: ShieldCheck, path: "settings/roles", permissions: [PERMISSIONS.ADMIN_ROLES_MANAGE] },
+];
+
 export function CompanyShell({ children }: { children: ReactNode }) {
   const { companySlug } = useParams<{ companySlug: string }>();
-  const { company, enabledModules } = useCompany();
+  const { company, enabledModules, hasPermission } = useCompany();
   const { user, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -72,6 +81,23 @@ export function CompanyShell({ children }: { children: ReactNode }) {
               active={location.pathname.startsWith(`${base}/${m.path}`)}
             />
           ))}
+
+          {SETTINGS_NAV.some((s) => s.permissions.some(hasPermission)) && (
+            <>
+              <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Settings
+              </p>
+              {SETTINGS_NAV.filter((s) => s.permissions.some(hasPermission)).map((s) => (
+                <NavLink
+                  key={s.path}
+                  to={`${base}/${s.path}`}
+                  icon={s.icon}
+                  label={s.label}
+                  active={location.pathname.startsWith(`${base}/${s.path}`)}
+                />
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="border-t border-border p-3">

@@ -19,7 +19,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TicketStatusBadge } from "@/components/shared/TicketBadges";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
-import type { TicketStatus } from "@/types/database";
+import { Can } from "@/lib/permissions/Can";
+import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { TicketPriority, TicketStatus } from "@/types/database";
+
+const STATUS_ORDER: TicketStatus[] = [
+  "OPEN", "ASSIGNED", "IN_PROGRESS", "WAITING_FOR_USER", "WAITING_FOR_VENDOR", "RESOLVED", "CLOSED", "CANCELLED",
+];
+const PRIORITY_ORDER: TicketPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+
+const STATUS_BAR_COLOR: Record<TicketStatus, string> = {
+  OPEN: "bg-blue-500",
+  ASSIGNED: "bg-indigo-500",
+  IN_PROGRESS: "bg-amber-500",
+  WAITING_FOR_USER: "bg-orange-500",
+  WAITING_FOR_VENDOR: "bg-orange-500",
+  RESOLVED: "bg-emerald-500",
+  CLOSED: "bg-zinc-400",
+  CANCELLED: "bg-red-500",
+};
+
+const PRIORITY_BAR_COLOR: Record<TicketPriority, string> = {
+  CRITICAL: "bg-red-500",
+  HIGH: "bg-amber-500",
+  MEDIUM: "bg-blue-500",
+  LOW: "bg-zinc-400",
+};
 
 const isToday = (iso: string) => {
   const d = new Date(iso);
@@ -58,6 +83,19 @@ export default function ITDashboardPage() {
   const mine = tickets?.filter((t) => t.assigned_to === user?.id).slice(0, 5) ?? [];
   const critical = tickets?.filter((t) => t.priority === "CRITICAL").slice(0, 5) ?? [];
 
+  const statusCounts = STATUS_ORDER.map((status) => ({
+    key: status,
+    label: status.replace(/_/g, " "),
+    count: tickets?.filter((t) => t.status === status).length ?? 0,
+    color: STATUS_BAR_COLOR[status],
+  }));
+  const priorityCounts = PRIORITY_ORDER.map((priority) => ({
+    key: priority,
+    label: priority,
+    count: tickets?.filter((t) => t.priority === priority).length ?? 0,
+    color: PRIORITY_BAR_COLOR[priority],
+  }));
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -65,12 +103,19 @@ export default function ITDashboardPage() {
           <h1 className="text-2xl font-semibold text-foreground">IT Dashboard</h1>
           <p className="text-sm text-muted-foreground">Ticketing overview for {company?.name}</p>
         </div>
-        <Link to={`/c/${companySlug}/it/tickets/new`}>
-          <Button>
-            <Plus className="h-4 w-4" />
-            New ticket
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Can permission={PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE}>
+            <Link to={`/c/${companySlug}/it/categories`}>
+              <Button variant="outline">Manage categories</Button>
+            </Link>
+          </Can>
+          <Link to={`/c/${companySlug}/it/tickets/new`}>
+            <Button>
+              <Plus className="h-4 w-4" />
+              New ticket
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -84,12 +129,63 @@ export default function ITDashboardPage() {
         <StatCard icon={Archive} label="Closed Today" value={stats?.closedToday} loading={isLoading} />
       </div>
 
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <DistributionCard title="Status distribution" rows={statusCounts} loading={isLoading} />
+        <DistributionCard title="Priority distribution" rows={priorityCounts} loading={isLoading} />
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <TicketMiniList title="Recent tickets" tickets={recent} companySlug={companySlug!} loading={isLoading} />
         <TicketMiniList title="My assigned tickets" tickets={mine} companySlug={companySlug!} loading={isLoading} />
         <TicketMiniList title="Critical tickets" tickets={critical} companySlug={companySlug!} loading={isLoading} />
       </div>
     </div>
+  );
+}
+
+function DistributionCard({
+  title,
+  rows,
+  loading,
+}: {
+  title: string;
+  rows: { key: string; label: string; count: number; color: string }[];
+  loading: boolean;
+}) {
+  const total = rows.reduce((sum, r) => sum + r.count, 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2.5">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)
+        ) : total === 0 ? (
+          <EmptyState icon={TicketIcon} title="No tickets yet" />
+        ) : (
+          rows
+            .filter((r) => r.count > 0)
+            .map((r) => (
+              <div key={r.key} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium capitalize text-foreground">{r.label.toLowerCase()}</span>
+                  <span className="text-muted-foreground">
+                    {r.count} ({Math.round((r.count / total) * 100)}%)
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full ${r.color}`}
+                    style={{ width: `${(r.count / total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

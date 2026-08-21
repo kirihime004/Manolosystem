@@ -1,11 +1,9 @@
 import { useParams } from "react-router-dom";
-import { Paperclip, Download } from "lucide-react";
-import { toast } from "sonner";
 import { useTicket } from "@/features/it/tickets/hooks";
-import { getAttachmentSignedUrl } from "@/features/it/tickets/ticketApi";
 import { TicketConversation } from "@/features/it/tickets/components/TicketConversation";
 import { TicketActivityFeed } from "@/features/it/tickets/components/TicketActivityFeed";
 import { TicketSidebarActions } from "@/features/it/tickets/components/TicketSidebarActions";
+import { TicketAttachmentsList } from "@/features/it/tickets/components/TicketAttachmentsList";
 import { TicketPriorityBadge, TicketStatusBadge } from "@/components/shared/TicketBadges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -65,24 +63,7 @@ export default function TicketDetailPage() {
                 <Separator className="my-4" />
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground">Attachments</p>
-                  {ticket.attachments.map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={async () => {
-                        try {
-                          const url = await getAttachmentSignedUrl(a.file_path);
-                          window.open(url, "_blank", "noopener,noreferrer");
-                        } catch (err) {
-                          toast.error(err instanceof Error ? err.message : "Failed to open attachment");
-                        }
-                      }}
-                      className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
-                    >
-                      <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="flex-1 truncate">{a.file_name}</span>
-                      <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                  ))}
+                  <TicketAttachmentsList attachments={ticket.attachments} />
                 </div>
               </>
             )}

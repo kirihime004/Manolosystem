@@ -91,6 +91,7 @@ export async function getTicket(ticketId: string): Promise<TicketDetail | null> 
     ticket.requester_id,
     ticket.assigned_to ?? "",
     ...commentsRes.data.map((c) => c.author_id),
+    ...attachmentsRes.data.map((a) => a.uploaded_by),
   ]);
 
   const { data: requesterMembership } = await supabase
@@ -115,7 +116,7 @@ export async function getTicket(ticketId: string): Promise<TicketDetail | null> 
     category: ticket.category_id ? categories.get(ticket.category_id) ?? null : null,
     subcategory: ticket.subcategory_id ? subcategories.get(ticket.subcategory_id) ?? null : null,
     comments: commentsRes.data.map((c) => ({ ...c, author: profiles.get(c.author_id) ?? null })),
-    attachments: attachmentsRes.data,
+    attachments: attachmentsRes.data.map((a) => ({ ...a, uploader: profiles.get(a.uploaded_by) ?? null })),
     assignments: assignmentsRes.data,
     statusHistory: historyRes.data,
     requesterDepartment,

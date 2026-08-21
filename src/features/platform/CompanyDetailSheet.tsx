@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
+import { getFunctionErrorMessage } from "@/lib/supabase/functionError";
 import {
   Sheet,
   SheetContent,
@@ -99,7 +100,7 @@ export function CompanyDetailSheet({
     setInviting(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(await getFunctionErrorMessage(error));
       return;
     }
 
