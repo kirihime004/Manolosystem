@@ -36,7 +36,17 @@ export default function CompanySelectPage() {
   return (
     <AuthCard
       backgroundImage="/brand/background.png"
-      logo={<img src="/brand/landing-logo.png" alt="Mindburst" className="w-72 max-w-full" />}
+      logo={
+        <img
+          src="/brand/landing-logo.png"
+          alt="Mindburst"
+          className="w-[26rem] max-w-full"
+          style={{
+            filter:
+              "drop-shadow(0 0 25px rgba(59,130,246,0.65)) drop-shadow(0 0 45px rgba(249,115,22,0.45))",
+          }}
+        />
+      }
       subtitle="Select your company"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
