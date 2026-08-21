@@ -24,6 +24,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TicketPriorityBadge, TicketStatusBadge } from "@/components/shared/TicketBadges";
+import { Can } from "@/lib/permissions/Can";
+import { PERMISSIONS } from "@/lib/permissions/keys";
 import type { TicketPriority, TicketStatus } from "@/types/database";
 
 const STATUS_OPTIONS: TicketStatus[] = [
@@ -71,12 +73,14 @@ export default function TicketsListPage() {
           <h1 className="text-2xl font-semibold text-foreground">Tickets</h1>
           <p className="text-sm text-muted-foreground">{tickets?.length ?? 0} total</p>
         </div>
-        <Link to={`/c/${companySlug}/it/tickets/new`}>
-          <Button>
-            <Plus className="h-4 w-4" />
-            New ticket
-          </Button>
-        </Link>
+        <Can permission={PERMISSIONS.IT_TICKETS_CREATE}>
+          <Link to={`/c/${companySlug}/it/tickets/new`}>
+            <Button>
+              <Plus className="h-4 w-4" />
+              New ticket
+            </Button>
+          </Link>
+        </Can>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

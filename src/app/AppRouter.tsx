@@ -82,7 +82,14 @@ export function AppRouter() {
               <Route index element={<ITDashboardPage />} />
               <Route path="tickets">
                 <Route index element={<TicketsListPage />} />
-                <Route path="new" element={<CreateTicketPage />} />
+                <Route
+                  path="new"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.IT_TICKETS_CREATE}>
+                      <CreateTicketPage />
+                    </RequirePermission>
+                  }
+                />
                 <Route path=":ticketId" element={<TicketDetailPage />} />
               </Route>
               <Route

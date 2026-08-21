@@ -58,9 +58,71 @@ const isToday = (iso: string) => {
 
 export default function ITDashboardPage() {
   const { companySlug } = useParams<{ companySlug: string }>();
-  const { company } = useCompany();
+  const { company, hasPermission } = useCompany();
   const { user } = useAuth();
   const { data: tickets, isLoading } = useTickets(company?.id, {});
+
+  // RLS already scopes `tickets` down to just what this person is allowed
+  // to see (their own requester/assignee rows, unless they hold
+  // IT.TICKETS.VIEW), so the query itself is safe either way. What was
+  // wrong was the UI: showing a full IT-staff triage board (Critical queue,
+  // Overdue, status/priority distribution, company-wide Recent tickets) to
+  // someone who only has permission to create and comment on their own
+  // tickets is misleading, even though the numbers happened to be
+  // correctly scoped to just their own data.
+  const canViewAll = hasPermission(PERMISSIONS.IT_TICKETS_VIEW);
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {canViewAll ? "IT Dashboard" : "My Tickets"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {canViewAll ? `Ticketing overview for ${company?.name}` : "Tickets you've submitted"}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Can permission={PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE}>
+          <Link to={`/c/${companySlug}/it/categories`}>
+            <Button variant="outline">Manage categories</Button>
+          </Link>
+        </Can>
+        <Can permission={PERMISSIONS.IT_TICKETS_CREATE}>
+          <Link to={`/c/${companySlug}/it/tickets/new`}>
+            <Button>
+              <Plus className="h-4 w-4" />
+              New ticket
+            </Button>
+          </Link>
+        </Can>
+      </div>
+    </div>
+  );
+
+  if (!canViewAll) {
+    const myStats = tickets
+      ? {
+          open: tickets.filter((t) => !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status)).length,
+          resolved: tickets.filter((t) => t.status === "RESOLVED").length,
+          closed: tickets.filter((t) => t.status === "CLOSED").length,
+        }
+      : null;
+
+    return (
+      <div className="space-y-8">
+        {header}
+
+        <div className="grid grid-cols-3 gap-4">
+          <StatCard icon={TicketIcon} label="Open" value={myStats?.open} loading={isLoading} />
+          <StatCard icon={CheckCircle2} label="Resolved" value={myStats?.resolved} loading={isLoading} />
+          <StatCard icon={Archive} label="Closed" value={myStats?.closed} loading={isLoading} />
+        </div>
+
+        <TicketMiniList title="My tickets" tickets={tickets ?? []} companySlug={companySlug!} loading={isLoading} />
+      </div>
+    );
+  }
 
   const stats = tickets
     ? {
@@ -98,25 +160,7 @@ export default function ITDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">IT Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Ticketing overview for {company?.name}</p>
-        </div>
-        <div className="flex gap-2">
-          <Can permission={PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE}>
-            <Link to={`/c/${companySlug}/it/categories`}>
-              <Button variant="outline">Manage categories</Button>
-            </Link>
-          </Can>
-          <Link to={`/c/${companySlug}/it/tickets/new`}>
-            <Button>
-              <Plus className="h-4 w-4" />
-              New ticket
-            </Button>
-          </Link>
-        </div>
-      </div>
+      {header}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard icon={TicketIcon} label="Open" value={stats?.open} loading={isLoading} />
