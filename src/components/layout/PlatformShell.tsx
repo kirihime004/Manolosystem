@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Building2, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Building2, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,9 @@ export function PlatformShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen w-full bg-background">
       <aside className="flex w-64 flex-col border-r border-border bg-card">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
+          <img src="/brand/favicon.png" alt="Mindburst" className="h-8 w-8 rounded-md" />
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-foreground">ManoloSystem</p>
+            <p className="text-sm font-semibold text-foreground">Mindburst</p>
             <p className="text-[11px] text-muted-foreground">Platform Admin</p>
           </div>
         </div>

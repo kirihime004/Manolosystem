@@ -1,4 +1,4 @@
-# ManoloSystem
+# Mindburst
 
 Multi-tenant business management SaaS platform. This milestone ships the
 platform foundation (multi-tenant auth, RBAC, RLS) plus the first business

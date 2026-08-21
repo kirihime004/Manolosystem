@@ -34,7 +34,11 @@ export default function CompanySelectPage() {
   };
 
   return (
-    <AuthCard title="ManoloSystem" subtitle="Select your company">
+    <AuthCard
+      backgroundImage="/brand/background.png"
+      logo={<img src="/brand/landing-logo.png" alt="Mindburst" className="w-72 max-w-full" />}
+      subtitle="Select your company"
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="code">Company code</Label>

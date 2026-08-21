@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/useAuth";
@@ -53,11 +52,9 @@ export default function PlatformLoginPage() {
   return (
     <AuthCard
       logo={
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <ShieldCheck className="h-6 w-6" />
-        </div>
+        <img src="/brand/favicon.png" alt="Mindburst" className="h-14 w-14 rounded-xl" />
       }
-      title="ManoloSystem"
+      title="Mindburst"
       subtitle="Platform administration"
     >
       <form onSubmit={handleSubmit} className="space-y-4">

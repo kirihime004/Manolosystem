@@ -59,7 +59,7 @@ export function CompanyShell({ children }: { children: ReactNode }) {
             </AvatarFallback>
           </Avatar>
           <span className="truncate text-sm font-semibold text-foreground">
-            {company?.name ?? "ManoloSystem"}
+            {company?.name ?? "Mindburst"}
           </span>
         </div>
 

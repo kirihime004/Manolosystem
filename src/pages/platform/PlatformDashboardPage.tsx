@@ -24,7 +24,7 @@ export default function PlatformDashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Platform overview</h1>
         <p className="text-sm text-muted-foreground">
-          Manage every company on ManoloSystem from one place.
+          Manage every company on Mindburst from one place.
         </p>
       </div>
 
