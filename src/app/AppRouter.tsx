@@ -17,6 +17,7 @@ import CompanyLoginPage from "@/pages/company/CompanyLoginPage";
 import ForgotPasswordPage from "@/pages/company/ForgotPasswordPage";
 import CompanyDashboardPage from "@/pages/company/CompanyDashboardPage";
 import AccountSettingsPage from "@/pages/company/AccountSettingsPage";
+import HandbookPage from "@/pages/company/HandbookPage";
 
 import ITDashboardPage from "@/pages/it/ITDashboardPage";
 import TicketsListPage from "@/pages/it/TicketsListPage";
@@ -71,6 +72,14 @@ export function AppRouter() {
           >
             <Route index element={<CompanyDashboardPage />} />
             <Route path="account" element={<AccountSettingsPage />} />
+            <Route
+              path="handbook"
+              element={
+                <RequirePermission permission={PERMISSIONS.ADMIN_COMPANY_SETTINGS_MANAGE}>
+                  <HandbookPage />
+                </RequirePermission>
+              }
+            />
 
             <Route
               path="it"
