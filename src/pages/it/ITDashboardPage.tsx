@@ -13,7 +13,13 @@ import {
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
-import { useTickets } from "@/features/it/tickets/hooks";
+import {
+  useTicketDashboardStats,
+  useRecentTickets,
+  useAssignedTickets,
+  useCriticalTickets,
+} from "@/features/it/tickets/hooks";
+import { TicketSearchBox } from "@/features/it/tickets/components/TicketSearchBox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketStatusBadge } from "@/components/shared/TicketBadges";
@@ -21,6 +27,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { MiniTicket } from "@/features/it/tickets/ticketApi";
 import type { TicketPriority, TicketStatus } from "@/types/database";
 
 const STATUS_ORDER: TicketStatus[] = [
@@ -46,115 +53,80 @@ const PRIORITY_BAR_COLOR: Record<TicketPriority, string> = {
   LOW: "bg-zinc-400",
 };
 
-const isToday = (iso: string) => {
-  const d = new Date(iso);
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
-};
-
 export default function ITDashboardPage() {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company, hasPermission } = useCompany();
   const { user } = useAuth();
-  const { data: tickets, isLoading } = useTickets(company?.id, {});
 
-  // RLS already scopes `tickets` down to just what this person is allowed
-  // to see (their own requester/assignee rows, unless they hold
-  // IT.TICKETS.VIEW), so the query itself is safe either way. What was
-  // wrong was the UI: showing a full IT-staff triage board (Critical queue,
-  // Overdue, status/priority distribution, company-wide Recent tickets) to
-  // someone who only has permission to create and comment on their own
-  // tickets is misleading, even though the numbers happened to be
-  // correctly scoped to just their own data.
+  // All the counts and mini-lists below are now computed server-side
+  // (get_ticket_dashboard_stats, and targeted limit(5) queries) instead of
+  // fetching the company's entire ticket history and filtering it in the
+  // browser -- that stopped scaling once there were a couple hundred
+  // tickets. RLS still scopes everything per caller either way.
   const canViewAll = hasPermission(PERMISSIONS.IT_TICKETS_VIEW);
 
+  const { data: stats, isLoading: statsLoading } = useTicketDashboardStats(company?.id);
+  const { data: recent, isLoading: recentLoading } = useRecentTickets(company?.id, canViewAll ? 5 : 10);
+  const { data: mine, isLoading: mineLoading } = useAssignedTickets(company?.id, user?.id, 5);
+  const { data: critical, isLoading: criticalLoading } = useCriticalTickets(company?.id, 5);
+
   const header = (
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          {canViewAll ? "Ticketing" : "My Tickets"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {canViewAll ? `Ticketing overview for ${company?.name}` : "Tickets you've submitted"}
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {canViewAll ? "Ticketing" : "My Tickets"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {canViewAll ? `Ticketing overview for ${company?.name}` : "Tickets you've submitted"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Can permission={PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE}>
+            <Link to={`/c/${companySlug}/it/categories`}>
+              <Button variant="outline">Manage categories</Button>
+            </Link>
+          </Can>
+          <Can permission={PERMISSIONS.IT_TICKETS_CREATE}>
+            <Link to={`/c/${companySlug}/it/tickets/new`}>
+              <Button>
+                <Plus className="h-4 w-4" />
+                New ticket
+              </Button>
+            </Link>
+          </Can>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <Can permission={PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE}>
-          <Link to={`/c/${companySlug}/it/categories`}>
-            <Button variant="outline">Manage categories</Button>
-          </Link>
-        </Can>
-        <Can permission={PERMISSIONS.IT_TICKETS_CREATE}>
-          <Link to={`/c/${companySlug}/it/tickets/new`}>
-            <Button>
-              <Plus className="h-4 w-4" />
-              New ticket
-            </Button>
-          </Link>
-        </Can>
-      </div>
+      {canViewAll && <TicketSearchBox companyId={company?.id} companySlug={companySlug!} />}
     </div>
   );
 
   if (!canViewAll) {
-    const myStats = tickets
-      ? {
-          open: tickets.filter((t) => !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status)).length,
-          resolved: tickets.filter((t) => t.status === "RESOLVED").length,
-          closed: tickets.filter((t) => t.status === "CLOSED").length,
-        }
-      : null;
-
     return (
       <div className="space-y-8">
         {header}
 
         <div className="grid grid-cols-3 gap-4">
-          <StatCard icon={TicketIcon} label="Open" value={myStats?.open} loading={isLoading} />
-          <StatCard icon={CheckCircle2} label="Resolved" value={myStats?.resolved} loading={isLoading} />
-          <StatCard icon={Archive} label="Closed" value={myStats?.closed} loading={isLoading} />
+          <StatCard icon={TicketIcon} label="Open" value={stats?.active} loading={statsLoading} />
+          <StatCard icon={CheckCircle2} label="Resolved" value={stats?.resolved} loading={statsLoading} />
+          <StatCard icon={Archive} label="Closed" value={stats?.closed} loading={statsLoading} />
         </div>
 
-        <TicketMiniList title="My tickets" tickets={tickets ?? []} companySlug={companySlug!} loading={isLoading} />
+        <TicketMiniList title="My tickets" tickets={recent} companySlug={companySlug!} loading={recentLoading} />
       </div>
     );
   }
 
-  const stats = tickets
-    ? {
-        open: tickets.filter((t) => t.status === "OPEN").length,
-        assigned: tickets.filter((t) => t.assigned_to === user?.id && !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status)).length,
-        inProgress: tickets.filter((t) => t.status === "IN_PROGRESS").length,
-        waitingForUser: tickets.filter((t) => t.status === "WAITING_FOR_USER").length,
-        critical: tickets.filter((t) => t.priority === "CRITICAL" && !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status)).length,
-        overdue: tickets.filter(
-          (t) =>
-            !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status) &&
-            Date.now() - new Date(t.created_at).getTime() > 48 * 60 * 60 * 1000,
-        ).length,
-        resolvedToday: tickets.filter((t) => t.resolved_at && isToday(t.resolved_at)).length,
-        closedToday: tickets.filter((t) => t.closed_at && isToday(t.closed_at)).length,
-      }
-    : null;
-
-  const recent = tickets?.slice(0, 5) ?? [];
-  const mine = tickets?.filter((t) => t.assigned_to === user?.id).slice(0, 5) ?? [];
-  const critical = tickets?.filter((t) => t.priority === "CRITICAL").slice(0, 5) ?? [];
-
   const statusCounts = STATUS_ORDER.map((status) => ({
     key: status,
     label: status.replace(/_/g, " "),
-    count: tickets?.filter((t) => t.status === status).length ?? 0,
+    count: stats?.statusCounts[status] ?? 0,
     color: STATUS_BAR_COLOR[status],
   }));
   const priorityCounts = PRIORITY_ORDER.map((priority) => ({
     key: priority,
     label: priority,
-    count: tickets?.filter((t) => t.priority === priority).length ?? 0,
+    count: stats?.priorityCounts[priority] ?? 0,
     color: PRIORITY_BAR_COLOR[priority],
   }));
 
@@ -163,25 +135,25 @@ export default function ITDashboardPage() {
       {header}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard icon={TicketIcon} label="Open" value={stats?.open} loading={isLoading} />
-        <StatCard icon={UserCheck} label="Assigned to me" value={stats?.assigned} loading={isLoading} />
-        <StatCard icon={Clock} label="In Progress" value={stats?.inProgress} loading={isLoading} />
-        <StatCard icon={Timer} label="Waiting for User" value={stats?.waitingForUser} loading={isLoading} />
-        <StatCard icon={Flame} label="Critical" value={stats?.critical} loading={isLoading} />
-        <StatCard icon={AlertTriangle} label="Overdue" value={stats?.overdue} loading={isLoading} />
-        <StatCard icon={CheckCircle2} label="Resolved Today" value={stats?.resolvedToday} loading={isLoading} />
-        <StatCard icon={Archive} label="Closed Today" value={stats?.closedToday} loading={isLoading} />
+        <StatCard icon={TicketIcon} label="Open" value={stats?.open} loading={statsLoading} />
+        <StatCard icon={UserCheck} label="Assigned to me" value={stats?.assignedToMe} loading={statsLoading} />
+        <StatCard icon={Clock} label="In Progress" value={stats?.inProgress} loading={statsLoading} />
+        <StatCard icon={Timer} label="Waiting for User" value={stats?.waitingForUser} loading={statsLoading} />
+        <StatCard icon={Flame} label="Critical" value={stats?.critical} loading={statsLoading} />
+        <StatCard icon={AlertTriangle} label="Overdue" value={stats?.overdue} loading={statsLoading} />
+        <StatCard icon={CheckCircle2} label="Resolved Today" value={stats?.resolvedToday} loading={statsLoading} />
+        <StatCard icon={Archive} label="Closed Today" value={stats?.closedToday} loading={statsLoading} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <DistributionCard title="Status distribution" rows={statusCounts} loading={isLoading} />
-        <DistributionCard title="Priority distribution" rows={priorityCounts} loading={isLoading} />
+        <DistributionCard title="Status distribution" rows={statusCounts} loading={statsLoading} />
+        <DistributionCard title="Priority distribution" rows={priorityCounts} loading={statsLoading} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <TicketMiniList title="Recent tickets" tickets={recent} companySlug={companySlug!} loading={isLoading} />
-        <TicketMiniList title="My assigned tickets" tickets={mine} companySlug={companySlug!} loading={isLoading} />
-        <TicketMiniList title="Critical tickets" tickets={critical} companySlug={companySlug!} loading={isLoading} />
+        <TicketMiniList title="Recent tickets" tickets={recent} companySlug={companySlug!} loading={recentLoading} />
+        <TicketMiniList title="My assigned tickets" tickets={mine} companySlug={companySlug!} loading={mineLoading} />
+        <TicketMiniList title="Critical tickets" tickets={critical} companySlug={companySlug!} loading={criticalLoading} />
       </div>
     </div>
   );
@@ -264,7 +236,7 @@ function TicketMiniList({
   loading,
 }: {
   title: string;
-  tickets: { id: string; ticket_number: string; subject: string; status: TicketStatus; priority: string }[];
+  tickets: MiniTicket[] | undefined;
   companySlug: string;
   loading: boolean;
 }) {
@@ -276,7 +248,7 @@ function TicketMiniList({
       <CardContent className="space-y-1">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
-        ) : tickets.length === 0 ? (
+        ) : !tickets || tickets.length === 0 ? (
           <EmptyState icon={TicketIcon} title="No tickets" />
         ) : (
           tickets.map((t) => (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Plus, Search, Ticket as TicketIcon } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useTickets, useTicketCategories, useCompanyMembers } from "@/features/it/tickets/hooks";
@@ -42,8 +42,9 @@ export default function TicketsListPage() {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [status, setStatus] = useState<string>("all");
   const [priority, setPriority] = useState<string>("all");
   const [categoryId, setCategoryId] = useState<string>("all");

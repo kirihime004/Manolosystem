@@ -12,6 +12,46 @@ export function useTickets(companyId: string | undefined, filters: TicketFilters
   });
 }
 
+export function useTicketDashboardStats(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ["ticket-dashboard-stats", companyId],
+    queryFn: () => api.getDashboardStats(companyId!),
+    enabled: !!companyId,
+  });
+}
+
+export function useRecentTickets(companyId: string | undefined, limit = 5) {
+  return useQuery({
+    queryKey: ["recent-tickets", companyId, limit],
+    queryFn: () => api.getRecentTickets(companyId!, limit),
+    enabled: !!companyId,
+  });
+}
+
+export function useAssignedTickets(companyId: string | undefined, userId: string | undefined, limit = 5) {
+  return useQuery({
+    queryKey: ["assigned-tickets", companyId, userId, limit],
+    queryFn: () => api.getAssignedTickets(companyId!, userId!, limit),
+    enabled: !!companyId && !!userId,
+  });
+}
+
+export function useCriticalTickets(companyId: string | undefined, limit = 5) {
+  return useQuery({
+    queryKey: ["critical-tickets", companyId, limit],
+    queryFn: () => api.getCriticalTickets(companyId!, limit),
+    enabled: !!companyId,
+  });
+}
+
+export function useTicketSearch(companyId: string | undefined, query: string) {
+  return useQuery({
+    queryKey: ["ticket-search", companyId, query],
+    queryFn: () => api.searchTickets(companyId!, query),
+    enabled: !!companyId && query.trim().length >= 2,
+  });
+}
+
 export function useTicket(ticketId: string | undefined) {
   return useQuery({
     queryKey: ["ticket", ticketId],

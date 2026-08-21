@@ -17,7 +17,7 @@ import { useCompany } from "@/lib/tenant/useCompany";
 import { useMyProfile } from "@/lib/auth/useMyProfile";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useCompanyUsersList } from "@/features/company/settings/useCompanyUsers";
-import { useTickets, useMyTicketActivity } from "@/features/it/tickets/hooks";
+import { useTicketDashboardStats, useMyTicketActivity } from "@/features/it/tickets/hooks";
 import { PERMISSIONS } from "@/lib/permissions/keys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,7 +68,7 @@ export default function CompanyDashboardPage() {
   const canViewAllTickets = hasPermission(PERMISSIONS.IT_TICKETS_VIEW);
 
   const { data: users, isLoading: usersLoading } = useCompanyUsersList(isAdmin ? company?.id : undefined);
-  const { data: tickets, isLoading: ticketsLoading } = useTickets(itEnabled ? company?.id : undefined, {});
+  const { data: stats, isLoading: ticketsLoading } = useTicketDashboardStats(itEnabled ? company?.id : undefined);
   const { data: activity, isLoading: activityLoading } = useMyTicketActivity(
     itEnabled && !canViewAllTickets ? company?.id : undefined,
     user?.id,
@@ -81,21 +81,6 @@ export default function CompanyDashboardPage() {
         invited: users.filter((u) => u.status === "INVITED").length,
         disabled: users.filter((u) => u.status === "DISABLED").length,
       }
-    : null;
-
-  const ticketStats = tickets
-    ? canViewAllTickets
-      ? {
-          open: tickets.filter((t) => t.status === "OPEN").length,
-          critical: tickets.filter((t) => t.priority === "CRITICAL" && !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status)).length,
-          inProgress: tickets.filter((t) => t.status === "IN_PROGRESS").length,
-          resolved: tickets.filter((t) => t.status === "RESOLVED").length,
-        }
-      : {
-          open: tickets.filter((t) => !["RESOLVED", "CLOSED", "CANCELLED"].includes(t.status)).length,
-          resolved: tickets.filter((t) => t.status === "RESOLVED").length,
-          closed: tickets.filter((t) => t.status === "CLOSED").length,
-        }
     : null;
 
   const hasAnyContent = isAdmin || itEnabled;
@@ -151,17 +136,17 @@ export default function CompanyDashboardPage() {
 
           {canViewAllTickets ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatCard icon={TicketIcon} label="Open" value={ticketStats?.open} loading={ticketsLoading} />
-              <StatCard icon={Flame} label="Critical" value={ticketStats?.critical} loading={ticketsLoading} />
-              <StatCard icon={Clock} label="In Progress" value={ticketStats?.inProgress} loading={ticketsLoading} />
-              <StatCard icon={CheckCircle2} label="Resolved" value={ticketStats?.resolved} loading={ticketsLoading} />
+              <StatCard icon={TicketIcon} label="Open" value={stats?.open} loading={ticketsLoading} />
+              <StatCard icon={Flame} label="Critical" value={stats?.critical} loading={ticketsLoading} />
+              <StatCard icon={Clock} label="In Progress" value={stats?.inProgress} loading={ticketsLoading} />
+              <StatCard icon={CheckCircle2} label="Resolved" value={stats?.resolved} loading={ticketsLoading} />
             </div>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-4">
-                <StatCard icon={TicketIcon} label="Open" value={ticketStats?.open} loading={ticketsLoading} />
-                <StatCard icon={CheckCircle2} label="Resolved" value={ticketStats?.resolved} loading={ticketsLoading} />
-                <StatCard icon={CheckCircle2} label="Closed" value={ticketStats?.closed} loading={ticketsLoading} />
+                <StatCard icon={TicketIcon} label="Open" value={stats?.active} loading={ticketsLoading} />
+                <StatCard icon={CheckCircle2} label="Resolved" value={stats?.resolved} loading={ticketsLoading} />
+                <StatCard icon={CheckCircle2} label="Closed" value={stats?.closed} loading={ticketsLoading} />
               </div>
 
               <Card>

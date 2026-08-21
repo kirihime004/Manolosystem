@@ -32,6 +32,98 @@ async function fetchCategoriesMap(companyId: string) {
   };
 }
 
+export interface TicketDashboardStats {
+  open: number;
+  assignedToMe: number;
+  inProgress: number;
+  waitingForUser: number;
+  critical: number;
+  overdue: number;
+  resolvedToday: number;
+  closedToday: number;
+  resolved: number;
+  closed: number;
+  active: number;
+  statusCounts: Partial<Record<string, number>>;
+  priorityCounts: Partial<Record<string, number>>;
+}
+
+// Computed server-side (see get_ticket_dashboard_stats migration) instead of
+// fetching every ticket and counting client-side -- the old approach meant
+// downloading and re-enriching the company's entire ticket history just to
+// render eight numbers, which stops scaling once there are a few hundred
+// tickets. This is also naturally RLS-scoped: a caller without
+// IT.TICKETS.VIEW transparently gets counts for just their own tickets.
+export async function getDashboardStats(companyId: string): Promise<TicketDashboardStats> {
+  const { data, error } = await supabase.rpc("get_ticket_dashboard_stats", { p_company_id: companyId });
+  if (error) throw error;
+  return data as unknown as TicketDashboardStats;
+}
+
+export interface MiniTicket {
+  id: string;
+  ticket_number: string;
+  subject: string;
+  status: Ticket["status"];
+  priority: Ticket["priority"];
+}
+
+const MINI_TICKET_COLUMNS = "id, ticket_number, subject, status, priority";
+
+export async function getRecentTickets(companyId: string, limit = 5): Promise<MiniTicket[]> {
+  const { data, error } = await supabase
+    .from("tickets")
+    .select(MINI_TICKET_COLUMNS)
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as MiniTicket[];
+}
+
+export async function getAssignedTickets(companyId: string, userId: string, limit = 5): Promise<MiniTicket[]> {
+  const { data, error } = await supabase
+    .from("tickets")
+    .select(MINI_TICKET_COLUMNS)
+    .eq("company_id", companyId)
+    .eq("assigned_to", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as MiniTicket[];
+}
+
+export async function getCriticalTickets(companyId: string, limit = 5): Promise<MiniTicket[]> {
+  const { data, error } = await supabase
+    .from("tickets")
+    .select(MINI_TICKET_COLUMNS)
+    .eq("company_id", companyId)
+    .eq("priority", "CRITICAL")
+    .not("status", "in", "(RESOLVED,CLOSED,CANCELLED)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as MiniTicket[];
+}
+
+// Lightweight lookup for the dashboard's quick-search -- no profile/category
+// enrichment, just enough to show a result and link to the ticket. RLS still
+// scopes this to whatever tickets the caller can actually see.
+export async function searchTickets(companyId: string, query: string, limit = 8): Promise<MiniTicket[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const { data, error } = await supabase
+    .from("tickets")
+    .select(MINI_TICKET_COLUMNS)
+    .eq("company_id", companyId)
+    .or(`subject.ilike.%${trimmed}%,ticket_number.ilike.%${trimmed}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data as MiniTicket[];
+}
+
 export async function listTickets(
   companyId: string,
   filters: TicketFilters = {},
