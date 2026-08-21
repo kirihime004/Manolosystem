@@ -26,11 +26,13 @@ export default function AppearancePage() {
   const { company, refresh } = useCompany();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const loginBgInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<"color" | "image">("color");
   const [color, setColor] = useState("#0f172a");
   const [uploading, setUploading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingLoginBg, setUploadingLoginBg] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -88,6 +90,54 @@ export default function AppearancePage() {
     }
 
     toast.success("Company icon updated");
+    refresh();
+  };
+
+  const handleUploadLoginBackground = async (file: File) => {
+    setUploadingLoginBg(true);
+
+    const ext = file.name.split(".").pop();
+    const path = `${company.id}/login-background-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("company-logos").upload(path, file, {
+      upsert: true,
+    });
+
+    if (uploadError) {
+      setUploadingLoginBg(false);
+      toast.error(uploadError.message);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage.from("company-logos").getPublicUrl(path);
+
+    const { error: updateError } = await supabase
+      .from("companies")
+      .update({ login_background_url: publicUrl.publicUrl })
+      .eq("id", company.id);
+
+    setUploadingLoginBg(false);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    toast.success("Login page background updated");
+    refresh();
+  };
+
+  const handleRemoveLoginBackground = async () => {
+    const { error } = await supabase
+      .from("companies")
+      .update({ login_background_url: null })
+      .eq("id", company.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Login page background removed");
     refresh();
   };
 
@@ -160,7 +210,7 @@ export default function AppearancePage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Appearance</h1>
         <p className="text-sm text-muted-foreground">
-          Customize your company's icon and the sidebar background.
+          Customize your company's icon, login page background, and sidebar background.
         </p>
       </div>
 
@@ -199,6 +249,55 @@ export default function AppearancePage() {
                 }}
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Login page background</CardTitle>
+          <CardDescription>
+            Shown behind the sign-in form at your company's login page. Text on the login card
+            automatically switches to stay readable over whatever you upload.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {company.login_background_url ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={company.login_background_url}
+                alt="Login page background"
+                className="h-16 w-16 rounded-md border border-border object-cover"
+              />
+              <Button type="button" variant="outline" size="sm" onClick={handleRemoveLoginBackground}>
+                <X className="h-3.5 w-3.5" />
+                Remove image
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No background set.</p>
+          )}
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploadingLoginBg}
+              onClick={() => loginBgInputRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {uploadingLoginBg ? "Uploading…" : "Upload image"}
+            </Button>
+            <input
+              ref={loginBgInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUploadLoginBackground(file);
+              }}
+            />
           </div>
         </CardContent>
       </Card>
