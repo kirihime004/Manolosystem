@@ -23,6 +23,8 @@ export interface Company {
   code: string;
   logo_url: string | null;
   login_background_url: string | null;
+  sidebar_background_url: string | null;
+  sidebar_background_color: string | null;
   status: CompanyStatus;
   created_at: string;
   updated_at: string;

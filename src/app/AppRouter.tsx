@@ -27,6 +27,7 @@ import CategoriesPage from "@/pages/it/CategoriesPage";
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
+import AppearancePage from "@/pages/company/settings/AppearancePage";
 
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -124,6 +125,14 @@ export function AppRouter() {
                 element={
                   <RequirePermission permission={PERMISSIONS.ADMIN_ROLES_MANAGE}>
                     <RolesPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="appearance"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_COMPANY_SETTINGS_MANAGE}>
+                    <AppearancePage />
                   </RequirePermission>
                 }
               />
