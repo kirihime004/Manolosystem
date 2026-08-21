@@ -26,6 +26,7 @@ import {
   type CompanyUserRow,
 } from "@/features/company/settings/useCompanyUsers";
 import { ManageUserSheet } from "@/features/company/settings/ManageUserSheet";
+import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { Company, MembershipStatus, ModuleKey } from "@/types/database";
 
 const STATUS_VARIANT: Record<MembershipStatus, "default" | "secondary" | "destructive"> = {
@@ -38,13 +39,6 @@ function initials(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-const MODULE_LABELS: Record<ModuleKey, string> = {
-  IT: "IT",
-  HR: "HR",
-  FINANCE: "Finance",
-  ADMIN: "Administration",
-  PRODUCTION: "Production Management",
-};
 
 export function CompanyDetailSheet({
   company,
@@ -259,7 +253,7 @@ export function CompanyDetailSheet({
               {modulesQuery.data?.map((m) => (
                 <div key={m.id} className="flex items-center justify-between rounded-md px-2 py-2.5">
                   <span className="text-sm font-medium text-foreground">
-                    {MODULE_LABELS[m.module_key as ModuleKey]}
+                    {MODULE_INFO[m.module_key as ModuleKey].label}
                   </span>
                   <Switch
                     checked={m.enabled}

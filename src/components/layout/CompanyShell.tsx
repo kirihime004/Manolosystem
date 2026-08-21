@@ -2,11 +2,7 @@ import { type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   LayoutDashboard,
-  Ticket,
-  Users,
-  DollarSign,
   Building2,
-  Clapperboard,
   LogOut,
   ChevronsUpDown,
   UserCog,
@@ -26,15 +22,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { ModuleKey } from "@/types/database";
 
-const MODULE_NAV: { key: ModuleKey; label: string; icon: LucideIcon; path: string }[] = [
-  { key: "IT", label: "IT", icon: Ticket, path: "it" },
-  { key: "HR", label: "HR", icon: Users, path: "hr" },
-  { key: "FINANCE", label: "Finance", icon: DollarSign, path: "finance" },
-  { key: "ADMIN", label: "Administration", icon: Building2, path: "admin" },
-  { key: "PRODUCTION", label: "Production", icon: Clapperboard, path: "production" },
-];
+const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][]).map(
+  ([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }),
+);
 
 const SETTINGS_NAV: { label: string; icon: LucideIcon; path: string; permissions: string[] }[] = [
   { label: "Users", icon: UserCog, path: "settings/users", permissions: [PERMISSIONS.ADMIN_USERS_VIEW, PERMISSIONS.ADMIN_USERS_MANAGE] },

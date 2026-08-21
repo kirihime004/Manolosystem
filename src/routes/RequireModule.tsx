@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
+import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { ModuleKey } from "@/types/database";
 
 // Belt-and-suspenders module gate: even if a disabled module's link is
@@ -19,8 +20,8 @@ export function RequireModule({
   if (!isModuleEnabled(moduleKey)) {
     return (
       <ErrorScreen
-        title="Module not available"
-        description={`The ${moduleKey} module is not enabled for this company.`}
+        title="Not available"
+        description={`${MODULE_INFO[moduleKey].label} is not enabled for this company.`}
       />
     );
   }

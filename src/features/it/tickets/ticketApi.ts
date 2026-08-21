@@ -208,3 +208,92 @@ export async function getAttachmentSignedUrl(filePath: string) {
   if (error) throw error;
   return data.signedUrl;
 }
+
+export interface TicketActivityItem {
+  id: string;
+  kind: "comment" | "status";
+  ticketId: string;
+  ticketNumber: string;
+  subject: string;
+  at: string;
+  actorName: string;
+  detail: string;
+}
+
+function fullName(p: MiniProfile | undefined) {
+  if (!p) return "Someone";
+  return `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Someone";
+}
+
+// Recent comments and status changes on tickets this specific user is
+// involved in (as requester or assignee), regardless of their broader
+// ticket permissions -- this is the "did IT reply to me / is my ticket
+// resolved" feed for the company dashboard, not a staff-wide activity log.
+export async function getMyTicketActivity(
+  companyId: string,
+  userId: string,
+  limit = 6,
+): Promise<TicketActivityItem[]> {
+  const { data: myTickets, error: ticketsError } = await supabase
+    .from("tickets")
+    .select("id, ticket_number, subject")
+    .eq("company_id", companyId)
+    .or(`requester_id.eq.${userId},assigned_to.eq.${userId}`);
+  if (ticketsError) throw ticketsError;
+  if (!myTickets || myTickets.length === 0) return [];
+
+  const ticketIds = myTickets.map((t) => t.id);
+  const ticketMap = new Map(myTickets.map((t) => [t.id, t]));
+
+  const [{ data: comments, error: commentsError }, { data: history, error: historyError }] =
+    await Promise.all([
+      supabase
+        .from("ticket_comments")
+        .select("id, ticket_id, author_id, body, created_at")
+        .in("ticket_id", ticketIds)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabase
+        .from("ticket_status_history")
+        .select("id, ticket_id, old_status, new_status, changed_by, created_at")
+        .in("ticket_id", ticketIds)
+        .not("old_status", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    ]);
+  if (commentsError) throw commentsError;
+  if (historyError) throw historyError;
+
+  const actorIds = [
+    ...(comments ?? []).map((c) => c.author_id),
+    ...((history ?? []).map((h) => h.changed_by).filter(Boolean) as string[]),
+  ];
+  const profiles = await fetchProfilesMap(actorIds);
+
+  const items: TicketActivityItem[] = [
+    ...(comments ?? []).map((c) => ({
+      id: `comment-${c.id}`,
+      kind: "comment" as const,
+      ticketId: c.ticket_id,
+      ticketNumber: ticketMap.get(c.ticket_id)?.ticket_number ?? "",
+      subject: ticketMap.get(c.ticket_id)?.subject ?? "",
+      at: c.created_at,
+      actorName: fullName(profiles.get(c.author_id)),
+      detail: c.body,
+    })),
+    ...(history ?? []).map((h) => ({
+      id: `status-${h.id}`,
+      kind: "status" as const,
+      ticketId: h.ticket_id,
+      ticketNumber: ticketMap.get(h.ticket_id)?.ticket_number ?? "",
+      subject: ticketMap.get(h.ticket_id)?.subject ?? "",
+      at: h.created_at,
+      actorName: h.changed_by ? fullName(profiles.get(h.changed_by)) : "System",
+      detail: `${h.old_status} → ${h.new_status}`,
+    })),
+  ]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, limit);
+
+  return items;
+}

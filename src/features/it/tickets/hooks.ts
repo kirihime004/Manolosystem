@@ -65,6 +65,14 @@ export function useCompanyMembers(companyId: string | undefined) {
   });
 }
 
+export function useMyTicketActivity(companyId: string | undefined, userId: string | undefined) {
+  return useQuery({
+    queryKey: ["my-ticket-activity", companyId, userId],
+    queryFn: () => api.getMyTicketActivity(companyId!, userId!),
+    enabled: !!companyId && !!userId,
+  });
+}
+
 export function useTicketMutations(ticketId?: string) {
   const queryClient = useQueryClient();
 
