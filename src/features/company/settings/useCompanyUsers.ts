@@ -5,6 +5,7 @@ import type { MembershipStatus, Profile } from "@/types/database";
 
 export interface CompanyUserRow {
   id: string;
+  userId: string;
   status: MembershipStatus;
   department: { id: string; name: string } | null;
   profile: Pick<Profile, "id" | "first_name" | "last_name" | "avatar_url"> | null;
@@ -52,6 +53,7 @@ export function useCompanyUsersList(companyId: string | undefined) {
         const department = m.departments as unknown as { id: string; name: string } | { id: string; name: string }[] | null;
         return {
           id: m.id,
+          userId: m.user_id,
           status: m.status as MembershipStatus,
           department: Array.isArray(department) ? department[0] ?? null : department,
           profile: profileMap.get(m.user_id) ?? null,
@@ -89,6 +91,48 @@ export function useUpdateUserDepartment(companyId: string | undefined) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-users-list", companyId] }),
+  });
+}
+
+// Replaces a user's full role set for this company. Same delete-then-insert
+// approach as useRoleMutations().setPermissions -- RLS still requires
+// ADMIN.USERS.MANAGE for both halves, so a partial failure just leaves them
+// under-assigned rather than granting anything unintended.
+export function useUpdateUserRoles(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { membershipId: string; roleIds: string[] }) => {
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("company_user_id", input.membershipId);
+      if (deleteError) throw deleteError;
+
+      if (input.roleIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert(input.roleIds.map((role_id) => ({ company_user_id: input.membershipId, role_id })));
+        if (insertError) throw insertError;
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-users-list", companyId] }),
+  });
+}
+
+export function useAdminSetPassword(companyId: string | undefined) {
+  return useMutation({
+    mutationFn: async (input: { userId: string; newPassword: string }) => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const { data, error } = await supabase.functions.invoke("admin-set-password", {
+        body: { companyId, userId: input.userId, newPassword: input.newPassword },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw new Error(await getFunctionErrorMessage(error));
+      return data;
+    },
   });
 }
 

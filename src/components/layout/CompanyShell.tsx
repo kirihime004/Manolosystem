@@ -117,6 +117,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={() => navigate(`${base}/account`)}>
+                Account settings
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/company")}>
                 Switch company
               </DropdownMenuItem>

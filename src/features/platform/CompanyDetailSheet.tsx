@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { getFunctionErrorMessage } from "@/lib/supabase/functionError";
 import {
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Company, ModuleKey } from "@/types/database";
 
 const MODULE_LABELS: Record<ModuleKey, string> = {
@@ -63,6 +65,63 @@ export function CompanyDetailSheet({
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const [name, setName] = useState(company?.name ?? "");
+  const [savingName, setSavingName] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  useEffect(() => {
+    setName(company?.name ?? "");
+  }, [company?.id, company?.name]);
+
+  const handleSaveName = async () => {
+    if (!company || !name.trim() || name.trim() === company.name) return;
+    setSavingName(true);
+    const { error } = await supabase.from("companies").update({ name: name.trim() }).eq("id", company.id);
+    setSavingName(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Company name updated");
+    queryClient.invalidateQueries({ queryKey: ["platform-companies"] });
+  };
+
+  const handleUploadLogo = async (file: File) => {
+    if (!company) return;
+    setUploadingLogo(true);
+
+    const ext = file.name.split(".").pop();
+    const path = `${company.id}/logo-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("company-logos").upload(path, file, {
+      upsert: true,
+    });
+
+    if (uploadError) {
+      setUploadingLogo(false);
+      toast.error(uploadError.message);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage.from("company-logos").getPublicUrl(path);
+
+    const { error: updateError } = await supabase
+      .from("companies")
+      .update({ logo_url: publicUrl.publicUrl })
+      .eq("id", company.id);
+
+    setUploadingLogo(false);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    toast.success("Logo updated");
+    queryClient.invalidateQueries({ queryKey: ["platform-companies"] });
+  };
 
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -116,15 +175,61 @@ export function CompanyDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>{company.name}</SheetTitle>
+          <SheetTitle>{name || company.name}</SheetTitle>
         </SheetHeader>
 
         <div className="px-4 pb-6">
-          <Tabs defaultValue="modules">
+          <Tabs defaultValue="details">
             <TabsList className="w-full">
+              <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
               <TabsTrigger value="modules" className="flex-1">Modules</TabsTrigger>
               <TabsTrigger value="admin" className="flex-1">Company Admin</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="details" className="space-y-5 pt-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 rounded-xl">
+                  <AvatarImage src={company.logo_url ?? undefined} />
+                  <AvatarFallback className="rounded-xl bg-primary text-lg text-primary-foreground">
+                    {company.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <label htmlFor="logo-upload">
+                    <Button type="button" variant="outline" size="sm" disabled={uploadingLogo} asChild>
+                      <span className="cursor-pointer">
+                        <Upload className="h-3.5 w-3.5" />
+                        {uploadingLogo ? "Uploading…" : "Upload logo"}
+                      </span>
+                    </Button>
+                  </label>
+                  <input
+                    id="logo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadLogo(file);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="company-name">Company name</Label>
+                <div className="flex gap-2">
+                  <Input id="company-name" value={name} onChange={(e) => setName(e.target.value)} />
+                  <Button
+                    type="button"
+                    onClick={handleSaveName}
+                    disabled={savingName || !name.trim() || name.trim() === company.name}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
 
             <TabsContent value="modules" className="space-y-1 pt-4">
               {modulesQuery.data?.map((m) => (

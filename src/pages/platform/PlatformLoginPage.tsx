@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/useAuth";
+import { usePlatformAdmin } from "@/lib/auth/usePlatformAdmin";
 import { AuthCard } from "@/components/shared/AuthCard";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,13 +13,21 @@ import { Button } from "@/components/ui/button";
 export default function PlatformLoginPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  // Only auto-redirect once we've confirmed the *currently signed-in*
+  // account is actually a platform admin -- otherwise a company user who
+  // happens to be logged in in this browser (e.g. testing another account)
+  // would get bounced straight back here by RequirePlatformAdmin on every
+  // render, which looked like the form silently rejecting all input.
+  const { isPlatformAdmin } = usePlatformAdmin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) {
-    navigate("/platform", { replace: true });
-  }
+  useEffect(() => {
+    if (user && isPlatformAdmin) {
+      navigate("/platform", { replace: true });
+    }
+  }, [user, isPlatformAdmin, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

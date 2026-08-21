@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { Users } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useCompanyUsersList,
   useToggleUserStatus,
+  type CompanyUserRow,
 } from "@/features/company/settings/useCompanyUsers";
 import { InviteEmployeeDialog } from "@/features/company/settings/InviteEmployeeDialog";
+import { ManageUserSheet } from "@/features/company/settings/ManageUserSheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +32,9 @@ export default function UsersPage() {
   const { data: users, isLoading } = useCompanyUsersList(company?.id);
   const toggleStatus = useToggleUserStatus(company?.id);
 
+  const [managing, setManaging] = useState<CompanyUserRow | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   const handleToggle = async (membershipId: string, current: MembershipStatus) => {
     const next = current === "DISABLED" ? "ACTIVE" : "DISABLED";
     try {
@@ -44,7 +50,9 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Users</h1>
-          <p className="text-sm text-muted-foreground">Manage who has access to {company?.name}.</p>
+          <p className="text-sm text-muted-foreground">
+            Manage who has access to {company?.name}. Click a user to edit roles or reset their password.
+          </p>
         </div>
         <InviteEmployeeDialog companyId={company?.id} />
       </div>
@@ -69,7 +77,14 @@ export default function UsersPage() {
             </TableHeader>
             <TableBody>
               {users.map((u) => (
-                <TableRow key={u.id}>
+                <TableRow
+                  key={u.id}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setManaging(u);
+                    setSheetOpen(true);
+                  }}
+                >
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar className="h-7 w-7">
@@ -97,7 +112,7 @@ export default function UsersPage() {
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[u.status]}>{u.status}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     {u.status !== "INVITED" && (
                       <Button
                         variant="outline"
@@ -115,6 +130,8 @@ export default function UsersPage() {
           </Table>
         )}
       </div>
+
+      <ManageUserSheet user={managing} companyId={company?.id} open={sheetOpen} onOpenChange={setSheetOpen} />
     </div>
   );
 }
