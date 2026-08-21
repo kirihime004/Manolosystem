@@ -47,14 +47,14 @@ export default function CompanySelectPage() {
             // outline via CSS filter (any nonzero blur radius produces a
             // soft/spread glow instead of a crisp stroke).
             filter: [
-              "drop-shadow(0.5px 0 0 #fff)",
-              "drop-shadow(-0.5px 0 0 #fff)",
-              "drop-shadow(0 0.5px 0 #fff)",
-              "drop-shadow(0 -0.5px 0 #fff)",
-              "drop-shadow(0.35px 0.35px 0 #fff)",
-              "drop-shadow(-0.35px 0.35px 0 #fff)",
-              "drop-shadow(0.35px -0.35px 0 #fff)",
-              "drop-shadow(-0.35px -0.35px 0 #fff)",
+              "drop-shadow(0.5px 0 0 rgba(255,255,255,0.5))",
+              "drop-shadow(-0.5px 0 0 rgba(255,255,255,0.5))",
+              "drop-shadow(0 0.5px 0 rgba(255,255,255,0.5))",
+              "drop-shadow(0 -0.5px 0 rgba(255,255,255,0.5))",
+              "drop-shadow(0.35px 0.35px 0 rgba(255,255,255,0.5))",
+              "drop-shadow(-0.35px 0.35px 0 rgba(255,255,255,0.5))",
+              "drop-shadow(0.35px -0.35px 0 rgba(255,255,255,0.5))",
+              "drop-shadow(-0.35px -0.35px 0 rgba(255,255,255,0.5))",
             ].join(" "),
           }}
         />
