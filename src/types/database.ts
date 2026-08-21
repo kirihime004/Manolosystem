@@ -22,6 +22,7 @@ export interface Company {
   slug: string;
   code: string;
   logo_url: string | null;
+  login_background_url: string | null;
   status: CompanyStatus;
   created_at: string;
   updated_at: string;

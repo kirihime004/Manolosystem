@@ -34,12 +34,37 @@ export function AuthCard({
         {logo}
         {title && (
           <div>
-            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+            <h1
+              className={cn(
+                "text-lg font-semibold",
+                backgroundImage ? "text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.85)]" : "text-foreground",
+              )}
+            >
+              {title}
+            </h1>
+            {subtitle && (
+              <p
+                className={cn(
+                  "text-sm",
+                  backgroundImage
+                    ? "text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.85)]"
+                    : "text-muted-foreground",
+                )}
+              >
+                {subtitle}
+              </p>
+            )}
           </div>
         )}
         {!title && subtitle && (
-          <p className={cn("text-sm", backgroundImage ? "text-white/70" : "text-muted-foreground")}>
+          <p
+            className={cn(
+              "text-sm",
+              backgroundImage
+                ? "text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.85)]"
+                : "text-muted-foreground",
+            )}
+          >
             {subtitle}
           </p>
         )}

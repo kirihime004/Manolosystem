@@ -13,8 +13,12 @@ import { ErrorScreen } from "@/components/shared/ErrorScreen";
 interface CompanyLookup {
   name: string;
   logo_url: string | null;
+  login_background_url: string | null;
   status: string;
 }
+
+const inputDarkOverride =
+  "dark:border-white/20 dark:bg-white/95 dark:text-slate-900 dark:placeholder:text-slate-500";
 
 export default function CompanyLoginPage() {
   const { companySlug } = useParams<{ companySlug: string }>();
@@ -112,6 +116,7 @@ export default function CompanyLoginPage() {
 
   return (
     <AuthCard
+      backgroundImage={lookup.login_background_url ?? undefined}
       logo={
         <Avatar className="h-14 w-14 rounded-xl">
           <AvatarImage src={lookup.logo_url ?? undefined} />
@@ -125,7 +130,7 @@ export default function CompanyLoginPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="dark:text-white">Email</Label>
           <Input
             id="email"
             type="email"
@@ -133,10 +138,11 @@ export default function CompanyLoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className={inputDarkOverride}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="dark:text-white">Password</Label>
           <Input
             id="password"
             type="password"
@@ -144,6 +150,7 @@ export default function CompanyLoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className={inputDarkOverride}
           />
         </div>
         <Button type="submit" className="w-full" disabled={submitting}>

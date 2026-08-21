@@ -82,10 +82,12 @@ export function CompanyDetailSheet({
   const [name, setName] = useState(company?.name ?? "");
   const [savingName, setSavingName] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [loginBackgroundUrl, setLoginBackgroundUrl] = useState(company?.login_background_url ?? null);
 
   useEffect(() => {
     setName(company?.name ?? "");
-  }, [company?.id, company?.name]);
+    setLoginBackgroundUrl(company?.login_background_url ?? null);
+  }, [company?.id, company?.name, company?.login_background_url]);
 
   const handleSaveName = async () => {
     if (!company || !name.trim() || name.trim() === company.name) return;
@@ -133,6 +135,60 @@ export function CompanyDetailSheet({
     }
 
     toast.success("Logo updated");
+    queryClient.invalidateQueries({ queryKey: ["platform-companies"] });
+  };
+
+  const [uploadingBackground, setUploadingBackground] = useState(false);
+
+  const handleUploadBackground = async (file: File) => {
+    if (!company) return;
+    setUploadingBackground(true);
+
+    const ext = file.name.split(".").pop();
+    const path = `${company.id}/login-background-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("company-logos").upload(path, file, {
+      upsert: true,
+    });
+
+    if (uploadError) {
+      setUploadingBackground(false);
+      toast.error(uploadError.message);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage.from("company-logos").getPublicUrl(path);
+
+    const { error: updateError } = await supabase
+      .from("companies")
+      .update({ login_background_url: publicUrl.publicUrl })
+      .eq("id", company.id);
+
+    setUploadingBackground(false);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    setLoginBackgroundUrl(publicUrl.publicUrl);
+    toast.success("Login background updated");
+    queryClient.invalidateQueries({ queryKey: ["platform-companies"] });
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!company) return;
+    const { error } = await supabase
+      .from("companies")
+      .update({ login_background_url: null })
+      .eq("id", company.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setLoginBackgroundUrl(null);
+    toast.success("Login background removed");
     queryClient.invalidateQueries({ queryKey: ["platform-companies"] });
   };
 
@@ -246,6 +302,45 @@ export function CompanyDetailSheet({
                     Save
                   </Button>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Login page background</Label>
+                <p className="text-xs text-muted-foreground">
+                  Shown behind {company.name}'s own sign-in screen at /c/{company.slug}/login. Leave unset to use
+                  the default plain background.
+                </p>
+                {loginBackgroundUrl && (
+                  <div
+                    className="h-24 w-full rounded-md border border-border bg-cover bg-center"
+                    style={{ backgroundImage: `url(${loginBackgroundUrl})` }}
+                  />
+                )}
+                <div className="flex gap-2">
+                  <label htmlFor="background-upload">
+                    <Button type="button" variant="outline" size="sm" disabled={uploadingBackground} asChild>
+                      <span className="cursor-pointer">
+                        <Upload className="h-3.5 w-3.5" />
+                        {uploadingBackground ? "Uploading…" : loginBackgroundUrl ? "Replace" : "Upload background"}
+                      </span>
+                    </Button>
+                  </label>
+                  {loginBackgroundUrl && (
+                    <Button type="button" variant="ghost" size="sm" onClick={handleRemoveBackground}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <input
+                  id="background-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadBackground(file);
+                  }}
+                />
               </div>
             </TabsContent>
 
