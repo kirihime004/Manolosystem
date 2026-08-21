@@ -72,7 +72,7 @@ export function CompanyShell({ children }: { children: ReactNode }) {
       : undefined;
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       <aside
         className={cn(
           "relative flex w-64 flex-col overflow-hidden border-r border-border bg-card",

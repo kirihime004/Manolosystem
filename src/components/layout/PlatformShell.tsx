@@ -16,7 +16,7 @@ export function PlatformShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       <aside className="flex w-64 flex-col border-r border-border bg-card">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
           <img src="/brand/favicon.png" alt="Mindburst" className="h-8 w-8 rounded-md" />
