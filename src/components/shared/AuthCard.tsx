@@ -50,7 +50,7 @@ export function AuthCard({
           className={cn(
             "rounded-xl border p-6",
             backgroundImage
-              ? "border-white/15 bg-white/10 shadow-[0_0_60px_-12px_rgba(99,102,241,0.5)] backdrop-blur-xl"
+              ? "border-white/20 bg-slate-950/70 shadow-[0_0_60px_-12px_rgba(99,102,241,0.6)] backdrop-blur-xl"
               : "border-border bg-card shadow-sm",
           )}
         >

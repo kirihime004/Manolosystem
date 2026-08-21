@@ -42,8 +42,20 @@ export default function CompanySelectPage() {
           alt="Mindburst"
           className="w-[26rem] max-w-full"
           style={{
-            filter:
-              "drop-shadow(0 0 25px rgba(59,130,246,0.65)) drop-shadow(0 0 45px rgba(249,115,22,0.45))",
+            // Zero-blur drop-shadows stacked in 8 directions at a fixed 2px
+            // offset -- this is the only way to get a hard-edged solid
+            // outline via CSS filter (any nonzero blur radius produces a
+            // soft/spread glow instead of a crisp stroke).
+            filter: [
+              "drop-shadow(0.5px 0 0 #fff)",
+              "drop-shadow(-0.5px 0 0 #fff)",
+              "drop-shadow(0 0.5px 0 #fff)",
+              "drop-shadow(0 -0.5px 0 #fff)",
+              "drop-shadow(0.35px 0.35px 0 #fff)",
+              "drop-shadow(-0.35px 0.35px 0 #fff)",
+              "drop-shadow(0.35px -0.35px 0 #fff)",
+              "drop-shadow(-0.35px -0.35px 0 #fff)",
+            ].join(" "),
           }}
         />
       }
@@ -51,7 +63,7 @@ export default function CompanySelectPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="code">Company code</Label>
+          <Label htmlFor="code" className="text-white">Company code</Label>
           <Input
             id="code"
             placeholder="e.g. JBCO"
@@ -60,13 +72,14 @@ export default function CompanySelectPage() {
             required
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
+            className="border-white/20 bg-white/95 text-slate-900 placeholder:text-slate-500 focus-visible:ring-white/40 dark:border-white/20 dark:bg-white/95 dark:text-slate-900 dark:placeholder:text-slate-500"
           />
         </div>
         <Button type="submit" className="w-full" disabled={submitting}>
           {submitting ? "Looking up…" : "Continue"}
         </Button>
       </form>
-      <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+      <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-white/80">
         <Building2 className="h-3.5 w-3.5" />
         Not sure of your company code? Ask your company administrator.
       </div>
