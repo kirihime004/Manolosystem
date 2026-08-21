@@ -13,9 +13,20 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useRoles } from "@/features/company/settings/useRoles";
 import {
   useAdminSetPassword,
+  useDeleteCompanyMembership,
   useUpdateUserRoles,
   type CompanyUserRow,
 } from "@/features/company/settings/useCompanyUsers";
@@ -30,19 +41,24 @@ export function ManageUserSheet({
   companyId,
   open,
   onOpenChange,
+  allowDelete = false,
 }: {
   user: CompanyUserRow | null;
   companyId: string | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Platform Superadmin only -- Company Admin cannot delete a membership, only disable it. */
+  allowDelete?: boolean;
 }) {
   const { data: roles } = useRoles(companyId);
   const updateRoles = useUpdateUserRoles(companyId);
   const setPassword = useAdminSetPassword(companyId);
+  const deleteMembership = useDeleteCompanyMembership(companyId);
 
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
   const [newPassword, setNewPassword] = useState(generatePassword);
   const [resetResult, setResetResult] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (user) setSelectedRoles(new Set(user.roles.map((r) => r.id)));
@@ -81,6 +97,17 @@ export function ManageUserSheet({
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      await deleteMembership.mutateAsync({ membershipId: user!.id });
+      toast.success(`${displayName} removed from this company`);
+      setConfirmDelete(false);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove user");
+    }
+  };
+
   const displayName = `${user.profile?.first_name ?? ""} ${user.profile?.last_name ?? ""}`.trim() || "This user";
 
   return (
@@ -88,6 +115,7 @@ export function ManageUserSheet({
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{displayName}</SheetTitle>
+          {user.email && <p className="text-xs text-muted-foreground">{user.email}</p>}
         </SheetHeader>
 
         <div className="px-4 pb-6">
@@ -176,8 +204,40 @@ export function ManageUserSheet({
           <p className="text-xs text-muted-foreground">
             The user can also change their own password anytime from Account settings.
           </p>
+
+          {allowDelete && (
+            <>
+              <Separator className="my-6" />
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Danger zone</p>
+                <p className="text-xs text-muted-foreground">
+                  Removes {displayName} from this company only. Their account and any other company
+                  memberships are unaffected.
+                </p>
+                <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
+                  Remove from company
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </SheetContent>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {displayName} from this company?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes their membership, roles, and department assignment for this company. Their
+              account and any other company memberships are unaffected. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }

@@ -1,35 +1,65 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Upload } from "lucide-react";
 import { useAuth } from "@/lib/auth/useAuth";
+import { useMyProfile, useInvalidateMyProfile } from "@/lib/auth/useMyProfile";
 import { supabase } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+function initials(first?: string | null, last?: string | null, email?: string | null) {
+  const fromName = `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
+  return fromName || (email?.[0] ?? "?").toUpperCase();
+}
 
 export default function AccountSettingsPage() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["my-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user!.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
+  const { data: profile, isLoading } = useMyProfile();
+  const invalidateProfile = useInvalidateMyProfile();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleUploadAvatar = async (file: File) => {
+    if (!user) return;
+    setUploadingAvatar(true);
+
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
+      upsert: true,
+    });
+
+    if (uploadError) {
+      setUploadingAvatar(false);
+      toast.error(uploadError.message);
+      return;
+    }
+
+    const { data: publicUrl } = supabase.storage.from("avatars").getPublicUrl(path);
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: publicUrl.publicUrl })
+      .eq("id", user.id);
+
+    setUploadingAvatar(false);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    toast.success("Profile picture updated");
+    invalidateProfile();
+  };
 
   useEffect(() => {
     if (profile) {
@@ -52,7 +82,7 @@ export default function AccountSettingsPage() {
       return;
     }
     toast.success("Profile updated");
-    queryClient.invalidateQueries({ queryKey: ["my-profile", user?.id] });
+    invalidateProfile();
   };
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -116,6 +146,35 @@ export default function AccountSettingsPage() {
           <CardTitle className="text-base">Profile</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-5 flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile?.avatar_url ?? undefined} />
+              <AvatarFallback className="text-lg">
+                {initials(profile?.first_name, profile?.last_name, user?.email)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <label htmlFor="avatar-upload">
+                <Button type="button" variant="outline" size="sm" disabled={uploadingAvatar} asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="h-3.5 w-3.5" />
+                    {uploadingAvatar ? "Uploading…" : "Change picture"}
+                  </span>
+                </Button>
+              </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadAvatar(file);
+                }}
+              />
+            </div>
+          </div>
+
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
+import { useMyProfile } from "@/lib/auth/useMyProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -45,12 +46,14 @@ export function CompanyShell({ children }: { children: ReactNode }) {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company, enabledModules, hasPermission } = useCompany();
   const { user, signOut } = useAuth();
+  const { data: profile } = useMyProfile();
   const location = useLocation();
   const navigate = useNavigate();
 
   const base = `/c/${companySlug}`;
+  const displayName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const initials =
-    (user?.user_metadata?.first_name?.[0] ?? user?.email?.[0] ?? "?").toUpperCase();
+    (profile?.first_name?.[0] ?? user?.email?.[0] ?? "?").toUpperCase();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -105,11 +108,12 @@ export function CompanyShell({ children }: { children: ReactNode }) {
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-2 rounded-md p-2 text-left hover:bg-accent">
                 <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile?.avatar_url ?? undefined} />
                   <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">
-                    {user?.user_metadata?.first_name ?? user?.email}
+                    {displayName || user?.email}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                 </div>

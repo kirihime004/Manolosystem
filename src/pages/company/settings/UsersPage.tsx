@@ -9,7 +9,7 @@ import {
 } from "@/features/company/settings/useCompanyUsers";
 import { InviteEmployeeDialog } from "@/features/company/settings/InviteEmployeeDialog";
 import { ManageUserSheet } from "@/features/company/settings/ManageUserSheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -69,6 +69,7 @@ export default function UsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Status</TableHead>
@@ -88,6 +89,7 @@ export default function UsersPage() {
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar className="h-7 w-7">
+                        <AvatarImage src={u.profile?.avatar_url ?? undefined} />
                         <AvatarFallback className="text-[10px]">
                           {initials(u.profile?.first_name, u.profile?.last_name)}
                         </AvatarFallback>
@@ -97,6 +99,7 @@ export default function UsersPage() {
                       </span>
                     </div>
                   </TableCell>
+                  <TableCell className="text-muted-foreground">{u.email ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{u.department?.name ?? "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

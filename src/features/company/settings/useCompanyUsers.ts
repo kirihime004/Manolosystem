@@ -28,18 +28,25 @@ export function useCompanyUsersList(companyId: string | undefined) {
       const userIds = memberships.map((m) => m.user_id);
       const membershipIds = memberships.map((m) => m.id);
 
-      const [{ data: profiles, error: profileError }, { data: userRoles, error: roleError }] =
-        await Promise.all([
-          supabase.from("profiles").select("id, first_name, last_name, avatar_url").in("id", userIds),
-          supabase
-            .from("user_roles")
-            .select("company_user_id, roles(id, name)")
-            .in("company_user_id", membershipIds),
-        ]);
+      const [
+        { data: profiles, error: profileError },
+        { data: userRoles, error: roleError },
+        { data: emails, error: emailError },
+      ] = await Promise.all([
+        supabase.from("profiles").select("id, first_name, last_name, avatar_url").in("id", userIds),
+        supabase
+          .from("user_roles")
+          .select("company_user_id, roles(id, name)")
+          .in("company_user_id", membershipIds),
+        supabase.rpc("get_company_member_emails", { p_company_id: companyId! }),
+      ]);
       if (profileError) throw profileError;
       if (roleError) throw roleError;
+      if (emailError) throw emailError;
 
       const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      const emailRows = (emails ?? []) as { user_id: string; email: string }[];
+      const emailMap = new Map(emailRows.map((e) => [e.user_id, e.email]));
       const rolesByMembership = new Map<string, { id: string; name: string }[]>();
       for (const ur of userRoles ?? []) {
         const role = ur.roles as unknown as { id: string; name: string } | null;
@@ -57,7 +64,7 @@ export function useCompanyUsersList(companyId: string | undefined) {
           status: m.status as MembershipStatus,
           department: Array.isArray(department) ? department[0] ?? null : department,
           profile: profileMap.get(m.user_id) ?? null,
-          email: null,
+          email: emailMap.get(m.user_id) ?? null,
           roles: rolesByMembership.get(m.id) ?? [],
         };
       });
@@ -114,6 +121,30 @@ export function useUpdateUserRoles(companyId: string | undefined) {
           .insert(input.roleIds.map((role_id) => ({ company_user_id: input.membershipId, role_id })));
         if (insertError) throw insertError;
       }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-users-list", companyId] }),
+  });
+}
+
+// Platform Superadmin only (enforced by RLS: company_users has no DELETE
+// policy for Company Admins, only is_platform_superadmin()). Removes this
+// company's membership row -- cascades to this company's user_roles -- but
+// never touches the underlying auth.users account or any other company's
+// membership, since a user can belong to several companies.
+export function useDeleteCompanyMembership(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { membershipId: string }) => {
+      const { error } = await supabase.from("company_users").delete().eq("id", input.membershipId);
+      if (error) throw error;
+
+      await supabase.rpc("log_audit_event", {
+        p_company_id: companyId,
+        p_action: "USER_REMOVED",
+        p_resource_type: "company_user",
+        p_resource_id: input.membershipId,
+        p_metadata: {},
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-users-list", companyId] }),
   });
