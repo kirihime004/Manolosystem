@@ -4,7 +4,7 @@
 
 export type CompanyStatus = "ACTIVE" | "SUSPENDED" | "INACTIVE";
 export type MembershipStatus = "ACTIVE" | "DISABLED" | "INVITED";
-export type ModuleKey = "IT" | "HR" | "FINANCE" | "ADMIN" | "PRODUCTION";
+export type ModuleKey = "IT" | "INVENTORY" | "HR" | "FINANCE" | "ADMIN" | "PRODUCTION";
 export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type TicketStatus =
   | "OPEN"

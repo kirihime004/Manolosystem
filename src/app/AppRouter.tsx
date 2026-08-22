@@ -120,52 +120,58 @@ export function AppRouter() {
                   </RequirePermission>
                 }
               />
+            </Route>
 
-              <Route
-                path="inventory"
-                element={
+            {/* Inventory is a separately toggleable module (Platform Superadmin
+                can turn it on/off independently of Ticketing), so it gets its
+                own RequireModule gate rather than nesting under "it" above --
+                even though the URL and sidebar still present it as part of IT. */}
+            <Route
+              path="it/inventory"
+              element={
+                <RequireModule moduleKey="INVENTORY">
                   <RequirePermission permission={PERMISSIONS.IT_INVENTORY_VIEW}>
                     <Outlet />
                   </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route index element={<InventoryDashboardPage />} />
+              <Route path="items" element={<AssetListPage title="All Items" description="Every hardware and software asset" />} />
+              <Route path="hardware" element={<AssetListPage presetType="HARDWARE" title="Hardware" description="Physical equipment inventory" />} />
+              <Route path="software" element={<AssetListPage presetType="SOFTWARE" title="Software" description="Licenses and applications" />} />
+              <Route
+                path="subscriptions"
+                element={<AssetListPage presetType="SOFTWARE" presetSoftwareType="SUBSCRIPTION" title="Subscriptions" description="Recurring software subscriptions" />}
+              />
+              <Route path="repairs" element={<RepairsPage />} />
+              <Route path="disposal" element={<DisposalsPage />} />
+              <Route path="history" element={<AssetHistoryPage />} />
+              <Route
+                path="new"
+                element={
+                  <RequirePermission permission={PERMISSIONS.IT_INVENTORY_CREATE}>
+                    <CreateAssetPage />
+                  </RequirePermission>
                 }
-              >
-                <Route index element={<InventoryDashboardPage />} />
-                <Route path="items" element={<AssetListPage title="All Items" description="Every hardware and software asset" />} />
-                <Route path="hardware" element={<AssetListPage presetType="HARDWARE" title="Hardware" description="Physical equipment inventory" />} />
-                <Route path="software" element={<AssetListPage presetType="SOFTWARE" title="Software" description="Licenses and applications" />} />
-                <Route
-                  path="subscriptions"
-                  element={<AssetListPage presetType="SOFTWARE" presetSoftwareType="SUBSCRIPTION" title="Subscriptions" description="Recurring software subscriptions" />}
-                />
-                <Route path="repairs" element={<RepairsPage />} />
-                <Route path="disposal" element={<DisposalsPage />} />
-                <Route path="history" element={<AssetHistoryPage />} />
-                <Route
-                  path="new"
-                  element={
-                    <RequirePermission permission={PERMISSIONS.IT_INVENTORY_CREATE}>
-                      <CreateAssetPage />
-                    </RequirePermission>
-                  }
-                />
-                <Route
-                  path="credentials"
-                  element={
-                    <RequirePermission permission={PERMISSIONS.IT_CREDENTIALS_VIEW}>
-                      <CredentialsPage />
-                    </RequirePermission>
-                  }
-                />
-                <Route
-                  path="ip"
-                  element={
-                    <RequirePermission permission={PERMISSIONS.IT_IP_VIEW}>
-                      <IpAddressesPage />
-                    </RequirePermission>
-                  }
-                />
-                <Route path=":assetCode" element={<AssetDetailPage />} />
-              </Route>
+              />
+              <Route
+                path="credentials"
+                element={
+                  <RequirePermission permission={PERMISSIONS.IT_CREDENTIALS_VIEW}>
+                    <CredentialsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="ip"
+                element={
+                  <RequirePermission permission={PERMISSIONS.IT_IP_VIEW}>
+                    <IpAddressesPage />
+                  </RequirePermission>
+                }
+              />
+              <Route path=":assetCode" element={<AssetDetailPage />} />
             </Route>
 
             <Route path="settings">

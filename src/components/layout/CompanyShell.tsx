@@ -32,7 +32,7 @@ import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { ModuleKey } from "@/types/database";
 
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
-  .filter(([key]) => key !== "IT") // IT gets its own nested nav block below (Tickets + Inventory)
+  .filter(([key]) => key !== "IT" && key !== "INVENTORY") // both get their own nested nav block below
   .map(([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }));
 
 const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
@@ -130,33 +130,6 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                   active={location.pathname.startsWith(`${base}/it/tickets`)}
                 />
 
-                {hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (
-                  <>
-                    <NavLink
-                      to={`${base}/it/inventory`}
-                      icon={Boxes}
-                      label="Inventory"
-                      active={location.pathname === `${base}/it/inventory`}
-                    />
-                    <div className="ml-4 space-y-1 border-l border-border pl-2">
-                      {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
-                        <Link
-                          key={s.path}
-                          to={`${base}/it/inventory/${s.path}`}
-                          className={cn(
-                            "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                            location.pathname === `${base}/it/inventory/${s.path}`
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                          )}
-                        >
-                          {s.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </>
-                )}
-
                 {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
                   <NavLink
                     to={`${base}/it/categories`}
@@ -165,6 +138,36 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                     active={location.pathname === `${base}/it/categories`}
                   />
                 )}
+              </>
+            )}
+
+            {/* Inventory is its own toggleable module (Platform Superadmin controls
+                it independently of Ticketing), so it's gated on enabledModules
+                separately even though it's presented nested in the same area. */}
+            {enabledModules.has("INVENTORY") && hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (
+              <>
+                <NavLink
+                  to={`${base}/it/inventory`}
+                  icon={Boxes}
+                  label="Inventory"
+                  active={location.pathname === `${base}/it/inventory`}
+                />
+                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                  {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                    <Link
+                      key={s.path}
+                      to={`${base}/it/inventory/${s.path}`}
+                      className={cn(
+                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                        location.pathname === `${base}/it/inventory/${s.path}`
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      {s.label}
+                    </Link>
+                  ))}
+                </div>
               </>
             )}
 

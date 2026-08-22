@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
@@ -25,6 +26,7 @@ export function NotificationBell() {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company, hasPermission } = useCompany();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: unread } = useUnreadNotificationCount(company?.id);
   const { data: notifications } = useInventoryNotifications(company?.id);
   const { markRead, markAllRead } = useNotificationMutations(company?.id);
@@ -32,8 +34,17 @@ export function NotificationBell() {
   useEffect(() => {
     if (!company?.id || generatedThisSession || !hasPermission(PERMISSIONS.IT_NOTIFICATIONS_MANAGE)) return;
     generatedThisSession = true;
-    api.generateNotifications(company.id).catch(() => {});
-  }, [company?.id, hasPermission]);
+    const companyId = company.id;
+    api
+      .generateNotifications(companyId)
+      .then((created) => {
+        if (created > 0) {
+          queryClient.invalidateQueries({ queryKey: ["notifications", companyId] });
+          queryClient.invalidateQueries({ queryKey: ["notifications-unread-count", companyId] });
+        }
+      })
+      .catch(() => {});
+  }, [company?.id, hasPermission, queryClient]);
 
   if (!hasPermission(PERMISSIONS.IT_NOTIFICATIONS_VIEW)) return null;
 
