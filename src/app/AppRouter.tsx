@@ -35,10 +35,31 @@ import RepairsPage from "@/pages/it/inventory/RepairsPage";
 import DisposalsPage from "@/pages/it/inventory/DisposalsPage";
 import AssetHistoryPage from "@/pages/it/inventory/AssetHistoryPage";
 
+import BudgetDashboardPage from "@/pages/it/budget/BudgetDashboardPage";
+import BudgetsListPage from "@/pages/it/budget/BudgetsListPage";
+import BudgetDetailPage from "@/pages/it/budget/BudgetDetailPage";
+import BudgetCategoriesPage from "@/pages/it/budget/BudgetCategoriesPage";
+import BudgetTransactionsPage from "@/pages/it/budget/BudgetTransactionsPage";
+
+import ProcurementDashboardPage from "@/pages/it/procurement/ProcurementDashboardPage";
+import PurchaseRequestsListPage from "@/pages/it/procurement/PurchaseRequestsListPage";
+import CreatePurchaseRequestPage from "@/pages/it/procurement/CreatePurchaseRequestPage";
+import PurchaseRequestDetailPage from "@/pages/it/procurement/PurchaseRequestDetailPage";
+import QuotationsListPage from "@/pages/it/procurement/QuotationsListPage";
+import PurchaseOrdersListPage from "@/pages/it/procurement/PurchaseOrdersListPage";
+import PurchaseOrderDetailPage from "@/pages/it/procurement/PurchaseOrderDetailPage";
+import DeliveriesListPage from "@/pages/it/procurement/DeliveriesListPage";
+import SuppliersListPage from "@/pages/it/procurement/SuppliersListPage";
+import SupplierDetailPage from "@/pages/it/procurement/SupplierDetailPage";
+import ProcurementHistoryPage from "@/pages/it/procurement/ProcurementHistoryPage";
+import ReportsPage from "@/pages/it/procurement/ReportsPage";
+
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
 import AppearancePage from "@/pages/company/settings/AppearancePage";
+import CurrencySettingsPage from "@/pages/company/settings/CurrencySettingsPage";
+import ExchangeRatesPage from "@/pages/company/admin/ExchangeRatesPage";
 
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -174,7 +195,88 @@ export function AppRouter() {
               <Route path=":assetCode" element={<AssetDetailPage />} />
             </Route>
 
+            {/* Budget & Procurement share one PROCUREMENT module toggle -- see
+                CompanyShell.tsx for why -- each with its own permission gate. */}
+            <Route
+              path="it/budget"
+              element={
+                <RequireModule moduleKey="PROCUREMENT">
+                  <RequirePermission permission={PERMISSIONS.IT_BUDGET_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route index element={<BudgetDashboardPage />} />
+              <Route path="budgets" element={<BudgetsListPage />} />
+              <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              <Route path="categories" element={<BudgetCategoriesPage />} />
+              <Route path="transactions" element={<BudgetTransactionsPage />} />
+            </Route>
+
+            <Route
+              path="it/procurement"
+              element={
+                <RequireModule moduleKey="PROCUREMENT">
+                  <RequirePermission permission={PERMISSIONS.IT_PROCUREMENT_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route index element={<ProcurementDashboardPage />} />
+              <Route path="requests">
+                <Route index element={<PurchaseRequestsListPage />} />
+                <Route
+                  path="new"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.IT_PROCUREMENT_CREATE}>
+                      <CreatePurchaseRequestPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route path=":requestId" element={<PurchaseRequestDetailPage />} />
+              </Route>
+              <Route path="quotations" element={<QuotationsListPage />} />
+              <Route path="orders">
+                <Route index element={<PurchaseOrdersListPage />} />
+                <Route path=":poId" element={<PurchaseOrderDetailPage />} />
+              </Route>
+              <Route path="deliveries" element={<DeliveriesListPage />} />
+              <Route
+                path="suppliers"
+                element={
+                  <RequirePermission permission={PERMISSIONS.IT_SUPPLIERS_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<SuppliersListPage />} />
+                <Route path=":supplierId" element={<SupplierDetailPage />} />
+              </Route>
+              <Route path="history" element={<ProcurementHistoryPage />} />
+            </Route>
+
+            <Route
+              path="it/reports"
+              element={
+                <RequireModule moduleKey="PROCUREMENT">
+                  <RequirePermission permission={[PERMISSIONS.IT_PROCUREMENT_VIEW, PERMISSIONS.IT_BUDGET_VIEW]}>
+                    <ReportsPage />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            />
+
             <Route path="settings">
+              <Route
+                path="currency"
+                element={
+                  <RequirePermission permission={[PERMISSIONS.IT_CURRENCY_VIEW, PERMISSIONS.IT_CURRENCY_MANAGE]}>
+                    <CurrencySettingsPage />
+                  </RequirePermission>
+                }
+              />
               <Route
                 path="users"
                 element={
@@ -208,6 +310,15 @@ export function AppRouter() {
                 }
               />
             </Route>
+
+            <Route
+              path="admin/currencies"
+              element={
+                <RequirePermission permission={[PERMISSIONS.IT_CURRENCY_VIEW, PERMISSIONS.IT_CURRENCY_UPDATE_RATES]}>
+                  <ExchangeRatesPage />
+                </RequirePermission>
+              }
+            />
           </Route>
         </Route>
 

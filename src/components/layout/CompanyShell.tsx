@@ -12,6 +12,10 @@ import {
   Inbox,
   Boxes,
   FolderTree,
+  Wallet,
+  ShoppingCart,
+  BarChart3,
+  Coins,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -32,7 +36,7 @@ import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { ModuleKey } from "@/types/database";
 
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
-  .filter(([key]) => key !== "IT" && key !== "INVENTORY") // both get their own nested nav block below
+  .filter(([key]) => key !== "IT" && key !== "INVENTORY" && key !== "PROCUREMENT") // each gets its own nested nav block below
   .map(([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }));
 
 const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
@@ -47,10 +51,29 @@ const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Asset History", path: "history", permission: PERMISSIONS.IT_INVENTORY_VIEW },
 ];
 
+const BUDGET_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Dashboard", path: "", permission: PERMISSIONS.IT_BUDGET_VIEW },
+  { label: "Budgets", path: "budgets", permission: PERMISSIONS.IT_BUDGET_VIEW },
+  { label: "Categories", path: "categories", permission: PERMISSIONS.IT_BUDGET_VIEW },
+  { label: "Transactions", path: "transactions", permission: PERMISSIONS.IT_BUDGET_VIEW },
+];
+
+const PROCUREMENT_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Dashboard", path: "", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
+  { label: "Purchase Requests", path: "requests", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
+  { label: "Quotations", path: "quotations", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
+  { label: "Purchase Orders", path: "orders", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
+  { label: "Deliveries", path: "deliveries", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
+  { label: "Suppliers", path: "suppliers", permission: PERMISSIONS.IT_SUPPLIERS_VIEW },
+  { label: "History", path: "history", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
+];
+
 const SETTINGS_NAV: { label: string; icon: LucideIcon; path: string; permissions: string[] }[] = [
   { label: "Users", icon: UserCog, path: "settings/users", permissions: [PERMISSIONS.ADMIN_USERS_VIEW, PERMISSIONS.ADMIN_USERS_MANAGE] },
   { label: "Departments", icon: Building2, path: "settings/departments", permissions: [PERMISSIONS.ADMIN_DEPARTMENTS_MANAGE] },
   { label: "Roles", icon: ShieldCheck, path: "settings/roles", permissions: [PERMISSIONS.ADMIN_ROLES_MANAGE] },
+  { label: "Currency", icon: Coins, path: "settings/currency", permissions: [PERMISSIONS.IT_CURRENCY_MANAGE, PERMISSIONS.IT_CURRENCY_VIEW] },
+  { label: "Exchange Rates", icon: BarChart3, path: "admin/currencies", permissions: [PERMISSIONS.IT_CURRENCY_UPDATE_RATES, PERMISSIONS.IT_CURRENCY_VIEW] },
   { label: "Appearance", icon: Palette, path: "settings/appearance", permissions: [PERMISSIONS.ADMIN_COMPANY_SETTINGS_MANAGE] },
   { label: "Mindburst Handbook", icon: BookOpen, path: "handbook", permissions: [PERMISSIONS.ADMIN_COMPANY_SETTINGS_MANAGE] },
 ];
@@ -168,6 +191,70 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                     </Link>
                   ))}
                 </div>
+              </>
+            )}
+
+            {/* Budget & Procurement share one PROCUREMENT module toggle (they're
+                tightly coupled -- a company without Procurement has no use for
+                a standalone IT Budget tracker), but each section still checks
+                its own permission set independently. */}
+            {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_BUDGET_VIEW) && (
+              <>
+                <NavLink
+                  to={`${base}/it/budget`}
+                  icon={Wallet}
+                  label="Budget"
+                  active={location.pathname === `${base}/it/budget`}
+                />
+                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                  {BUDGET_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                    <Link
+                      key={s.path}
+                      to={`${base}/it/budget/${s.path}`}
+                      className={cn(
+                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                        location.pathname.startsWith(`${base}/it/budget/${s.path}`)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      {s.label}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_PROCUREMENT_VIEW) && (
+              <>
+                <NavLink
+                  to={`${base}/it/procurement`}
+                  icon={ShoppingCart}
+                  label="Procurement"
+                  active={location.pathname === `${base}/it/procurement`}
+                />
+                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                  {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                    <Link
+                      key={s.path}
+                      to={`${base}/it/procurement/${s.path}`}
+                      className={cn(
+                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                        location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      {s.label}
+                    </Link>
+                  ))}
+                </div>
+                <NavLink
+                  to={`${base}/it/reports`}
+                  icon={BarChart3}
+                  label="Reports"
+                  active={location.pathname === `${base}/it/reports`}
+                />
               </>
             )}
 

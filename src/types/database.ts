@@ -4,7 +4,7 @@
 
 export type CompanyStatus = "ACTIVE" | "SUSPENDED" | "INACTIVE";
 export type MembershipStatus = "ACTIVE" | "DISABLED" | "INVITED";
-export type ModuleKey = "IT" | "INVENTORY" | "HR" | "FINANCE" | "ADMIN" | "PRODUCTION";
+export type ModuleKey = "IT" | "INVENTORY" | "PROCUREMENT" | "HR" | "FINANCE" | "ADMIN" | "PRODUCTION";
 export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type TicketStatus =
   | "OPEN"
@@ -102,6 +102,8 @@ export type NotificationType =
   | "ASSET_DEFECTIVE"
   | "REPAIR_OVERDUE";
 
+export type SupplierStatus = "ACTIVE" | "INACTIVE" | "BLACKLISTED";
+
 export interface Supplier {
   id: string;
   company_id: string;
@@ -112,6 +114,10 @@ export interface Supplier {
   address: string | null;
   website: string | null;
   notes: string | null;
+  tax_number: string | null;
+  payment_terms: string | null;
+  currency_id: string | null;
+  status: SupplierStatus;
   created_at: string;
   updated_at: string;
 }
@@ -133,6 +139,8 @@ export interface Asset {
   supplier_id: string | null;
   invoice_number: string | null;
   purchase_order: string | null;
+  purchase_order_id: string | null;
+  purchase_order_item_id: string | null;
   assigned_to: string | null;
   department_id: string | null;
   location: string | null;
@@ -315,6 +323,343 @@ export interface NetworkAgentToken {
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+}
+
+// ---------------------------------------------------------------------
+// Phase 3: IT Budget & Procurement
+// ---------------------------------------------------------------------
+export interface Currency {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  decimal_places: number;
+  country_or_region: string | null;
+  is_active: boolean;
+}
+
+export interface CompanyCurrencySettings {
+  id: string;
+  company_id: string;
+  base_currency_id: string;
+}
+
+export interface ExchangeRate {
+  id: string;
+  from_currency_id: string;
+  to_currency_id: string;
+  rate: number;
+  effective_date: string;
+  source: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type BudgetStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "ARCHIVED";
+
+export interface Budget {
+  id: string;
+  company_id: string;
+  budget_name: string;
+  fiscal_year: number;
+  start_date: string;
+  end_date: string;
+  currency_id: string;
+  total_budget: number;
+  status: BudgetStatus;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetSummary extends Budget {
+  allocated: number;
+  committed: number;
+  spent: number;
+  remaining: number;
+  available: number;
+}
+
+export interface BudgetCategory {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+}
+
+export interface BudgetAllocation {
+  id: string;
+  company_id: string;
+  budget_id: string;
+  category_id: string;
+  allocated_amount: number;
+}
+
+export interface BudgetCategorySummary {
+  budget_id: string;
+  category_id: string;
+  category_name: string;
+  allocated_amount: number;
+  committed: number;
+  spent: number;
+  available: number;
+}
+
+export type BudgetTransactionType = "ALLOCATION" | "COMMITMENT" | "RELEASE" | "EXPENSE" | "ADJUSTMENT" | "REFUND";
+
+export interface BudgetTransaction {
+  id: string;
+  company_id: string;
+  budget_id: string;
+  category_id: string | null;
+  amount: number;
+  currency_id: string;
+  transaction_type: BudgetTransactionType;
+  adjustment_sign: 1 | -1;
+  reference_type: string | null;
+  reference_id: string | null;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type PurchaseRequestStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "CONVERTED_TO_PO";
+export type RequestPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+export interface PurchaseRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  requester_id: string;
+  department_id: string | null;
+  budget_id: string | null;
+  budget_category_id: string | null;
+  ticket_id: string | null;
+  request_date: string;
+  required_date: string | null;
+  priority: RequestPriority;
+  reason: string | null;
+  description: string | null;
+  currency_id: string;
+  estimated_subtotal: number;
+  estimated_tax: number;
+  estimated_shipping: number;
+  estimated_discount: number;
+  estimated_total: number;
+  base_currency_id: string | null;
+  exchange_rate: number | null;
+  base_currency_amount: number | null;
+  status: PurchaseRequestStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseRequestItem {
+  id: string;
+  purchase_request_id: string;
+  company_id: string;
+  description: string;
+  category: string | null;
+  asset_type: "HARDWARE" | "SOFTWARE" | null;
+  software_type: "SUBSCRIPTION" | "ONE_TIME_PURCHASE" | null;
+  quantity: number;
+  estimated_unit_price: number;
+  estimated_total: number;
+  preferred_supplier_id: string | null;
+  notes: string | null;
+}
+
+export type ApprovalDecision = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface PurchaseRequestApproval {
+  id: string;
+  company_id: string;
+  purchase_request_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  approval_level: number;
+  sequence: number;
+  decision: ApprovalDecision;
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export type QuotationStatus = "DRAFT" | "RECEIVED" | "UNDER_REVIEW" | "SELECTED" | "REJECTED" | "EXPIRED";
+
+export interface Quotation {
+  id: string;
+  company_id: string;
+  purchase_request_id: string;
+  supplier_id: string;
+  quotation_number: string | null;
+  quotation_date: string;
+  valid_until: string | null;
+  currency_id: string;
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_total: number | null;
+  delivery_time_days: number | null;
+  warranty_terms: string | null;
+  payment_terms: string | null;
+  status: QuotationStatus;
+  selected_by: string | null;
+  selected_at: string | null;
+  selection_reason: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface QuotationItem {
+  id: string;
+  quotation_id: string;
+  company_id: string;
+  purchase_request_item_id: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  notes: string | null;
+}
+
+export type PurchaseOrderStatus =
+  | "DRAFT"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "SENT_TO_SUPPLIER"
+  | "ACKNOWLEDGED"
+  | "PARTIALLY_RECEIVED"
+  | "RECEIVED"
+  | "CANCELLED"
+  | "CLOSED";
+
+export interface PurchaseOrder {
+  id: string;
+  company_id: string;
+  po_number: string;
+  purchase_request_id: string | null;
+  quotation_id: string | null;
+  supplier_id: string;
+  po_date: string;
+  expected_delivery_date: string | null;
+  currency_id: string;
+  payment_terms: string | null;
+  shipping_terms: string | null;
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_total: number | null;
+  status: PurchaseOrderStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchase_order_id: string;
+  company_id: string;
+  description: string;
+  category: string | null;
+  asset_type: "HARDWARE" | "SOFTWARE" | null;
+  software_type: "SUBSCRIPTION" | "ONE_TIME_PURCHASE" | null;
+  quantity: number;
+  unit_price: number;
+  tax: number;
+  discount: number;
+  line_total: number;
+  received_quantity: number;
+  remaining_quantity: number;
+}
+
+export interface PurchaseOrderApproval {
+  id: string;
+  company_id: string;
+  purchase_order_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  approval_level: number;
+  sequence: number;
+  decision: ApprovalDecision;
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface Delivery {
+  id: string;
+  company_id: string;
+  purchase_order_id: string;
+  delivery_number: string;
+  delivery_date: string;
+  received_by: string | null;
+  tracking_number: string | null;
+  delivery_reference: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface DeliveryItem {
+  id: string;
+  delivery_id: string;
+  company_id: string;
+  purchase_order_item_id: string;
+  quantity_received: number;
+  notes: string | null;
+}
+
+export interface ApprovalPolicy {
+  id: string;
+  company_id: string;
+  module: "PURCHASE_REQUEST" | "PURCHASE_ORDER";
+  minimum_amount: number;
+  maximum_amount: number | null;
+  currency_id: string | null;
+  required_permission: string;
+  approval_sequence: number;
+  allow_self_approval: boolean;
+  enabled: boolean;
+}
+
+export interface ProcurementHistoryEntry {
+  id: string;
+  company_id: string;
+  resource_type: "purchase_request" | "quotation" | "purchase_order" | "delivery";
+  resource_id: string;
+  event_type: string;
+  performed_by: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata: Record<string, unknown>;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface BudgetAlertThreshold {
+  id: string;
+  company_id: string;
+  threshold_percent: number;
+  enabled: boolean;
 }
 
 export interface Company {
