@@ -20,6 +20,7 @@ import {
   useCriticalTickets,
 } from "@/features/it/tickets/hooks";
 import { TicketSearchBox } from "@/features/it/tickets/components/TicketSearchBox";
+import { NotificationBell } from "@/features/it/inventory/components/NotificationBell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketStatusBadge } from "@/components/shared/TicketBadges";
@@ -82,6 +83,7 @@ export default function ITDashboardPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <NotificationBell />
           <Can permission={PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE}>
             <Link to={`/c/${companySlug}/it/categories`}>
               <Button variant="outline">Manage categories</Button>

@@ -201,6 +201,12 @@ export async function getTicket(ticketId: string): Promise<TicketDetail | null> 
     ? (departmentsField[0]?.name ?? null)
     : (departmentsField?.name ?? null);
 
+  let asset: { asset_code: string; name: string } | null = null;
+  if (ticket.asset_id) {
+    const { data: assetRow } = await supabase.from("assets").select("asset_code, name").eq("id", ticket.asset_id).maybeSingle();
+    asset = assetRow ?? null;
+  }
+
   return {
     ...(ticket as Ticket),
     requester: profiles.get(ticket.requester_id) ?? null,
@@ -212,6 +218,7 @@ export async function getTicket(ticketId: string): Promise<TicketDetail | null> 
     assignments: assignmentsRes.data,
     statusHistory: historyRes.data,
     requesterDepartment,
+    asset,
   };
 }
 
@@ -223,6 +230,7 @@ export async function createTicket(input: {
   categoryId: string | null;
   subcategoryId: string | null;
   requesterId: string;
+  assetId?: string | null;
 }) {
   const { data, error } = await supabase
     .from("tickets")
@@ -234,11 +242,31 @@ export async function createTicket(input: {
       category_id: input.categoryId,
       subcategory_id: input.subcategoryId,
       requester_id: input.requesterId,
+      asset_id: input.assetId ?? null,
     })
     .select("*")
     .single();
   if (error) throw error;
   return data as Ticket;
+}
+
+export async function updateTicketAsset(ticketId: string, assetId: string | null) {
+  const { error } = await supabase.from("tickets").update({ asset_id: assetId }).eq("id", ticketId);
+  if (error) throw error;
+}
+
+// Lightweight lookup for the "link an asset" picker on the ticket form.
+export async function searchAssetsForTicket(companyId: string, query: string, limit = 8) {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const { data, error } = await supabase
+    .from("assets")
+    .select("id, asset_code, name")
+    .eq("company_id", companyId)
+    .or(`asset_code.ilike.%${trimmed}%,name.ilike.%${trimmed}%`)
+    .limit(limit);
+  if (error) throw error;
+  return data as { id: string; asset_code: string; name: string }[];
 }
 
 export async function updateTicketAssignment(ticketId: string, assignedTo: string | null) {

@@ -25,6 +25,16 @@ import CreateTicketPage from "@/pages/it/CreateTicketPage";
 import TicketDetailPage from "@/pages/it/TicketDetailPage";
 import CategoriesPage from "@/pages/it/CategoriesPage";
 
+import InventoryDashboardPage from "@/pages/it/inventory/InventoryDashboardPage";
+import AssetListPage from "@/pages/it/inventory/AssetListPage";
+import CreateAssetPage from "@/pages/it/inventory/CreateAssetPage";
+import AssetDetailPage from "@/pages/it/inventory/AssetDetailPage";
+import CredentialsPage from "@/pages/it/inventory/CredentialsPage";
+import IpAddressesPage from "@/pages/it/inventory/IpAddressesPage";
+import RepairsPage from "@/pages/it/inventory/RepairsPage";
+import DisposalsPage from "@/pages/it/inventory/DisposalsPage";
+import AssetHistoryPage from "@/pages/it/inventory/AssetHistoryPage";
+
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
@@ -110,6 +120,52 @@ export function AppRouter() {
                   </RequirePermission>
                 }
               />
+
+              <Route
+                path="inventory"
+                element={
+                  <RequirePermission permission={PERMISSIONS.IT_INVENTORY_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<InventoryDashboardPage />} />
+                <Route path="items" element={<AssetListPage title="All Items" description="Every hardware and software asset" />} />
+                <Route path="hardware" element={<AssetListPage presetType="HARDWARE" title="Hardware" description="Physical equipment inventory" />} />
+                <Route path="software" element={<AssetListPage presetType="SOFTWARE" title="Software" description="Licenses and applications" />} />
+                <Route
+                  path="subscriptions"
+                  element={<AssetListPage presetType="SOFTWARE" presetSoftwareType="SUBSCRIPTION" title="Subscriptions" description="Recurring software subscriptions" />}
+                />
+                <Route path="repairs" element={<RepairsPage />} />
+                <Route path="disposal" element={<DisposalsPage />} />
+                <Route path="history" element={<AssetHistoryPage />} />
+                <Route
+                  path="new"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.IT_INVENTORY_CREATE}>
+                      <CreateAssetPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="credentials"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.IT_CREDENTIALS_VIEW}>
+                      <CredentialsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="ip"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.IT_IP_VIEW}>
+                      <IpAddressesPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route path=":assetCode" element={<AssetDetailPage />} />
+              </Route>
             </Route>
 
             <Route path="settings">

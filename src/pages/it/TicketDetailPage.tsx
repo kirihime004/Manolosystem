@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useTicket } from "@/features/it/tickets/hooks";
 import { TicketConversation } from "@/features/it/tickets/components/TicketConversation";
 import { TicketActivityFeed } from "@/features/it/tickets/components/TicketActivityFeed";
@@ -17,7 +17,7 @@ function fullName(first?: string | null, last?: string | null) {
 }
 
 export default function TicketDetailPage() {
-  const { ticketId } = useParams<{ ticketId: string }>();
+  const { companySlug, ticketId } = useParams<{ companySlug: string; ticketId: string }>();
   const { data: ticket, isLoading } = useTicket(ticketId);
 
   if (isLoading) {
@@ -98,6 +98,17 @@ export default function TicketDetailPage() {
             <DetailRow label="Department" value={ticket.requesterDepartment ?? "—"} />
             <DetailRow label="Category" value={ticket.category?.name ?? "—"} />
             <DetailRow label="Subcategory" value={ticket.subcategory?.name ?? "—"} />
+            {ticket.asset && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Asset</span>
+                <Link
+                  to={`/c/${companySlug}/it/inventory/${ticket.asset.asset_code}`}
+                  className="truncate font-medium text-primary hover:underline"
+                >
+                  {ticket.asset.asset_code} — {ticket.asset.name}
+                </Link>
+              </div>
+            )}
             <DetailRow
               label="Assigned to"
               value={ticket.assignee ? fullName(ticket.assignee.first_name, ticket.assignee.last_name) : "Unassigned"}

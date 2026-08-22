@@ -4,6 +4,13 @@
 # working directory name when running `supabase init`.
 project_id = "manolosystem"
 
+# network-agent-ingest authenticates callers itself (a hashed, company-scoped
+# agent token looked up in network_agent_tokens), not a Supabase user JWT --
+# a local network agent has no Supabase session to present. Disabling the
+# platform's default JWT check is what lets that custom scheme run at all.
+[functions.network-agent-ingest]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

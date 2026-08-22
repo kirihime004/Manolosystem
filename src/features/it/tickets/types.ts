@@ -22,6 +22,7 @@ export interface TicketDetail extends EnrichedTicket {
   assignments: TicketAssignment[];
   statusHistory: TicketStatusHistory[];
   requesterDepartment: string | null;
+  asset: { asset_code: string; name: string } | null;
 }
 
 export interface TicketFilters {

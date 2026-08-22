@@ -9,6 +9,9 @@ import {
   ShieldCheck,
   Palette,
   BookOpen,
+  Inbox,
+  Boxes,
+  FolderTree,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -28,9 +31,21 @@ import { PERMISSIONS } from "@/lib/permissions/keys";
 import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { ModuleKey } from "@/types/database";
 
-const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][]).map(
-  ([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }),
-);
+const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
+  .filter(([key]) => key !== "IT") // IT gets its own nested nav block below (Tickets + Inventory)
+  .map(([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }));
+
+const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "All Items", path: "items", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+  { label: "Hardware", path: "hardware", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+  { label: "Software", path: "software", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+  { label: "Subscriptions", path: "subscriptions", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+  { label: "Credentials", path: "credentials", permission: PERMISSIONS.IT_CREDENTIALS_VIEW },
+  { label: "IP Addresses", path: "ip", permission: PERMISSIONS.IT_IP_VIEW },
+  { label: "Repairs", path: "repairs", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+  { label: "Disposal", path: "disposal", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+  { label: "Asset History", path: "history", permission: PERMISSIONS.IT_INVENTORY_VIEW },
+];
 
 const SETTINGS_NAV: { label: string; icon: LucideIcon; path: string; permissions: string[] }[] = [
   { label: "Users", icon: UserCog, path: "settings/users", permissions: [PERMISSIONS.ADMIN_USERS_VIEW, PERMISSIONS.ADMIN_USERS_MANAGE] },
@@ -100,6 +115,59 @@ export function CompanyShell({ children }: { children: ReactNode }) {
             <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Modules
             </p>
+            {enabledModules.has("IT") && (
+              <>
+                <NavLink
+                  to={`${base}/it`}
+                  icon={MODULE_INFO.IT.icon}
+                  label="Ticketing"
+                  active={location.pathname === `${base}/it`}
+                />
+                <NavLink
+                  to={`${base}/it/tickets`}
+                  icon={Inbox}
+                  label="Tickets"
+                  active={location.pathname.startsWith(`${base}/it/tickets`)}
+                />
+
+                {hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (
+                  <>
+                    <NavLink
+                      to={`${base}/it/inventory`}
+                      icon={Boxes}
+                      label="Inventory"
+                      active={location.pathname === `${base}/it/inventory`}
+                    />
+                    <div className="ml-4 space-y-1 border-l border-border pl-2">
+                      {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                        <Link
+                          key={s.path}
+                          to={`${base}/it/inventory/${s.path}`}
+                          className={cn(
+                            "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                            location.pathname === `${base}/it/inventory/${s.path}`
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          )}
+                        >
+                          {s.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
+                  <NavLink
+                    to={`${base}/it/categories`}
+                    icon={FolderTree}
+                    label="Categories"
+                    active={location.pathname === `${base}/it/categories`}
+                  />
+                )}
+              </>
+            )}
+
             {MODULE_NAV.filter((m) => enabledModules.has(m.key)).map((m) => (
               <NavLink
                 key={m.key}

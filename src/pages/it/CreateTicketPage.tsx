@@ -6,6 +6,7 @@ import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useTicketCategories } from "@/features/it/tickets/hooks";
 import * as api from "@/features/it/tickets/ticketApi";
+import { AssetPicker } from "@/features/it/tickets/components/AssetPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export default function CreateTicketPage() {
   const [categoryId, setCategoryId] = useState<string>("");
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [priority, setPriority] = useState<TicketPriority>("MEDIUM");
+  const [assetId, setAssetId] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,6 +57,7 @@ export default function CreateTicketPage() {
         categoryId: categoryId || null,
         subcategoryId: subcategoryId || null,
         requesterId: user.id,
+        assetId,
       });
 
       for (const file of files) {
@@ -139,6 +142,11 @@ export default function CreateTicketPage() {
                   {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Related asset (optional)</Label>
+              <AssetPicker companyId={company?.id} value={assetId} onChange={setAssetId} />
             </div>
 
             <div className="space-y-2">
