@@ -267,8 +267,23 @@ export async function startOnboarding(employeeId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function addOnboardingTask(input: {
+  employeeId: string; department: EmployeeOnboardingTask["department"]; title: string; description?: string | null; dueDate?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from("employee_onboarding_tasks").insert({
+    employee_id: input.employeeId, department: input.department, task_type: "CUSTOM",
+    title: input.title, description: input.description ?? null, due_date: input.dueDate ?? null,
+  });
+  if (error) throw error;
+}
+
 export async function updateOnboardingTask(id: string, patch: Partial<EmployeeOnboardingTask>): Promise<void> {
   const { error } = await supabase.from("employee_onboarding_tasks").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteOnboardingTask(id: string): Promise<void> {
+  const { error } = await supabase.from("employee_onboarding_tasks").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -283,7 +298,22 @@ export async function startOffboarding(employeeId: string, reason?: string | nul
   if (error) throw error;
 }
 
+export async function addOffboardingTask(input: {
+  employeeId: string; department: EmployeeOffboardingTask["department"]; title: string; description?: string | null; dueDate?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from("employee_offboarding_tasks").insert({
+    employee_id: input.employeeId, department: input.department, task_type: "CUSTOM",
+    title: input.title, description: input.description ?? null, due_date: input.dueDate ?? null,
+  });
+  if (error) throw error;
+}
+
 export async function updateOffboardingTask(id: string, patch: Partial<EmployeeOffboardingTask>): Promise<void> {
   const { error } = await supabase.from("employee_offboarding_tasks").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteOffboardingTask(id: string): Promise<void> {
+  const { error } = await supabase.from("employee_offboarding_tasks").delete().eq("id", id);
   if (error) throw error;
 }

@@ -99,6 +99,37 @@ export function useScheduleHolidayMutations(companyId: string | undefined) {
 }
 
 // ---------------------------------------------------------------------
+// Onboarding / offboarding checklist templates
+// ---------------------------------------------------------------------
+export function useOnboardingTemplates(companyId: string | undefined) {
+  return useQuery({ queryKey: ["hr-onboarding-templates", companyId], queryFn: () => orgApi.listOnboardingTemplates(companyId!), enabled: !!companyId });
+}
+
+export function useOffboardingTemplates(companyId: string | undefined) {
+  return useQuery({ queryKey: ["hr-offboarding-templates", companyId], queryFn: () => orgApi.listOffboardingTemplates(companyId!), enabled: !!companyId });
+}
+
+export function useTaskTemplateMutations(companyId: string | undefined) {
+  const qc = useQueryClient();
+  const invalidateOnboarding = () => qc.invalidateQueries({ queryKey: ["hr-onboarding-templates", companyId] });
+  const invalidateOffboarding = () => qc.invalidateQueries({ queryKey: ["hr-offboarding-templates", companyId] });
+  return {
+    createOnboarding: useMutation({ mutationFn: orgApi.createOnboardingTemplate, onSuccess: invalidateOnboarding }),
+    updateOnboarding: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateOnboardingTemplate>[1] }) => orgApi.updateOnboardingTemplate(input.id, input.patch),
+      onSuccess: invalidateOnboarding,
+    }),
+    deleteOnboarding: useMutation({ mutationFn: orgApi.deleteOnboardingTemplate, onSuccess: invalidateOnboarding }),
+    createOffboarding: useMutation({ mutationFn: orgApi.createOffboardingTemplate, onSuccess: invalidateOffboarding }),
+    updateOffboarding: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateOffboardingTemplate>[1] }) => orgApi.updateOffboardingTemplate(input.id, input.patch),
+      onSuccess: invalidateOffboarding,
+    }),
+    deleteOffboarding: useMutation({ mutationFn: orgApi.deleteOffboardingTemplate, onSuccess: invalidateOffboarding }),
+  };
+}
+
+// ---------------------------------------------------------------------
 // Employees
 // ---------------------------------------------------------------------
 export function useEmployees(companyId: string | undefined, filters: EmployeeFilters = {}) {
@@ -225,20 +256,26 @@ export function useOffboardingTasks(employeeId: string | undefined) {
 
 export function useLifecycleMutations(employeeId: string | undefined) {
   const qc = useQueryClient();
+  const invalidateOnboarding = () => qc.invalidateQueries({ queryKey: ["hr-onboarding", employeeId] });
+  const invalidateOffboarding = () => qc.invalidateQueries({ queryKey: ["hr-offboarding", employeeId] });
   return {
-    startOnboarding: useMutation({ mutationFn: () => employeeApi.startOnboarding(employeeId!), onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-onboarding", employeeId] }) }),
+    startOnboarding: useMutation({ mutationFn: () => employeeApi.startOnboarding(employeeId!), onSuccess: invalidateOnboarding }),
+    addOnboardingTask: useMutation({ mutationFn: employeeApi.addOnboardingTask, onSuccess: invalidateOnboarding }),
     updateOnboardingTask: useMutation({
       mutationFn: (input: { id: string; patch: Parameters<typeof employeeApi.updateOnboardingTask>[1] }) => employeeApi.updateOnboardingTask(input.id, input.patch),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-onboarding", employeeId] }),
+      onSuccess: invalidateOnboarding,
     }),
+    deleteOnboardingTask: useMutation({ mutationFn: employeeApi.deleteOnboardingTask, onSuccess: invalidateOnboarding }),
     startOffboarding: useMutation({
       mutationFn: (reason?: string | null) => employeeApi.startOffboarding(employeeId!, reason),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-offboarding", employeeId] }),
+      onSuccess: invalidateOffboarding,
     }),
+    addOffboardingTask: useMutation({ mutationFn: employeeApi.addOffboardingTask, onSuccess: invalidateOffboarding }),
     updateOffboardingTask: useMutation({
       mutationFn: (input: { id: string; patch: Parameters<typeof employeeApi.updateOffboardingTask>[1] }) => employeeApi.updateOffboardingTask(input.id, input.patch),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-offboarding", employeeId] }),
+      onSuccess: invalidateOffboarding,
     }),
+    deleteOffboardingTask: useMutation({ mutationFn: employeeApi.deleteOffboardingTask, onSuccess: invalidateOffboarding }),
   };
 }
 

@@ -1132,6 +1132,32 @@ export interface EmployeeDeduction {
 
 export type LifecycleTaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 
+export interface OnboardingTaskTemplate {
+  id: string;
+  company_id: string;
+  department: "HR" | "IT" | "ADMIN" | "MANAGER";
+  task_type: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OffboardingTaskTemplate {
+  id: string;
+  company_id: string;
+  department: "HR" | "IT" | "ADMIN" | "FINANCE" | "MANAGER";
+  task_type: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EmployeeOnboardingTask {
   id: string;
   company_id: string;

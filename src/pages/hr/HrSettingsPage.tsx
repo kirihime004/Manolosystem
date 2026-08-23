@@ -4,39 +4,68 @@ import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useEmploymentTypes, useEmploymentStatuses, useEmploymentConfigMutations,
   useLeaveTypes, useLeaveTypeMutations, useHolidays, useScheduleHolidayMutations,
+  useOnboardingTemplates, useOffboardingTemplates, useTaskTemplateMutations,
 } from "@/features/hr/hooks";
+import type { OnboardingTaskTemplate, OffboardingTaskTemplate } from "@/types/database";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const ONBOARDING_DEPARTMENTS = ["HR", "IT", "ADMIN", "MANAGER"] as const;
+const OFFBOARDING_DEPARTMENTS = ["HR", "IT", "ADMIN", "FINANCE", "MANAGER"] as const;
+
 export default function HrSettingsPage() {
   const { company } = useCompany();
+  const templateMutations = useTaskTemplateMutations(company?.id);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-foreground">HR Settings</h1>
-        <p className="text-sm text-muted-foreground">Configure employment types, statuses, leave types, and holidays -- companies are never locked into a hard-coded list.</p>
+        <p className="text-sm text-muted-foreground">Configure employment types, statuses, leave types, holidays, and onboarding/offboarding checklists -- companies are never locked into a hard-coded list.</p>
       </div>
 
       <Tabs defaultValue="types">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="types">Employment Types</TabsTrigger>
           <TabsTrigger value="statuses">Employment Statuses</TabsTrigger>
           <TabsTrigger value="leave">Leave Types</TabsTrigger>
           <TabsTrigger value="holidays">Holidays</TabsTrigger>
+          <TabsTrigger value="onboarding">Onboarding Checklist</TabsTrigger>
+          <TabsTrigger value="offboarding">Offboarding Checklist</TabsTrigger>
         </TabsList>
 
         <TabsContent value="types" className="pt-4"><EmploymentTypesTab companyId={company?.id} /></TabsContent>
         <TabsContent value="statuses" className="pt-4"><EmploymentStatusesTab companyId={company?.id} /></TabsContent>
         <TabsContent value="leave" className="pt-4"><LeaveTypesTab companyId={company?.id} /></TabsContent>
         <TabsContent value="holidays" className="pt-4"><HolidaysTab companyId={company?.id} /></TabsContent>
+        <TabsContent value="onboarding" className="pt-4">
+          <TaskTemplatesTab
+            departments={ONBOARDING_DEPARTMENTS}
+            companyId={company?.id}
+            list={useOnboardingTemplates(company?.id)}
+            create={templateMutations.createOnboarding}
+            update={templateMutations.updateOnboarding}
+            remove={templateMutations.deleteOnboarding}
+          />
+        </TabsContent>
+        <TabsContent value="offboarding" className="pt-4">
+          <TaskTemplatesTab
+            departments={OFFBOARDING_DEPARTMENTS}
+            companyId={company?.id}
+            list={useOffboardingTemplates(company?.id)}
+            create={templateMutations.createOffboarding}
+            update={templateMutations.updateOffboarding}
+            remove={templateMutations.deleteOffboarding}
+          />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -260,6 +289,89 @@ function HolidaysTab({ companyId }: { companyId: string | undefined }) {
                   <TableCell className="text-muted-foreground">{h.type}</TableCell>
                   <TableCell>
                     <Switch checked={h.status === "ACTIVE"} onCheckedChange={(v) => setHolidayStatus.mutate({ id: h.id, status: v ? "ACTIVE" : "CANCELLED" })} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type TaskTemplate = OnboardingTaskTemplate | OffboardingTaskTemplate;
+type TemplateMutations = ReturnType<typeof useTaskTemplateMutations>;
+
+// Shared by both the Onboarding and Offboarding tabs -- same shape,
+// different department set and backing table.
+function TaskTemplatesTab<D extends string>({ departments, companyId, list, create, update, remove }: {
+  departments: readonly D[];
+  companyId: string | undefined;
+  list: { data: TaskTemplate[] | undefined; isLoading: boolean };
+  create: TemplateMutations["createOnboarding"] | TemplateMutations["createOffboarding"];
+  update: TemplateMutations["updateOnboarding"] | TemplateMutations["updateOffboarding"];
+  remove: TemplateMutations["deleteOnboarding"] | TemplateMutations["deleteOffboarding"];
+}) {
+  const { data, isLoading } = list;
+  const [open, setOpen] = useState(false);
+  const [department, setDepartment] = useState<D>(departments[0]);
+  const [taskType, setTaskType] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!companyId) return;
+    try {
+      await create.mutateAsync({
+        companyId, department: department as never, taskType: taskType.toUpperCase().replace(/\s+/g, "_") || "CUSTOM",
+        title, description: description || null, sortOrder: (data?.length ?? 0) + 1,
+      });
+      toast.success("Task added to the checklist");
+      setOpen(false); setTaskType(""); setTitle(""); setDescription(""); setDepartment(departments[0]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add task");
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild><Button size="sm">+ Add checklist item</Button></DialogTrigger>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New checklist item</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreate} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Owning department</Label>
+              <Select value={department} onValueChange={(v) => setDepartment(v as D)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Title</Label><Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Provision Slack access" /></div>
+            <div className="space-y-1.5"><Label>Task code (optional)</Label><Input value={taskType} onChange={(e) => setTaskType(e.target.value)} placeholder="e.g. SLACK_ACCESS" /></div>
+            <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+            <DialogFooter><Button type="submit" disabled={create.isPending}>Add</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {isLoading ? <Skeleton className="h-32 w-full" /> : !data || data.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No checklist items yet -- every new employee's checklist will be empty until you add some.</p>
+      ) : (
+        <div className="rounded-lg border border-border bg-card">
+          <Table>
+            <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Department</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+            <TableBody>
+              {data.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">{t.title}</TableCell>
+                  <TableCell className="text-muted-foreground">{t.department}</TableCell>
+                  <TableCell>
+                    <Switch checked={t.status === "ACTIVE"} onCheckedChange={(v) => update.mutate({ id: t.id, patch: { status: v ? "ACTIVE" : "INACTIVE" } as never })} />
+                  </TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" onClick={() => remove.mutate(t.id)}>Delete</Button>
                   </TableCell>
                 </TableRow>
               ))}

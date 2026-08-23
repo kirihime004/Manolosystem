@@ -615,10 +615,17 @@ function RequestsTab({ employeeId, companyId }: { employeeId: string; companyId:
   );
 }
 
+const ONBOARDING_DEPARTMENTS = ["HR", "IT", "ADMIN", "MANAGER"] as const;
+const OFFBOARDING_DEPARTMENTS = ["HR", "IT", "ADMIN", "FINANCE", "MANAGER"] as const;
+
 function LifecycleTab({ employeeId }: { employeeId: string }) {
   const { data: onboarding, isLoading: loadingOn } = useOnboardingTasks(employeeId);
   const { data: offboarding, isLoading: loadingOff } = useOffboardingTasks(employeeId);
-  const { startOnboarding, startOffboarding, updateOnboardingTask, updateOffboardingTask } = useLifecycleMutations(employeeId);
+  const {
+    startOnboarding, startOffboarding,
+    addOnboardingTask, updateOnboardingTask, deleteOnboardingTask,
+    addOffboardingTask, updateOffboardingTask, deleteOffboardingTask,
+  } = useLifecycleMutations(employeeId);
 
   return (
     <div className="grid grid-cols-2 gap-4">
@@ -626,9 +633,14 @@ function LifecycleTab({ employeeId }: { employeeId: string }) {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Onboarding</h3>
           <Can permission={PERMISSIONS.HR_EMPLOYEES_UPDATE}>
-            <Button size="sm" variant="outline" onClick={() => startOnboarding.mutate()} disabled={startOnboarding.isPending || (onboarding?.length ?? 0) > 0}>
-              Start onboarding
-            </Button>
+            <div className="flex items-center gap-2">
+              {(onboarding?.length ?? 0) > 0 && (
+                <AddTaskDialog departments={ONBOARDING_DEPARTMENTS} onAdd={(v) => addOnboardingTask.mutate({ employeeId, ...v })} pending={addOnboardingTask.isPending} />
+              )}
+              <Button size="sm" variant="outline" onClick={() => startOnboarding.mutate()} disabled={startOnboarding.isPending || (onboarding?.length ?? 0) > 0}>
+                Start onboarding
+              </Button>
+            </div>
           </Can>
         </div>
         {loadingOn ? <Skeleton className="h-24 w-full" /> : !onboarding || onboarding.length === 0 ? (
@@ -643,6 +655,9 @@ function LifecycleTab({ employeeId }: { employeeId: string }) {
                   {t.status !== "COMPLETED" && (
                     <Button size="sm" variant="ghost" onClick={() => updateOnboardingTask.mutate({ id: t.id, patch: { status: "COMPLETED" } })}>Mark done</Button>
                   )}
+                  <Can permission={PERMISSIONS.HR_EMPLOYEES_UPDATE}>
+                    <Button size="sm" variant="ghost" onClick={() => deleteOnboardingTask.mutate(t.id)}>Remove</Button>
+                  </Can>
                 </div>
               </div>
             ))}
@@ -654,9 +669,14 @@ function LifecycleTab({ employeeId }: { employeeId: string }) {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Offboarding</h3>
           <Can permission={PERMISSIONS.HR_EMPLOYEES_UPDATE}>
-            <Button size="sm" variant="outline" onClick={() => startOffboarding.mutate(null)} disabled={startOffboarding.isPending || (offboarding?.length ?? 0) > 0}>
-              Start offboarding
-            </Button>
+            <div className="flex items-center gap-2">
+              {(offboarding?.length ?? 0) > 0 && (
+                <AddTaskDialog departments={OFFBOARDING_DEPARTMENTS} onAdd={(v) => addOffboardingTask.mutate({ employeeId, ...v })} pending={addOffboardingTask.isPending} />
+              )}
+              <Button size="sm" variant="outline" onClick={() => startOffboarding.mutate(null)} disabled={startOffboarding.isPending || (offboarding?.length ?? 0) > 0}>
+                Start offboarding
+              </Button>
+            </div>
           </Can>
         </div>
         {loadingOff ? <Skeleton className="h-24 w-full" /> : !offboarding || offboarding.length === 0 ? (
@@ -671,6 +691,9 @@ function LifecycleTab({ employeeId }: { employeeId: string }) {
                   {t.status !== "COMPLETED" && (
                     <Button size="sm" variant="ghost" onClick={() => updateOffboardingTask.mutate({ id: t.id, patch: { status: "COMPLETED" } })}>Mark done</Button>
                   )}
+                  <Can permission={PERMISSIONS.HR_EMPLOYEES_UPDATE}>
+                    <Button size="sm" variant="ghost" onClick={() => deleteOffboardingTask.mutate(t.id)}>Remove</Button>
+                  </Can>
                 </div>
               </div>
             ))}
@@ -678,6 +701,45 @@ function LifecycleTab({ employeeId }: { employeeId: string }) {
         )}
       </CardContent></Card>
     </div>
+  );
+}
+
+function AddTaskDialog<D extends string>({ departments, onAdd, pending }: {
+  departments: readonly D[];
+  onAdd: (v: { department: D; title: string; description: string | null }) => void;
+  pending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [department, setDepartment] = useState<D>(departments[0]);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    onAdd({ department, title, description: description || null });
+    setOpen(false);
+    setTitle(""); setDescription(""); setDepartment(departments[0]);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button size="sm" variant="ghost">+ Add task</Button></DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add task</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Owning department</Label>
+            <Select value={department} onValueChange={(v) => setDepartment(v as D)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5"><Label>Title</Label><Input required value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          <DialogFooter><Button type="submit" disabled={pending}>Add</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

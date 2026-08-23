@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase/client";
 import type {
   Position, EmploymentType, EmploymentStatus, LeaveType, WorkSchedule, Holiday,
+  OnboardingTaskTemplate, OffboardingTaskTemplate,
 } from "@/types/database";
 
 // ---------------------------------------------------------------------
@@ -132,5 +133,61 @@ export async function createHoliday(input: {
 
 export async function setHolidayStatus(id: string, status: "ACTIVE" | "CANCELLED"): Promise<void> {
   const { error } = await supabase.from("holidays").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------
+// Onboarding / offboarding checklist templates -- what start_onboarding()/
+// start_offboarding() seed onto a specific employee's checklist.
+// ---------------------------------------------------------------------
+export async function listOnboardingTemplates(companyId: string): Promise<OnboardingTaskTemplate[]> {
+  const { data, error } = await supabase.from("onboarding_task_templates").select("*").eq("company_id", companyId).order("sort_order");
+  if (error) throw error;
+  return data as OnboardingTaskTemplate[];
+}
+
+export async function createOnboardingTemplate(input: {
+  companyId: string; department: OnboardingTaskTemplate["department"]; taskType: string; title: string; description?: string | null; sortOrder: number;
+}): Promise<void> {
+  const { error } = await supabase.from("onboarding_task_templates").insert({
+    company_id: input.companyId, department: input.department, task_type: input.taskType,
+    title: input.title, description: input.description ?? null, sort_order: input.sortOrder,
+  });
+  if (error) throw error;
+}
+
+export async function updateOnboardingTemplate(id: string, patch: Partial<OnboardingTaskTemplate>): Promise<void> {
+  const { error } = await supabase.from("onboarding_task_templates").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteOnboardingTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from("onboarding_task_templates").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listOffboardingTemplates(companyId: string): Promise<OffboardingTaskTemplate[]> {
+  const { data, error } = await supabase.from("offboarding_task_templates").select("*").eq("company_id", companyId).order("sort_order");
+  if (error) throw error;
+  return data as OffboardingTaskTemplate[];
+}
+
+export async function createOffboardingTemplate(input: {
+  companyId: string; department: OffboardingTaskTemplate["department"]; taskType: string; title: string; description?: string | null; sortOrder: number;
+}): Promise<void> {
+  const { error } = await supabase.from("offboarding_task_templates").insert({
+    company_id: input.companyId, department: input.department, task_type: input.taskType,
+    title: input.title, description: input.description ?? null, sort_order: input.sortOrder,
+  });
+  if (error) throw error;
+}
+
+export async function updateOffboardingTemplate(id: string, patch: Partial<OffboardingTaskTemplate>): Promise<void> {
+  const { error } = await supabase.from("offboarding_task_templates").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteOffboardingTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from("offboarding_task_templates").delete().eq("id", id);
   if (error) throw error;
 }
