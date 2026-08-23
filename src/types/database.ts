@@ -708,7 +708,474 @@ export interface Department {
   id: string;
   company_id: string;
   name: string;
+  code: string | null;
   description: string | null;
+  manager_id: string | null;
+  parent_department_id: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Position {
+  id: string;
+  company_id: string;
+  title: string;
+  code: string | null;
+  department_id: string | null;
+  level: number | null;
+  description: string | null;
+  reports_to_position_id: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmploymentType {
+  id: string;
+  company_id: string;
+  code: string;
+  label: string;
+  is_default: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+}
+
+export interface EmploymentStatus {
+  id: string;
+  company_id: string;
+  code: string;
+  label: string;
+  is_active_employment: boolean;
+  is_default: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+}
+
+export interface Employee {
+  id: string;
+  company_id: string;
+  employee_number: string;
+  user_id: string | null;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  preferred_name: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  nationality: string | null;
+  marital_status: string | null;
+  personal_email: string | null;
+  company_email: string | null;
+  phone: string | null;
+  alternative_phone: string | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+  profile_photo_path: string | null;
+  department_id: string | null;
+  position_id: string | null;
+  manager_id: string | null;
+  supervisor_id: string | null;
+  employment_type_id: string | null;
+  employment_status_id: string | null;
+  employee_category: string | null;
+  hire_date: string | null;
+  probation_start_date: string | null;
+  probation_end_date: string | null;
+  regularization_date: string | null;
+  termination_date: string | null;
+  work_location: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeEmergencyContact {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  name: string;
+  relationship: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeHistoryEntry {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  event_type: string;
+  field_name: string | null;
+  previous_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  notes: string | null;
+  performed_by: string | null;
+  created_at: string;
+}
+
+export type EmployeeDocumentType =
+  | "EMPLOYMENT_CONTRACT" | "ID_DOCUMENT" | "RESUME" | "CERTIFICATE" | "TRAINING_CERTIFICATE"
+  | "MEDICAL_CERTIFICATE" | "GOVERNMENT_DOCUMENT" | "TAX_DOCUMENT" | "OTHER";
+
+export interface EmployeeDocument {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  document_type: EmployeeDocumentType;
+  title: string;
+  document_number: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+  storage_path: string;
+  uploaded_by: string | null;
+  status: "ACTIVE" | "EXPIRED" | "ARCHIVED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ContractType = "FIXED_TERM" | "PERMANENT" | "PROBATIONARY" | "CONTRACTOR_AGREEMENT";
+export type ContractStatus = "DRAFT" | "ACTIVE" | "EXPIRING" | "EXPIRED" | "RENEWED" | "TERMINATED";
+
+export interface EmploymentContract {
+  id: string;
+  company_id: string;
+  contract_number: string;
+  employee_id: string;
+  contract_type: ContractType;
+  start_date: string;
+  end_date: string | null;
+  position_id: string | null;
+  department_id: string | null;
+  employment_type_id: string | null;
+  salary_reference: number | null;
+  currency_id: string | null;
+  working_hours: string | null;
+  work_location: string | null;
+  status: ContractStatus;
+  document_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PayType = "MONTHLY" | "BIWEEKLY" | "WEEKLY" | "DAILY" | "HOURLY" | "PROJECT_BASED";
+
+export interface EmployeeCompensation {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  effective_date: string;
+  pay_type: PayType;
+  basic_salary: number;
+  currency_id: string;
+  pay_frequency: string | null;
+  allowance: number | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkSchedule {
+  id: string;
+  company_id: string;
+  name: string;
+  working_days: number[];
+  start_time: string;
+  end_time: string;
+  break_minutes: number;
+  grace_period_minutes: number;
+  overtime_rules: Record<string, unknown>;
+  is_default: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Holiday {
+  id: string;
+  company_id: string;
+  name: string;
+  holiday_date: string;
+  country: string | null;
+  location: string | null;
+  type: "NATIONAL" | "COMPANY" | "SPECIAL";
+  status: "ACTIVE" | "CANCELLED";
+  created_at: string;
+  updated_at: string;
+}
+
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY" | "REMOTE" | "REST_DAY";
+export type AttendanceSource = "MANUAL" | "HR_ENTRY" | "SELF_SERVICE" | "BIOMETRIC" | "IMPORT" | "API";
+
+export interface Attendance {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  attendance_date: string;
+  clock_in: string | null;
+  clock_out: string | null;
+  break_minutes: number;
+  total_hours: number | null;
+  status: AttendanceStatus;
+  source: AttendanceSource;
+  location: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceCorrection {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  attendance_id: string | null;
+  attendance_date: string;
+  original_clock_in: string | null;
+  original_clock_out: string | null;
+  requested_clock_in: string | null;
+  requested_clock_out: string | null;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  approved_by: string | null;
+  approved_at: string | null;
+  approval_notes: string | null;
+  created_at: string;
+}
+
+export interface LeaveType {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  is_paid: boolean;
+  default_entitlement_days: number;
+  allow_negative_balance: boolean;
+  requires_approval: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeaveBalance {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  leave_type_id: string;
+  year: number;
+  entitlement: number;
+  used: number;
+  pending: number;
+  remaining: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LeaveRequestStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface LeaveRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  employee_id: string;
+  leave_type_id: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+  reason: string | null;
+  attachment_path: string | null;
+  status: LeaveRequestStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeaveRequestApproval {
+  id: string;
+  company_id: string;
+  leave_request_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  sequence: number;
+  decision: "PENDING" | "APPROVED" | "REJECTED";
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export type OvertimeRequestStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface OvertimeRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  employee_id: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  total_hours: number;
+  reason: string | null;
+  department_id: string | null;
+  status: OvertimeRequestStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OvertimeRequestApproval {
+  id: string;
+  company_id: string;
+  overtime_request_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  sequence: number;
+  decision: "PENDING" | "APPROVED" | "REJECTED";
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface Timesheet {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  work_date: string;
+  project_id: string | null;
+  task_id: string | null;
+  project_name: string | null;
+  task_name: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  hours: number;
+  notes: string | null;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type HrRequestType =
+  | "EMPLOYMENT_CERTIFICATE" | "SALARY_CERTIFICATE" | "LEAVE_REQUEST" | "ATTENDANCE_CORRECTION"
+  | "DOCUMENT_REQUEST" | "INFORMATION_UPDATE" | "EMPLOYMENT_VERIFICATION" | "OTHER";
+export type HrRequestStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED";
+
+export interface HrRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  employee_id: string;
+  request_type: HrRequestType;
+  subject: string;
+  description: string | null;
+  status: HrRequestStatus;
+  assigned_to: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrRequestComment {
+  id: string;
+  company_id: string;
+  hr_request_id: string;
+  author_id: string | null;
+  comment: string;
+  created_at: string;
+}
+
+export type BenefitType = "HEALTH_INSURANCE" | "LIFE_INSURANCE" | "ALLOWANCE" | "TRANSPORTATION" | "MEAL_ALLOWANCE" | "COMMUNICATION_ALLOWANCE" | "OTHER";
+export type DeductionType = "TAX" | "LOAN" | "INSURANCE" | "EMPLOYEE_CONTRIBUTION" | "OTHER";
+
+export interface EmployeeBenefit {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  benefit_type: BenefitType;
+  provider: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  amount: number | null;
+  currency_id: string | null;
+  frequency: string | null;
+  status: "ACTIVE" | "INACTIVE" | "EXPIRED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeDeduction {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  deduction_type: DeductionType;
+  description: string | null;
+  amount: number;
+  currency_id: string | null;
+  frequency: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: "ACTIVE" | "INACTIVE" | "COMPLETED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LifecycleTaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
+
+export interface EmployeeOnboardingTask {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  department: "HR" | "IT" | "ADMIN" | "MANAGER";
+  task_type: string;
+  title: string;
+  description: string | null;
+  assigned_to: string | null;
+  status: LifecycleTaskStatus;
+  due_date: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeOffboardingTask {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  department: "HR" | "IT" | "ADMIN" | "FINANCE" | "MANAGER";
+  task_type: string;
+  title: string;
+  description: string | null;
+  assigned_to: string | null;
+  status: LifecycleTaskStatus;
+  due_date: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PayrollPeriod {
+  id: string;
+  company_id: string;
+  period_name: string;
+  frequency: "MONTHLY" | "BIWEEKLY" | "WEEKLY";
+  start_date: string;
+  end_date: string;
+  pay_date: string | null;
+  status: "DRAFT" | "OPEN" | "PROCESSING" | "REVIEW" | "APPROVED" | "PAID" | "CLOSED";
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }

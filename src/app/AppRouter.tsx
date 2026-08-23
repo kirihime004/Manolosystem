@@ -54,6 +54,27 @@ import SupplierDetailPage from "@/pages/it/procurement/SupplierDetailPage";
 import ProcurementHistoryPage from "@/pages/it/procurement/ProcurementHistoryPage";
 import ReportsPage from "@/pages/it/procurement/ReportsPage";
 
+import HRDashboardPage from "@/pages/hr/HRDashboardPage";
+import EmployeesListPage from "@/pages/hr/EmployeesListPage";
+import CreateEmployeePage from "@/pages/hr/CreateEmployeePage";
+import EmployeeDetailPage from "@/pages/hr/EmployeeDetailPage";
+import HrDepartmentsPage from "@/pages/hr/organization/HrDepartmentsPage";
+import PositionsPage from "@/pages/hr/organization/PositionsPage";
+import OrgChartPage from "@/pages/hr/organization/OrgChartPage";
+import AttendancePage from "@/pages/hr/AttendancePage";
+import LeavePage from "@/pages/hr/LeavePage";
+import OvertimePage from "@/pages/hr/OvertimePage";
+import TimesheetsPage from "@/pages/hr/TimesheetsPage";
+import HrRequestsListPage from "@/pages/hr/HrRequestsListPage";
+import HrRequestDetailPage from "@/pages/hr/HrRequestDetailPage";
+import DocumentsPage from "@/pages/hr/DocumentsPage";
+import ContractsPage from "@/pages/hr/ContractsPage";
+import BenefitsPage from "@/pages/hr/BenefitsPage";
+import DeductionsPage from "@/pages/hr/DeductionsPage";
+import PayrollPeriodsPage from "@/pages/hr/PayrollPeriodsPage";
+import HrReportsPage from "@/pages/hr/HrReportsPage";
+import HrSettingsPage from "@/pages/hr/HrSettingsPage";
+
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
@@ -267,6 +288,126 @@ export function AppRouter() {
                 </RequireModule>
               }
             />
+
+            <Route
+              path="hr"
+              element={
+                <RequireModule moduleKey="HR">
+                  <RequirePermission permission={PERMISSIONS.HR_DASHBOARD_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route index element={<HRDashboardPage />} />
+              <Route
+                path="employees"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_EMPLOYEES_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<EmployeesListPage />} />
+                <Route
+                  path="new"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_EMPLOYEES_CREATE}>
+                      <CreateEmployeePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route path=":employeeId" element={<EmployeeDetailPage />} />
+              </Route>
+              <Route
+                path="organization/departments"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_DEPARTMENTS_VIEW}>
+                    <HrDepartmentsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="organization/positions"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_POSITIONS_VIEW}>
+                    <PositionsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route path="organization/chart" element={<OrgChartPage />} />
+              <Route
+                path="attendance"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_ATTENDANCE_VIEW}>
+                    <AttendancePage />
+                  </RequirePermission>
+                }
+              />
+              <Route path="leave" element={<LeavePage />} />
+              <Route path="overtime" element={<OvertimePage />} />
+              <Route path="timesheets" element={<TimesheetsPage />} />
+              <Route path="requests">
+                <Route index element={<HrRequestsListPage />} />
+                <Route path=":requestId" element={<HrRequestDetailPage />} />
+              </Route>
+              <Route
+                path="documents"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_DOCUMENTS_VIEW}>
+                    <DocumentsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="contracts"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_CONTRACTS_VIEW}>
+                    <ContractsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="benefits"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_BENEFITS_VIEW}>
+                    <BenefitsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="deductions"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_DEDUCTIONS_VIEW}>
+                    <DeductionsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="payroll"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_PAYROLL_VIEW}>
+                    <PayrollPeriodsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="reports"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_REPORTS_VIEW}>
+                    <HrReportsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_SETTINGS_MANAGE}>
+                    <HrSettingsPage />
+                  </RequirePermission>
+                }
+              />
+            </Route>
 
             <Route path="settings">
               <Route
