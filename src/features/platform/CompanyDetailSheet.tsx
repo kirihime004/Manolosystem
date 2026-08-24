@@ -39,14 +39,29 @@ function initials(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-// IT owns Ticketing plus two independently-toggleable sub-modules
-// (Inventory, Budget & Procurement) -- grouped here purely for display so
-// Platform Superadmin sees the same nesting the company sidebar already
-// shows. Each row is still its own row in company_modules and can be
-// switched on/off on its own; grouping doesn't add a dependency between them.
-const MODULE_GROUPS: { key: ModuleKey; subKeys: ModuleKey[] }[] = [
-  { key: "IT", subKeys: ["INVENTORY", "PROCUREMENT"] },
-  { key: "HR", subKeys: [] },
+// IT and HR are real master switches now: turning the parent OFF hides/
+// disables every sub-module underneath it regardless of the sub-module's
+// own setting (has_module_enabled()'s parent/child cascade enforces this
+// server-side too -- this UI just mirrors it). Each sub-module is still its
+// own independent row in company_modules, toggleable on its own as long as
+// the parent stays on.
+const MODULE_GROUPS: { key: ModuleKey; subKeys: { key: ModuleKey; label: string }[] }[] = [
+  {
+    key: "IT",
+    subKeys: [
+      { key: "TICKETING", label: "IT: Ticketing" },
+      { key: "INVENTORY", label: "IT: Inventory" },
+      { key: "PROCUREMENT", label: "IT: Budget & Procurement" },
+    ],
+  },
+  {
+    key: "HR",
+    subKeys: [
+      { key: "HR_EMPLOYEES", label: "HR: Employees" },
+      { key: "HR_ATTENDANCE_LEAVE", label: "HR: Attendance & Leave" },
+      { key: "HR_PAYROLL", label: "HR: Payroll & Benefits" },
+    ],
+  },
   { key: "FINANCE", subKeys: [] },
   { key: "ADMIN", subKeys: [] },
   { key: "PRODUCTION", subKeys: [] },
@@ -58,13 +73,29 @@ interface CompanyModuleRow {
   enabled: boolean;
 }
 
-function ModuleRow({ row, indent, onToggle }: { row: CompanyModuleRow; indent?: boolean; onToggle: (id: string, enabled: boolean) => void }) {
+function ModuleRow({
+  row,
+  label,
+  indent,
+  disabled,
+  onToggle,
+}: {
+  row: CompanyModuleRow;
+  label?: string;
+  indent?: boolean;
+  disabled?: boolean;
+  onToggle: (id: string, enabled: boolean) => void;
+}) {
   return (
     <div className={`flex items-center justify-between rounded-md px-2 py-2.5 ${indent ? "ml-5 border-l border-border pl-3" : ""}`}>
-      <span className={`text-sm ${indent ? "text-muted-foreground" : "font-medium text-foreground"}`}>
-        {MODULE_INFO[row.module_key as ModuleKey].label}
+      <span className={`text-sm ${indent ? "text-muted-foreground" : "font-medium text-foreground"} ${disabled ? "opacity-50" : ""}`}>
+        {label ?? MODULE_INFO[row.module_key as ModuleKey].label}
       </span>
-      <Switch checked={row.enabled} onCheckedChange={(checked) => onToggle(row.id, checked)} />
+      <Switch
+        checked={row.enabled}
+        disabled={disabled}
+        onCheckedChange={(checked) => onToggle(row.id, checked)}
+      />
     </div>
   );
 }
@@ -79,10 +110,26 @@ function ModulesList({ data, onToggle }: { data: CompanyModuleRow[]; onToggle: (
         return (
           <div key={group.key}>
             <ModuleRow row={parent} onToggle={onToggle} />
-            {group.subKeys.map((subKey) => {
-              const sub = byKey.get(subKey);
-              return sub ? <ModuleRow key={subKey} row={sub} indent onToggle={onToggle} /> : null;
-            })}
+            {group.subKeys.length > 0 && (
+              <div className="ml-5 space-y-0.5">
+                <p className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Submodule
+                </p>
+                {group.subKeys.map((sub) => {
+                  const row = byKey.get(sub.key);
+                  return row ? (
+                    <ModuleRow
+                      key={sub.key}
+                      row={row}
+                      label={sub.label}
+                      indent
+                      disabled={!parent.enabled}
+                      onToggle={onToggle}
+                    />
+                  ) : null;
+                })}
+              </div>
+            )}
           </div>
         );
       })}

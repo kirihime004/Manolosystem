@@ -20,6 +20,31 @@ export const CompanyContext = createContext<CompanyContextValue | undefined>(
   undefined,
 );
 
+// Mirrors the parent/child cascade in has_module_enabled() (Postgres) so
+// the frontend never shows a leaf module as available when its parent is
+// off -- a leaf's own row can say enabled=true and still be inert if the
+// parent switch is off, exactly like the backend enforces it.
+const MODULE_PARENT: Partial<Record<ModuleKey, ModuleKey>> = {
+  TICKETING: "IT",
+  INVENTORY: "IT",
+  PROCUREMENT: "IT",
+  HR_EMPLOYEES: "HR",
+  HR_ATTENDANCE_LEAVE: "HR",
+  HR_PAYROLL: "HR",
+};
+
+function computeEffectiveModules(rows: { module_key: string; enabled: boolean }[]): Set<ModuleKey> {
+  const ownEnabled = new Set(rows.filter((m) => m.enabled).map((m) => m.module_key as ModuleKey));
+  const effective = new Set<ModuleKey>();
+  for (const key of ownEnabled) {
+    const parent = MODULE_PARENT[key];
+    if (!parent || ownEnabled.has(parent)) {
+      effective.add(key);
+    }
+  }
+  return effective;
+}
+
 // Loads the active company for the current /c/{companySlug}/* route and, in
 // the same pass, the caller's membership, enabled modules, and effective
 // permissions within it.
@@ -109,11 +134,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
       setCompany(companyRow as Company);
       setCompanyUser(membershipResult.data as CompanyUser);
-      setEnabledModules(
-        new Set(
-          (modulesResult.data ?? []).map((m) => m.module_key as ModuleKey),
-        ),
-      );
+      setEnabledModules(computeEffectiveModules(modulesResult.data ?? []));
       setPermissions(new Set((permissionsResult.data ?? []) as string[]));
       setLoading(false);
     })();

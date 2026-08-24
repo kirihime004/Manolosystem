@@ -136,7 +136,7 @@ export function AppRouter() {
             <Route
               path="it"
               element={
-                <RequireModule moduleKey="IT">
+                <RequireModule moduleKey="TICKETING">
                   <Outlet />
                 </RequireModule>
               }
@@ -292,7 +292,7 @@ export function AppRouter() {
             <Route
               path="hr"
               element={
-                <RequireModule moduleKey="HR">
+                <RequireModule moduleKey={["HR_EMPLOYEES", "HR_ATTENDANCE_LEAVE", "HR_PAYROLL"]}>
                   <RequirePermission permission={PERMISSIONS.HR_DASHBOARD_VIEW}>
                     <Outlet />
                   </RequirePermission>
@@ -300,113 +300,145 @@ export function AppRouter() {
               }
             >
               <Route index element={<HRDashboardPage />} />
+
+              {/* Employees owns the master people record, org structure, documents,
+                  contracts, self-service requests, reports, and settings -- gated
+                  on its own HR_EMPLOYEES leaf module, nested under HR's parent switch. */}
               <Route
-                path="employees"
                 element={
-                  <RequirePermission permission={PERMISSIONS.HR_EMPLOYEES_VIEW}>
+                  <RequireModule moduleKey="HR_EMPLOYEES">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<EmployeesListPage />} />
                 <Route
-                  path="new"
+                  path="employees"
                   element={
-                    <RequirePermission permission={PERMISSIONS.HR_EMPLOYEES_CREATE}>
-                      <CreateEmployeePage />
+                    <RequirePermission permission={PERMISSIONS.HR_EMPLOYEES_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<EmployeesListPage />} />
+                  <Route
+                    path="new"
+                    element={
+                      <RequirePermission permission={PERMISSIONS.HR_EMPLOYEES_CREATE}>
+                        <CreateEmployeePage />
+                      </RequirePermission>
+                    }
+                  />
+                  <Route path=":employeeId" element={<EmployeeDetailPage />} />
+                </Route>
+                <Route
+                  path="organization/departments"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_DEPARTMENTS_VIEW}>
+                      <HrDepartmentsPage />
                     </RequirePermission>
                   }
                 />
-                <Route path=":employeeId" element={<EmployeeDetailPage />} />
+                <Route
+                  path="organization/positions"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_POSITIONS_VIEW}>
+                      <PositionsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route path="organization/chart" element={<OrgChartPage />} />
+                <Route path="requests">
+                  <Route index element={<HrRequestsListPage />} />
+                  <Route path=":requestId" element={<HrRequestDetailPage />} />
+                </Route>
+                <Route
+                  path="documents"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_DOCUMENTS_VIEW}>
+                      <DocumentsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="contracts"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_CONTRACTS_VIEW}>
+                      <ContractsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="reports"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_REPORTS_VIEW}>
+                      <HrReportsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="settings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_SETTINGS_MANAGE}>
+                      <HrSettingsPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
+
+              {/* Attendance & Leave: attendance, leave, overtime, timesheets. */}
               <Route
-                path="organization/departments"
                 element={
-                  <RequirePermission permission={PERMISSIONS.HR_DEPARTMENTS_VIEW}>
-                    <HrDepartmentsPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="HR_ATTENDANCE_LEAVE">
+                    <Outlet />
+                  </RequireModule>
                 }
-              />
-              <Route
-                path="organization/positions"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_POSITIONS_VIEW}>
-                    <PositionsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route path="organization/chart" element={<OrgChartPage />} />
-              <Route
-                path="attendance"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_ATTENDANCE_VIEW}>
-                    <AttendancePage />
-                  </RequirePermission>
-                }
-              />
-              <Route path="leave" element={<LeavePage />} />
-              <Route path="overtime" element={<OvertimePage />} />
-              <Route path="timesheets" element={<TimesheetsPage />} />
-              <Route path="requests">
-                <Route index element={<HrRequestsListPage />} />
-                <Route path=":requestId" element={<HrRequestDetailPage />} />
+              >
+                <Route
+                  path="attendance"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_ATTENDANCE_VIEW}>
+                      <AttendancePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route path="leave" element={<LeavePage />} />
+                <Route path="overtime" element={<OvertimePage />} />
+                <Route path="timesheets" element={<TimesheetsPage />} />
               </Route>
+
+              {/* Payroll & Benefits: benefits, deductions, payroll periods. */}
               <Route
-                path="documents"
                 element={
-                  <RequirePermission permission={PERMISSIONS.HR_DOCUMENTS_VIEW}>
-                    <DocumentsPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="HR_PAYROLL">
+                    <Outlet />
+                  </RequireModule>
                 }
-              />
-              <Route
-                path="contracts"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_CONTRACTS_VIEW}>
-                    <ContractsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="benefits"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_BENEFITS_VIEW}>
-                    <BenefitsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="deductions"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_DEDUCTIONS_VIEW}>
-                    <DeductionsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="payroll"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_PAYROLL_VIEW}>
-                    <PayrollPeriodsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="reports"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_REPORTS_VIEW}>
-                    <HrReportsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="settings"
-                element={
-                  <RequirePermission permission={PERMISSIONS.HR_SETTINGS_MANAGE}>
-                    <HrSettingsPage />
-                  </RequirePermission>
-                }
-              />
+              >
+                <Route
+                  path="benefits"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_BENEFITS_VIEW}>
+                      <BenefitsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="deductions"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_DEDUCTIONS_VIEW}>
+                      <DeductionsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="payroll"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.HR_PAYROLL_VIEW}>
+                      <PayrollPeriodsPage />
+                    </RequirePermission>
+                  }
+                />
+              </Route>
             </Route>
 
             <Route path="settings">

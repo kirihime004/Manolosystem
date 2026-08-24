@@ -36,27 +36,32 @@ import { PERMISSIONS } from "@/lib/permissions/keys";
 import { MODULE_INFO } from "@/lib/modules/moduleInfo";
 import type { ModuleKey } from "@/types/database";
 
+const NESTED_MODULE_KEYS: ModuleKey[] = [
+  "IT", "TICKETING", "INVENTORY", "PROCUREMENT",
+  "HR", "HR_EMPLOYEES", "HR_ATTENDANCE_LEAVE", "HR_PAYROLL",
+];
+
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
-  .filter(([key]) => key !== "IT" && key !== "INVENTORY" && key !== "PROCUREMENT" && key !== "HR") // each gets its own nested nav block below
+  .filter(([key]) => !NESTED_MODULE_KEYS.includes(key)) // each gets its own nested nav block below
   .map(([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }));
 
-const HR_NAV: { label: string; path: string; permission: string }[] = [
-  { label: "Employees", path: "employees", permission: PERMISSIONS.HR_EMPLOYEES_VIEW },
-  { label: "Departments", path: "organization/departments", permission: PERMISSIONS.HR_DEPARTMENTS_VIEW },
-  { label: "Positions", path: "organization/positions", permission: PERMISSIONS.HR_POSITIONS_VIEW },
-  { label: "Org Chart", path: "organization/chart", permission: PERMISSIONS.HR_EMPLOYEES_VIEW },
-  { label: "Attendance", path: "attendance", permission: PERMISSIONS.HR_ATTENDANCE_VIEW },
-  { label: "Leave", path: "leave", permission: PERMISSIONS.HR_LEAVE_VIEW },
-  { label: "Overtime", path: "overtime", permission: PERMISSIONS.HR_OVERTIME_VIEW },
-  { label: "Timesheets", path: "timesheets", permission: PERMISSIONS.HR_TIMESHEETS_VIEW },
-  { label: "Employee Requests", path: "requests", permission: PERMISSIONS.HR_REQUESTS_VIEW },
-  { label: "Documents", path: "documents", permission: PERMISSIONS.HR_DOCUMENTS_VIEW },
-  { label: "Contracts", path: "contracts", permission: PERMISSIONS.HR_CONTRACTS_VIEW },
-  { label: "Benefits", path: "benefits", permission: PERMISSIONS.HR_BENEFITS_VIEW },
-  { label: "Deductions", path: "deductions", permission: PERMISSIONS.HR_DEDUCTIONS_VIEW },
-  { label: "Payroll", path: "payroll", permission: PERMISSIONS.HR_PAYROLL_VIEW },
-  { label: "Reports", path: "reports", permission: PERMISSIONS.HR_REPORTS_VIEW },
-  { label: "Settings", path: "settings", permission: PERMISSIONS.HR_SETTINGS_MANAGE },
+const HR_NAV: { label: string; path: string; permission: string; moduleKey: ModuleKey }[] = [
+  { label: "Employees", path: "employees", permission: PERMISSIONS.HR_EMPLOYEES_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Departments", path: "organization/departments", permission: PERMISSIONS.HR_DEPARTMENTS_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Positions", path: "organization/positions", permission: PERMISSIONS.HR_POSITIONS_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Org Chart", path: "organization/chart", permission: PERMISSIONS.HR_EMPLOYEES_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Attendance", path: "attendance", permission: PERMISSIONS.HR_ATTENDANCE_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
+  { label: "Leave", path: "leave", permission: PERMISSIONS.HR_LEAVE_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
+  { label: "Overtime", path: "overtime", permission: PERMISSIONS.HR_OVERTIME_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
+  { label: "Timesheets", path: "timesheets", permission: PERMISSIONS.HR_TIMESHEETS_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
+  { label: "Employee Requests", path: "requests", permission: PERMISSIONS.HR_REQUESTS_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Documents", path: "documents", permission: PERMISSIONS.HR_DOCUMENTS_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Contracts", path: "contracts", permission: PERMISSIONS.HR_CONTRACTS_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Benefits", path: "benefits", permission: PERMISSIONS.HR_BENEFITS_VIEW, moduleKey: "HR_PAYROLL" },
+  { label: "Deductions", path: "deductions", permission: PERMISSIONS.HR_DEDUCTIONS_VIEW, moduleKey: "HR_PAYROLL" },
+  { label: "Payroll", path: "payroll", permission: PERMISSIONS.HR_PAYROLL_VIEW, moduleKey: "HR_PAYROLL" },
+  { label: "Reports", path: "reports", permission: PERMISSIONS.HR_REPORTS_VIEW, moduleKey: "HR_EMPLOYEES" },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.HR_SETTINGS_MANAGE, moduleKey: "HR_EMPLOYEES" },
 ];
 
 const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
@@ -158,11 +163,11 @@ export function CompanyShell({ children }: { children: ReactNode }) {
             <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Modules
             </p>
-            {enabledModules.has("IT") && (
+            {enabledModules.has("TICKETING") && (
               <>
                 <NavLink
                   to={`${base}/it`}
-                  icon={MODULE_INFO.IT.icon}
+                  icon={MODULE_INFO.TICKETING.icon}
                   label="Ticketing"
                   active={location.pathname === `${base}/it`}
                 />
@@ -278,7 +283,8 @@ export function CompanyShell({ children }: { children: ReactNode }) {
               </>
             )}
 
-            {enabledModules.has("HR") && hasPermission(PERMISSIONS.HR_DASHBOARD_VIEW) && (
+            {(enabledModules.has("HR_EMPLOYEES") || enabledModules.has("HR_ATTENDANCE_LEAVE") || enabledModules.has("HR_PAYROLL")) &&
+              hasPermission(PERMISSIONS.HR_DASHBOARD_VIEW) && (
               <>
                 <NavLink
                   to={`${base}/hr`}
@@ -287,7 +293,7 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                   active={location.pathname === `${base}/hr`}
                 />
                 <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {HR_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                  {HR_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
                     <Link
                       key={s.path}
                       to={`${base}/hr/${s.path}`}
