@@ -6,12 +6,14 @@ import {
   useEmployee, useEmployeeMutations, useEmergencyContacts, useEmergencyContactMutations,
   useEmployeeHistory, useEmployeeDocuments, useEmployeeDocumentMutations,
   useContracts, useContractMutations, useCompensationHistory, useCompensationMutations,
-  useAttendance, useLeaveRequests, useTimesheets, useHrRequests, useBenefits,
+  useAttendance, useLeaveRequests, useTimesheets, useHrRequests,
+  useBenefits, useBenefitMutations, useDeductions, useDeductionMutations,
   useOnboardingTasks, useOffboardingTasks, useLifecycleMutations,
   useEmploymentTypes, useEmploymentStatuses, usePositions,
 } from "@/features/hr/hooks";
 import { useDepartments } from "@/features/company/settings/useDepartments";
 import * as employeeApi from "@/features/hr/hrEmployeeApi";
+import type { EmployeeDocument } from "@/types/database";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -79,6 +81,7 @@ export default function EmployeeDetailPage() {
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="contracts">Contracts</TabsTrigger>
           <Can permission={PERMISSIONS.HR_BENEFITS_VIEW}><TabsTrigger value="benefits">Benefits</TabsTrigger></Can>
+          <Can permission={PERMISSIONS.HR_DEDUCTIONS_VIEW}><TabsTrigger value="deductions">Deductions</TabsTrigger></Can>
           <Can permission={PERMISSIONS.HR_EMPLOYEES_VIEW_SALARY}><TabsTrigger value="compensation">Compensation</TabsTrigger></Can>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="lifecycle">Onboarding/Offboarding</TabsTrigger>
@@ -105,7 +108,8 @@ export default function EmployeeDetailPage() {
         <TabsContent value="timesheets" className="pt-4"><TimesheetsTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
         <TabsContent value="documents" className="pt-4"><DocumentsTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
         <TabsContent value="contracts" className="pt-4"><ContractsTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
-        <TabsContent value="benefits" className="pt-4"><BenefitsTab employeeId={employee.id} /></TabsContent>
+        <TabsContent value="benefits" className="pt-4"><BenefitsTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
+        <TabsContent value="deductions" className="pt-4"><DeductionsTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
         <TabsContent value="compensation" className="pt-4"><CompensationTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
         <TabsContent value="requests" className="pt-4"><RequestsTab employeeId={employee.id} companyId={company?.id} /></TabsContent>
         <TabsContent value="lifecycle" className="pt-4"><LifecycleTab employeeId={employee.id} /></TabsContent>
@@ -119,18 +123,32 @@ function OverviewTab({ employee }: { employee: NonNullable<ReturnType<typeof use
   const { data: contacts, isLoading } = useEmergencyContacts(employee.id);
   const { upsert, remove } = useEmergencyContactMutations(employee.id);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [isPrimary, setIsPrimary] = useState(false);
 
-  const handleAdd = async (e: FormEvent) => {
+  const openAdd = () => {
+    setEditingId(null); setName(""); setRelationship(""); setContactPhone(""); setEmail(""); setIsPrimary((contacts ?? []).length === 0);
+    setOpen(true);
+  };
+  const openEdit = (c: NonNullable<typeof contacts>[number]) => {
+    setEditingId(c.id); setName(c.name); setRelationship(c.relationship ?? ""); setContactPhone(c.phone ?? ""); setEmail(c.email ?? ""); setIsPrimary(c.is_primary);
+    setOpen(true);
+  };
+
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await upsert.mutateAsync({ employeeId: employee.id, name, relationship, phone: contactPhone, isPrimary: (contacts ?? []).length === 0 });
-      toast.success("Emergency contact added");
-      setOpen(false); setName(""); setRelationship(""); setContactPhone("");
+      await upsert.mutateAsync({
+        id: editingId ?? undefined, employeeId: employee.id, name, relationship, phone: contactPhone, email, isPrimary,
+      });
+      toast.success(editingId ? "Emergency contact updated" : "Emergency contact added");
+      setOpen(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add contact");
+      toast.error(err instanceof Error ? err.message : "Failed to save contact");
     }
   };
 
@@ -153,13 +171,15 @@ function OverviewTab({ employee }: { employee: NonNullable<ReturnType<typeof use
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Emergency contacts</h3>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm" variant="outline">+ Add</Button></DialogTrigger>
+            <DialogTrigger asChild><Button size="sm" variant="outline" onClick={openAdd}>+ Add</Button></DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Add emergency contact</DialogTitle></DialogHeader>
-              <form onSubmit={handleAdd} className="space-y-3">
+              <DialogHeader><DialogTitle>{editingId ? "Edit emergency contact" : "Add emergency contact"}</DialogTitle></DialogHeader>
+              <form onSubmit={handleSave} className="space-y-3">
                 <div className="space-y-1.5"><Label>Name</Label><Input required value={name} onChange={(e) => setName(e.target.value)} /></div>
                 <div className="space-y-1.5"><Label>Relationship</Label><Input value={relationship} onChange={(e) => setRelationship(e.target.value)} /></div>
                 <div className="space-y-1.5"><Label>Phone</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} />Primary contact</label>
                 <DialogFooter><Button type="submit" disabled={upsert.isPending}>Save</Button></DialogFooter>
               </form>
             </DialogContent>
@@ -175,7 +195,10 @@ function OverviewTab({ employee }: { employee: NonNullable<ReturnType<typeof use
                   <p className="font-medium text-foreground">{c.name} {c.is_primary && <span className="text-xs text-primary">(primary)</span>}</p>
                   <p className="text-muted-foreground">{c.relationship} · {c.phone}</p>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => remove.mutate(c.id)}>Remove</Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>Edit</Button>
+                  <Button size="sm" variant="ghost" onClick={() => remove.mutate(c.id)}>Remove</Button>
+                </div>
               </div>
             ))}
           </div>
@@ -333,13 +356,23 @@ function TimesheetsTab({ employeeId, companyId }: { employeeId: string; companyI
   );
 }
 
+const DOCUMENT_TYPES = ["EMPLOYMENT_CONTRACT", "ID_DOCUMENT", "RESUME", "CERTIFICATE", "TRAINING_CERTIFICATE", "MEDICAL_CERTIFICATE", "GOVERNMENT_DOCUMENT", "TAX_DOCUMENT", "OTHER"];
+
 function DocumentsTab({ employeeId, companyId }: { employeeId: string; companyId: string | undefined }) {
   const { data, isLoading } = useEmployeeDocuments(employeeId);
-  const { upload, remove } = useEmployeeDocumentMutations(employeeId);
+  const { upload, update, remove } = useEmployeeDocumentMutations(employeeId);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [docType, setDocType] = useState("OTHER");
   const [file, setFile] = useState<File | null>(null);
+
+  const [editing, setEditing] = useState<EmployeeDocument | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDocType, setEditDocType] = useState("OTHER");
+  const [editDocNumber, setEditDocNumber] = useState("");
+  const [editExpiry, setEditExpiry] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   const handleUpload = async (e: FormEvent) => {
     e.preventDefault();
@@ -350,6 +383,27 @@ function DocumentsTab({ employeeId, companyId }: { employeeId: string; companyId
       setOpen(false); setTitle(""); setFile(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to upload document");
+    }
+  };
+
+  const openEdit = (d: NonNullable<typeof data>[number]) => {
+    setEditing(d); setEditTitle(d.title); setEditDocType(d.document_type);
+    setEditDocNumber(d.document_number ?? ""); setEditExpiry(d.expiry_date ?? ""); setEditNotes(d.notes ?? "");
+    setEditOpen(true);
+  };
+
+  const handleEditSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    try {
+      await update.mutateAsync({
+        id: editing.id,
+        patch: { title: editTitle, documentType: editDocType as never, documentNumber: editDocNumber || null, expiryDate: editExpiry || null, notes: editNotes || null },
+      });
+      toast.success("Document updated");
+      setEditOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update document");
     }
   };
 
@@ -375,11 +429,7 @@ function DocumentsTab({ employeeId, companyId }: { employeeId: string; companyId
                 <Label>Type</Label>
                 <Select value={docType} onValueChange={setDocType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["EMPLOYMENT_CONTRACT", "ID_DOCUMENT", "RESUME", "CERTIFICATE", "TRAINING_CERTIFICATE", "MEDICAL_CERTIFICATE", "GOVERNMENT_DOCUMENT", "TAX_DOCUMENT", "OTHER"].map((t) => (
-                      <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{DOCUMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5"><Label>File</Label><Input type="file" required onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></div>
@@ -388,6 +438,25 @@ function DocumentsTab({ employeeId, companyId }: { employeeId: string; companyId
           </DialogContent>
         </Dialog>
       </Can>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit document</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditSave} className="space-y-3">
+            <div className="space-y-1.5"><Label>Title</Label><Input required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={editDocType} onValueChange={setEditDocType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{DOCUMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Document number</Label><Input value={editDocNumber} onChange={(e) => setEditDocNumber(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Expiry date</Label><Input type="date" value={editExpiry} onChange={(e) => setEditExpiry(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
+            <DialogFooter><Button type="submit" disabled={update.isPending}>Save changes</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       {isLoading ? <Skeleton className="h-32 w-full" /> : !data || data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No documents on file.</p>
       ) : (
@@ -403,6 +472,9 @@ function DocumentsTab({ employeeId, companyId }: { employeeId: string; companyId
                   <TableCell>{d.status}</TableCell>
                   <TableCell className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => handleDownload(d.storage_path)}>View</Button>
+                    <Can permission={PERMISSIONS.HR_DOCUMENTS_UPDATE}>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(d)}>Edit</Button>
+                    </Can>
                     <Can permission={PERMISSIONS.HR_DOCUMENTS_DELETE}>
                       <Button size="sm" variant="ghost" onClick={() => remove.mutate({ id: d.id, storagePath: d.storage_path })}>Delete</Button>
                     </Can>
@@ -419,7 +491,7 @@ function DocumentsTab({ employeeId, companyId }: { employeeId: string; companyId
 
 function ContractsTab({ employeeId, companyId }: { employeeId: string; companyId: string | undefined }) {
   const { data, isLoading } = useContracts(employeeId);
-  const { create, renew } = useContractMutations(employeeId);
+  const { create, renew, setStatus } = useContractMutations(employeeId);
   const [open, setOpen] = useState(false);
   const [contractType, setContractType] = useState("FIXED_TERM");
   const [startDate, setStartDate] = useState("");
@@ -476,11 +548,19 @@ function ContractsTab({ employeeId, companyId }: { employeeId: string; companyId
                   <TableCell className="text-muted-foreground">{c.contract_type.replace(/_/g, " ")}</TableCell>
                   <TableCell className="text-muted-foreground">{c.start_date} → {c.end_date ?? "—"}</TableCell>
                   <TableCell><ContractStatusBadge status={c.status} /></TableCell>
-                  <TableCell>
+                  <TableCell className="flex items-center gap-2">
                     <Can permission={PERMISSIONS.HR_CONTRACTS_RENEW}>
                       {(c.status === "ACTIVE" || c.status === "EXPIRING") && (
                         <Button size="sm" variant="outline" onClick={() => renew.mutate({ id: c.id, newEndDate: null })}>Renew</Button>
                       )}
+                    </Can>
+                    <Can permission={PERMISSIONS.HR_CONTRACTS_UPDATE}>
+                      <Select value={c.status} onValueChange={(v) => setStatus.mutate({ id: c.id, status: v as never })}>
+                        <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["DRAFT", "ACTIVE", "EXPIRING", "EXPIRED", "RENEWED", "TERMINATED"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </Can>
                   </TableCell>
                 </TableRow>
@@ -493,25 +573,180 @@ function ContractsTab({ employeeId, companyId }: { employeeId: string; companyId
   );
 }
 
-function BenefitsTab({ employeeId }: { employeeId: string }) {
+const BENEFIT_TYPES = ["HEALTH_INSURANCE", "LIFE_INSURANCE", "ALLOWANCE", "TRANSPORTATION", "MEAL_ALLOWANCE", "COMMUNICATION_ALLOWANCE", "OTHER"];
+
+function BenefitsTab({ employeeId, companyId }: { employeeId: string; companyId: string | undefined }) {
   const { data, isLoading } = useBenefits(employeeId);
-  if (isLoading) return <Skeleton className="h-32 w-full" />;
-  if (!data || data.length === 0) return <p className="text-sm text-muted-foreground">No data available.</p>;
+  const { create, setStatus } = useBenefitMutations(employeeId);
+  const [open, setOpen] = useState(false);
+  const [benefitType, setBenefitType] = useState("ALLOWANCE");
+  const [provider, setProvider] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currencyId, setCurrencyId] = useState("");
+  const [frequency, setFrequency] = useState("MONTHLY");
+
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!companyId) return;
+    try {
+      await create.mutateAsync({
+        companyId, employeeId, benefitType: benefitType as never, provider: provider || null,
+        amount: amount ? Number(amount) : null, currencyId: currencyId || null, frequency,
+      });
+      toast.success("Benefit added");
+      setOpen(false); setProvider(""); setAmount("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add benefit");
+    }
+  };
+
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <Table>
-        <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Provider</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {data.map((b) => (
-            <TableRow key={b.id}>
-              <TableCell>{b.benefit_type.replace(/_/g, " ")}</TableCell>
-              <TableCell className="text-muted-foreground">{b.provider ?? "—"}</TableCell>
-              <TableCell>{b.amount != null && b.currency_id ? <Money amount={b.amount} currencyId={b.currency_id} /> : "—"}</TableCell>
-              <TableCell>{b.status}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-3">
+      <Can permission={PERMISSIONS.HR_BENEFITS_CREATE}>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm">+ Add benefit</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>New benefit</DialogTitle></DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select value={benefitType} onValueChange={setBenefitType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{BENEFIT_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5"><Label>Provider</Label><Input value={provider} onChange={(e) => setProvider(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>Amount</Label><Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>Currency</Label><CurrencySelect value={currencyId} onChange={setCurrencyId} /></div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Frequency</Label>
+                <Select value={frequency} onValueChange={setFrequency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{["MONTHLY", "BIWEEKLY", "WEEKLY", "ANNUAL", "ONE_TIME"].map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <DialogFooter><Button type="submit" disabled={create.isPending}>Add</Button></DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </Can>
+      {isLoading ? <Skeleton className="h-32 w-full" /> : !data || data.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No data available.</p>
+      ) : (
+        <div className="rounded-lg border border-border bg-card">
+          <Table>
+            <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Provider</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {data.map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell>{b.benefit_type.replace(/_/g, " ")}</TableCell>
+                  <TableCell className="text-muted-foreground">{b.provider ?? "—"}</TableCell>
+                  <TableCell>{b.amount != null && b.currency_id ? <Money amount={b.amount} currencyId={b.currency_id} /> : "—"}</TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.HR_BENEFITS_UPDATE} fallback={<span>{b.status}</span>}>
+                      <Select value={b.status} onValueChange={(v) => setStatus.mutate({ id: b.id, status: v as never })}>
+                        <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{["ACTIVE", "INACTIVE", "EXPIRED"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DEDUCTION_TYPES = ["TAX", "LOAN", "INSURANCE", "EMPLOYEE_CONTRIBUTION", "OTHER"];
+
+function DeductionsTab({ employeeId, companyId }: { employeeId: string; companyId: string | undefined }) {
+  const { data, isLoading } = useDeductions(employeeId);
+  const { create, setStatus } = useDeductionMutations(employeeId);
+  const [open, setOpen] = useState(false);
+  const [deductionType, setDeductionType] = useState("TAX");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currencyId, setCurrencyId] = useState("");
+  const [frequency, setFrequency] = useState("MONTHLY");
+
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!companyId || !amount) return;
+    try {
+      await create.mutateAsync({
+        companyId, employeeId, deductionType: deductionType as never, description: description || null,
+        amount: Number(amount), currencyId: currencyId || null, frequency,
+      });
+      toast.success("Deduction added");
+      setOpen(false); setDescription(""); setAmount("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add deduction");
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <Can permission={PERMISSIONS.HR_DEDUCTIONS_CREATE}>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button size="sm">+ Add deduction</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>New deduction</DialogTitle></DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select value={deductionType} onValueChange={setDeductionType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{DEDUCTION_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5"><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>Amount</Label><Input type="number" min="0" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>Currency</Label><CurrencySelect value={currencyId} onChange={setCurrencyId} /></div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Frequency</Label>
+                <Select value={frequency} onValueChange={setFrequency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{["MONTHLY", "BIWEEKLY", "WEEKLY", "ANNUAL", "ONE_TIME"].map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <DialogFooter><Button type="submit" disabled={create.isPending}>Add</Button></DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </Can>
+      {isLoading ? <Skeleton className="h-32 w-full" /> : !data || data.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No data available.</p>
+      ) : (
+        <div className="rounded-lg border border-border bg-card">
+          <Table>
+            <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {data.map((d) => (
+                <TableRow key={d.id}>
+                  <TableCell>{d.deduction_type.replace(/_/g, " ")}</TableCell>
+                  <TableCell className="text-muted-foreground">{d.description ?? "—"}</TableCell>
+                  <TableCell>{d.currency_id ? <Money amount={d.amount} currencyId={d.currency_id} /> : d.amount}</TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.HR_DEDUCTIONS_UPDATE} fallback={<span>{d.status}</span>}>
+                      <Select value={d.status} onValueChange={(v) => setStatus.mutate({ id: d.id, status: v as never })}>
+                        <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>{["ACTIVE", "INACTIVE", "COMPLETED"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Can>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

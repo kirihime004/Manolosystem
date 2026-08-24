@@ -49,8 +49,18 @@ export async function createEmploymentType(companyId: string, code: string, labe
   if (error) throw error;
 }
 
+export async function updateEmploymentType(id: string, patch: Partial<EmploymentType>): Promise<void> {
+  const { error } = await supabase.from("employment_types").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
 export async function setEmploymentTypeStatus(id: string, status: "ACTIVE" | "INACTIVE"): Promise<void> {
   const { error } = await supabase.from("employment_types").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEmploymentType(id: string): Promise<void> {
+  const { error } = await supabase.from("employment_types").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -65,8 +75,18 @@ export async function createEmploymentStatus(companyId: string, code: string, la
   if (error) throw error;
 }
 
+export async function updateEmploymentStatus(id: string, patch: Partial<EmploymentStatus>): Promise<void> {
+  const { error } = await supabase.from("employment_statuses").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
 export async function setEmploymentStatusStatus(id: string, status: "ACTIVE" | "INACTIVE"): Promise<void> {
   const { error } = await supabase.from("employment_statuses").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEmploymentStatus(id: string): Promise<void> {
+  const { error } = await supabase.from("employment_statuses").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -91,6 +111,11 @@ export async function createLeaveType(input: {
 
 export async function updateLeaveType(id: string, patch: Partial<LeaveType>): Promise<void> {
   const { error } = await supabase.from("leave_types").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteLeaveType(id: string): Promise<void> {
+  const { error } = await supabase.from("leave_types").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -131,8 +156,28 @@ export async function createHoliday(input: {
   if (error) throw error;
 }
 
+export async function updateHoliday(id: string, patch: Partial<Holiday>): Promise<void> {
+  const { error } = await supabase.from("holidays").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
 export async function setHolidayStatus(id: string, status: "ACTIVE" | "CANCELLED"): Promise<void> {
   const { error } = await supabase.from("holidays").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteHoliday(id: string): Promise<void> {
+  const { error } = await supabase.from("holidays").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateWorkSchedule(id: string, patch: Partial<WorkSchedule>): Promise<void> {
+  const { error } = await supabase.from("work_schedules").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteWorkSchedule(id: string): Promise<void> {
+  const { error } = await supabase.from("work_schedules").delete().eq("id", id);
   if (error) throw error;
 }
 

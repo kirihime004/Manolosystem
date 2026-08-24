@@ -30,6 +30,11 @@ export async function decideOvertimeRequestApproval(approvalId: string, decision
   if (error) throw error;
 }
 
+export async function cancelOvertimeRequest(id: string): Promise<void> {
+  const { error } = await supabase.rpc("cancel_overtime_request", { p_overtime_request_id: id });
+  if (error) throw error;
+}
+
 export async function listOvertimeApprovals(overtimeRequestId: string): Promise<OvertimeRequestApproval[]> {
   const { data, error } = await supabase.from("overtime_request_approvals").select("*").eq("overtime_request_id", overtimeRequestId).order("sequence");
   if (error) throw error;
@@ -59,8 +64,26 @@ export async function createTimesheet(input: {
   if (error) throw error;
 }
 
+export async function updateTimesheet(id: string, patch: {
+  workDate?: string; projectName?: string | null; taskName?: string | null; hours?: number; notes?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from("timesheets").update({
+    ...(patch.workDate !== undefined ? { work_date: patch.workDate } : {}),
+    ...(patch.projectName !== undefined ? { project_name: patch.projectName } : {}),
+    ...(patch.taskName !== undefined ? { task_name: patch.taskName } : {}),
+    ...(patch.hours !== undefined ? { hours: patch.hours } : {}),
+    ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+  }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function submitTimesheet(id: string): Promise<void> {
   const { error } = await supabase.from("timesheets").update({ status: "SUBMITTED" }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteTimesheet(id: string): Promise<void> {
+  const { error } = await supabase.from("timesheets").delete().eq("id", id);
   if (error) throw error;
 }
 

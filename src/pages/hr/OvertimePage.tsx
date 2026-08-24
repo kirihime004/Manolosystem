@@ -20,7 +20,7 @@ export default function OvertimePage() {
   const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
   const { data: requests, isLoading } = useOvertimeRequests(company?.id);
   const { data: employees } = useEmployees(company?.id);
-  const { create, submit, decide } = useOvertimeMutations(company?.id);
+  const { create, submit, decide, cancel } = useOvertimeMutations(company?.id);
 
   const [open, setOpen] = useState(false);
   const [workDate, setWorkDate] = useState("");
@@ -83,11 +83,14 @@ export default function OvertimePage() {
                   <TableCell className="text-muted-foreground">{ot.work_date}</TableCell>
                   <TableCell>{ot.total_hours}</TableCell>
                   <TableCell><OvertimeRequestStatusBadge status={ot.status} /></TableCell>
-                  <TableCell>
+                  <TableCell className="flex items-center gap-2">
                     {ot.status === "SUBMITTED" && (
                       <Can permission={PERMISSIONS.HR_OVERTIME_APPROVE}>
                         <OvertimeApprovalActions overtimeRequestId={ot.id} decide={decide} />
                       </Can>
+                    )}
+                    {(ot.status === "DRAFT" || ot.status === "SUBMITTED") && (
+                      <Button size="sm" variant="ghost" onClick={() => cancel.mutate(ot.id)}>Cancel</Button>
                     )}
                   </TableCell>
                 </TableRow>

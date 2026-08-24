@@ -58,8 +58,8 @@ export default function HrRequestDetailPage() {
 
       {request.description && <Card><CardContent className="pt-6 text-sm text-foreground">{request.description}</CardContent></Card>}
 
-      <Can permission={[PERMISSIONS.HR_REQUESTS_APPROVE, PERMISSIONS.HR_REQUESTS_REJECT]}>
-        <div className="flex gap-2">
+      <div className="flex gap-2">
+        <Can permission={[PERMISSIONS.HR_REQUESTS_APPROVE, PERMISSIONS.HR_REQUESTS_REJECT]}>
           {request.status === "SUBMITTED" && <Button size="sm" variant="outline" onClick={() => doTransition("UNDER_REVIEW")}>Start review</Button>}
           {(request.status === "SUBMITTED" || request.status === "UNDER_REVIEW") && (
             <>
@@ -68,8 +68,11 @@ export default function HrRequestDetailPage() {
             </>
           )}
           {request.status === "APPROVED" && <Button size="sm" onClick={() => doTransition("COMPLETED")}>Mark completed</Button>}
-        </div>
-      </Can>
+        </Can>
+        {(request.status === "DRAFT" || request.status === "SUBMITTED") && (
+          <Button size="sm" variant="ghost" onClick={() => doTransition("CANCELLED")}>Cancel request</Button>
+        )}
+      </div>
 
       <Card>
         <CardContent className="pt-6 space-y-4">

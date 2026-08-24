@@ -30,7 +30,7 @@ export default function LeavePage() {
   const { data: leaveRequests, isLoading } = useLeaveRequests(company?.id);
   const { data: leaveTypes } = useLeaveTypes(company?.id);
   const { data: employees } = useEmployees(company?.id);
-  const { create, submit, decide } = useLeaveMutations(company?.id);
+  const { create, submit, decide, cancel } = useLeaveMutations(company?.id);
 
   const [open, setOpen] = useState(false);
   const [leaveTypeId, setLeaveTypeId] = useState("");
@@ -102,11 +102,14 @@ export default function LeavePage() {
                   <TableCell className="text-muted-foreground">{lr.start_date} → {lr.end_date}</TableCell>
                   <TableCell>{lr.days}</TableCell>
                   <TableCell><LeaveRequestStatusBadge status={lr.status} /></TableCell>
-                  <TableCell>
+                  <TableCell className="flex items-center gap-2">
                     {lr.status === "SUBMITTED" && (
                       <Can permission={[PERMISSIONS.HR_LEAVE_APPROVE, PERMISSIONS.HR_LEAVE_REJECT]}>
                         <LeaveApprovalActions leaveRequestId={lr.id} decide={decide} />
                       </Can>
+                    )}
+                    {(lr.status === "DRAFT" || lr.status === "SUBMITTED") && (
+                      <Button size="sm" variant="ghost" onClick={() => cancel.mutate(lr.id)}>Cancel</Button>
                     )}
                   </TableCell>
                 </TableRow>

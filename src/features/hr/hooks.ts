@@ -45,23 +45,35 @@ export function useEmploymentStatuses(companyId: string | undefined) {
 
 export function useEmploymentConfigMutations(companyId: string | undefined) {
   const qc = useQueryClient();
+  const invalidateTypes = () => qc.invalidateQueries({ queryKey: ["hr-employment-types", companyId] });
+  const invalidateStatuses = () => qc.invalidateQueries({ queryKey: ["hr-employment-statuses", companyId] });
   return {
     createType: useMutation({
       mutationFn: (input: { code: string; label: string }) => orgApi.createEmploymentType(companyId!, input.code, input.label),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-employment-types", companyId] }),
+      onSuccess: invalidateTypes,
+    }),
+    updateType: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateEmploymentType>[1] }) => orgApi.updateEmploymentType(input.id, input.patch),
+      onSuccess: invalidateTypes,
     }),
     setTypeStatus: useMutation({
       mutationFn: (input: { id: string; status: "ACTIVE" | "INACTIVE" }) => orgApi.setEmploymentTypeStatus(input.id, input.status),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-employment-types", companyId] }),
+      onSuccess: invalidateTypes,
     }),
+    deleteType: useMutation({ mutationFn: orgApi.deleteEmploymentType, onSuccess: invalidateTypes }),
     createStatus: useMutation({
       mutationFn: (input: { code: string; label: string; isActiveEmployment: boolean }) => orgApi.createEmploymentStatus(companyId!, input.code, input.label, input.isActiveEmployment),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-employment-statuses", companyId] }),
+      onSuccess: invalidateStatuses,
+    }),
+    updateStatus: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateEmploymentStatus>[1] }) => orgApi.updateEmploymentStatus(input.id, input.patch),
+      onSuccess: invalidateStatuses,
     }),
     setStatusStatus: useMutation({
       mutationFn: (input: { id: string; status: "ACTIVE" | "INACTIVE" }) => orgApi.setEmploymentStatusStatus(input.id, input.status),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-employment-statuses", companyId] }),
+      onSuccess: invalidateStatuses,
     }),
+    deleteStatus: useMutation({ mutationFn: orgApi.deleteEmploymentStatus, onSuccess: invalidateStatuses }),
   };
 }
 
@@ -75,6 +87,7 @@ export function useLeaveTypeMutations(companyId: string | undefined) {
   return {
     create: useMutation({ mutationFn: orgApi.createLeaveType, onSuccess: invalidate }),
     update: useMutation({ mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateLeaveType>[1] }) => orgApi.updateLeaveType(input.id, input.patch), onSuccess: invalidate }),
+    remove: useMutation({ mutationFn: orgApi.deleteLeaveType, onSuccess: invalidate }),
   };
 }
 
@@ -88,13 +101,25 @@ export function useHolidays(companyId: string | undefined) {
 
 export function useScheduleHolidayMutations(companyId: string | undefined) {
   const qc = useQueryClient();
+  const invalidateSchedules = () => qc.invalidateQueries({ queryKey: ["hr-work-schedules", companyId] });
+  const invalidateHolidays = () => qc.invalidateQueries({ queryKey: ["hr-holidays", companyId] });
   return {
-    createSchedule: useMutation({ mutationFn: orgApi.createWorkSchedule, onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-work-schedules", companyId] }) }),
-    createHoliday: useMutation({ mutationFn: orgApi.createHoliday, onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-holidays", companyId] }) }),
+    createSchedule: useMutation({ mutationFn: orgApi.createWorkSchedule, onSuccess: invalidateSchedules }),
+    updateSchedule: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateWorkSchedule>[1] }) => orgApi.updateWorkSchedule(input.id, input.patch),
+      onSuccess: invalidateSchedules,
+    }),
+    deleteSchedule: useMutation({ mutationFn: orgApi.deleteWorkSchedule, onSuccess: invalidateSchedules }),
+    createHoliday: useMutation({ mutationFn: orgApi.createHoliday, onSuccess: invalidateHolidays }),
+    updateHoliday: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof orgApi.updateHoliday>[1] }) => orgApi.updateHoliday(input.id, input.patch),
+      onSuccess: invalidateHolidays,
+    }),
     setHolidayStatus: useMutation({
       mutationFn: (input: { id: string; status: "ACTIVE" | "CANCELLED" }) => orgApi.setHolidayStatus(input.id, input.status),
-      onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-holidays", companyId] }),
+      onSuccess: invalidateHolidays,
     }),
+    deleteHoliday: useMutation({ mutationFn: orgApi.deleteHoliday, onSuccess: invalidateHolidays }),
   };
 }
 
@@ -201,6 +226,10 @@ export function useEmployeeDocumentMutations(employeeId: string | undefined) {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["hr-employee-documents", employeeId] });
   return {
     upload: useMutation({ mutationFn: employeeApi.uploadEmployeeDocument, onSuccess: invalidate }),
+    update: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof employeeApi.updateEmployeeDocument>[1] }) => employeeApi.updateEmployeeDocument(input.id, input.patch),
+      onSuccess: invalidate,
+    }),
     remove: useMutation({
       mutationFn: (input: { id: string; storagePath: string }) => employeeApi.deleteEmployeeDocument(input.id, input.storagePath),
       onSuccess: invalidate,
@@ -378,6 +407,7 @@ export function useOvertimeMutations(companyId: string | undefined) {
       mutationFn: (input: { approvalId: string; decision: "APPROVED" | "REJECTED"; comments?: string | null }) => overtimeApi.decideOvertimeRequestApproval(input.approvalId, input.decision, input.comments),
       onSuccess: invalidate,
     }),
+    cancel: useMutation({ mutationFn: overtimeApi.cancelOvertimeRequest, onSuccess: invalidate }),
   };
 }
 
@@ -390,11 +420,16 @@ export function useTimesheetMutations(companyId: string | undefined) {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["hr-timesheets", companyId] });
   return {
     create: useMutation({ mutationFn: overtimeApi.createTimesheet, onSuccess: invalidate }),
+    update: useMutation({
+      mutationFn: (input: { id: string; patch: Parameters<typeof overtimeApi.updateTimesheet>[1] }) => overtimeApi.updateTimesheet(input.id, input.patch),
+      onSuccess: invalidate,
+    }),
     submit: useMutation({ mutationFn: overtimeApi.submitTimesheet, onSuccess: invalidate }),
     decide: useMutation({
       mutationFn: (input: { id: string; decision: "APPROVED" | "REJECTED" }) => overtimeApi.decideTimesheet(input.id, input.decision),
       onSuccess: invalidate,
     }),
+    remove: useMutation({ mutationFn: overtimeApi.deleteTimesheet, onSuccess: invalidate }),
   };
 }
 

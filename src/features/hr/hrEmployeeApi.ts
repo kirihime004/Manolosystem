@@ -160,6 +160,22 @@ export async function uploadEmployeeDocument(input: {
   if (error) throw error;
 }
 
+export async function updateEmployeeDocument(id: string, patch: {
+  title?: string; documentType?: EmployeeDocumentType; documentNumber?: string | null;
+  issueDate?: string | null; expiryDate?: string | null; notes?: string | null; status?: EmployeeDocument["status"];
+}): Promise<void> {
+  const { error } = await supabase.from("employee_documents").update({
+    ...(patch.title !== undefined ? { title: patch.title } : {}),
+    ...(patch.documentType !== undefined ? { document_type: patch.documentType } : {}),
+    ...(patch.documentNumber !== undefined ? { document_number: patch.documentNumber } : {}),
+    ...(patch.issueDate !== undefined ? { issue_date: patch.issueDate } : {}),
+    ...(patch.expiryDate !== undefined ? { expiry_date: patch.expiryDate } : {}),
+    ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    ...(patch.status !== undefined ? { status: patch.status } : {}),
+  }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function getEmployeeDocumentSignedUrl(storagePath: string): Promise<string> {
   const { data, error } = await supabase.storage.from("employee-documents").createSignedUrl(storagePath, 60 * 5);
   if (error) throw error;
