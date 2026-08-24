@@ -232,34 +232,51 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                   />
                   {itExpanded && (
                     <div className="ml-4 space-y-1 border-l border-border pl-2">
-                      {enabledModules.has("TICKETING") && (
-                        <>
-                          <Link
-                            to={`${base}/it/tickets`}
-                            className={cn(
-                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                              location.pathname.startsWith(`${base}/it/tickets`)
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      {enabledModules.has("TICKETING") && (() => {
+                        const ticketingActive =
+                          location.pathname.startsWith(`${base}/it/tickets`) || location.pathname === `${base}/it/categories`;
+                        const ticketingExpanded = isGroupExpanded("it.ticketing", ticketingActive);
+                        return (
+                          <>
+                            <GroupHeader
+                              to={`${base}/it/tickets`}
+                              icon={MODULE_INFO.TICKETING.icon}
+                              label="Ticketing"
+                              active={location.pathname.startsWith(`${base}/it/tickets`)}
+                              expanded={ticketingExpanded}
+                              onToggle={() => toggleGroup("it.ticketing")}
+                            />
+                            {ticketingExpanded && (
+                              <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                <Link
+                                  to={`${base}/it/tickets`}
+                                  className={cn(
+                                    "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                    location.pathname.startsWith(`${base}/it/tickets`)
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                  )}
+                                >
+                                  Tickets
+                                </Link>
+                                {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
+                                  <Link
+                                    to={`${base}/it/categories`}
+                                    className={cn(
+                                      "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                      location.pathname === `${base}/it/categories`
+                                        ? "bg-primary text-primary-foreground"
+                                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                    )}
+                                  >
+                                    Categories
+                                  </Link>
+                                )}
+                              </div>
                             )}
-                          >
-                            Tickets
-                          </Link>
-                          {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
-                            <Link
-                              to={`${base}/it/categories`}
-                              className={cn(
-                                "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                                location.pathname === `${base}/it/categories`
-                                  ? "bg-primary text-primary-foreground"
-                                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                              )}
-                            >
-                              Categories
-                            </Link>
-                          )}
-                        </>
-                      )}
+                          </>
+                        );
+                      })()}
 
                       {/* Inventory is its own toggleable module (Platform Superadmin
                           controls it independently of Ticketing), so it's gated on
@@ -354,23 +371,21 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                               onToggle={() => toggleGroup("it.procurement")}
                             />
                             {procurementExpanded && (
-                              <>
-                                <div className="ml-4 space-y-1 border-l border-border pl-2">
-                                  {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
-                                    <Link
-                                      key={s.path}
-                                      to={`${base}/it/procurement/${s.path}`}
-                                      className={cn(
-                                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                                        location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
-                                          ? "bg-primary text-primary-foreground"
-                                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                                      )}
-                                    >
-                                      {s.label}
-                                    </Link>
-                                  ))}
-                                </div>
+                              <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                                  <Link
+                                    key={s.path}
+                                    to={`${base}/it/procurement/${s.path}`}
+                                    className={cn(
+                                      "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                      location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
+                                        ? "bg-primary text-primary-foreground"
+                                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                    )}
+                                  >
+                                    {s.label}
+                                  </Link>
+                                ))}
                                 <Link
                                   to={`${base}/it/reports`}
                                   className={cn(
@@ -382,7 +397,7 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                                 >
                                   Reports
                                 </Link>
-                              </>
+                              </div>
                             )}
                           </>
                         );
