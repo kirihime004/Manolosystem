@@ -31,6 +31,12 @@ const MODULE_PARENT: Partial<Record<ModuleKey, ModuleKey>> = {
   HR_EMPLOYEES: "HR",
   HR_ATTENDANCE_LEAVE: "HR",
   HR_PAYROLL: "HR",
+  FINANCE_ACCOUNTING: "FINANCE",
+  FINANCE_AP: "FINANCE",
+  FINANCE_AR: "FINANCE",
+  FINANCE_EXPENSES: "FINANCE",
+  FINANCE_BANK: "FINANCE",
+  FINANCE_PAYROLL: "FINANCE",
 };
 
 function computeEffectiveModules(rows: { module_key: string; enabled: boolean }[]): Set<ModuleKey> {

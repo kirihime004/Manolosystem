@@ -7,7 +7,9 @@ export type MembershipStatus = "ACTIVE" | "DISABLED" | "INVITED";
 export type ModuleKey =
   | "IT" | "TICKETING" | "INVENTORY" | "PROCUREMENT"
   | "HR" | "HR_EMPLOYEES" | "HR_ATTENDANCE_LEAVE" | "HR_PAYROLL"
-  | "FINANCE" | "ADMIN" | "PRODUCTION";
+  | "FINANCE" | "FINANCE_ACCOUNTING" | "FINANCE_AP" | "FINANCE_AR"
+  | "FINANCE_EXPENSES" | "FINANCE_BANK" | "FINANCE_PAYROLL"
+  | "ADMIN" | "PRODUCTION";
 export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type TicketStatus =
   | "OPEN"

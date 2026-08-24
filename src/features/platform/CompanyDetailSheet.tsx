@@ -39,12 +39,12 @@ function initials(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-// IT and HR are real master switches now: turning the parent OFF hides/
-// disables every sub-module underneath it regardless of the sub-module's
-// own setting (has_module_enabled()'s parent/child cascade enforces this
-// server-side too -- this UI just mirrors it). Each sub-module is still its
-// own independent row in company_modules, toggleable on its own as long as
-// the parent stays on.
+// IT, HR, and Finance are real master switches now: turning the parent OFF
+// hides/disables every sub-module underneath it regardless of the
+// sub-module's own setting (has_module_enabled()'s parent/child cascade
+// enforces this server-side too -- this UI just mirrors it). Each
+// sub-module is still its own independent row in company_modules,
+// toggleable on its own as long as the parent stays on.
 const MODULE_GROUPS: { key: ModuleKey; subKeys: { key: ModuleKey; label: string }[] }[] = [
   {
     key: "IT",
@@ -62,7 +62,17 @@ const MODULE_GROUPS: { key: ModuleKey; subKeys: { key: ModuleKey; label: string 
       { key: "HR_PAYROLL", label: "HR: Payroll & Benefits" },
     ],
   },
-  { key: "FINANCE", subKeys: [] },
+  {
+    key: "FINANCE",
+    subKeys: [
+      { key: "FINANCE_ACCOUNTING", label: "Finance: Accounting" },
+      { key: "FINANCE_AP", label: "Finance: Accounts Payable" },
+      { key: "FINANCE_AR", label: "Finance: Accounts Receivable" },
+      { key: "FINANCE_EXPENSES", label: "Finance: Expenses" },
+      { key: "FINANCE_BANK", label: "Finance: Cash & Bank" },
+      { key: "FINANCE_PAYROLL", label: "Finance: Payroll" },
+    ],
+  },
   { key: "ADMIN", subKeys: [] },
   { key: "PRODUCTION", subKeys: [] },
 ];

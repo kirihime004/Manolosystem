@@ -466,7 +466,7 @@ export function AppRouter() {
             <Route
               path="finance"
               element={
-                <RequireModule moduleKey="FINANCE">
+                <RequireModule moduleKey={["FINANCE_ACCOUNTING", "FINANCE_AP", "FINANCE_AR", "FINANCE_EXPENSES", "FINANCE_BANK", "FINANCE_PAYROLL"]}>
                   <RequirePermission permission={PERMISSIONS.FINANCE_DASHBOARD_VIEW}>
                     <Outlet />
                   </RequirePermission>
@@ -475,142 +475,197 @@ export function AppRouter() {
             >
               <Route index element={<FinanceDashboardPage />} />
 
+              {/* Accounting owns the ledger core plus Reports/Settings, gated on
+                  its own FINANCE_ACCOUNTING leaf module, nested under Finance's
+                  parent switch. */}
               <Route
-                path="accounting/chart-of-accounts"
                 element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_ACCOUNTS_VIEW}>
-                    <ChartOfAccountsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="accounting/journals"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_JOURNALS_VIEW}>
+                  <RequireModule moduleKey="FINANCE_ACCOUNTING">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<JournalEntriesPage />} />
-                <Route path=":journalEntryId" element={<JournalEntryDetailPage />} />
+                <Route
+                  path="accounting/chart-of-accounts"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_ACCOUNTS_VIEW}>
+                      <ChartOfAccountsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="accounting/journals"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_JOURNALS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<JournalEntriesPage />} />
+                  <Route path=":journalEntryId" element={<JournalEntryDetailPage />} />
+                </Route>
+                <Route
+                  path="accounting/general-ledger"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_GL_VIEW}>
+                      <GeneralLedgerPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="accounting/trial-balance"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_TRIAL_BALANCE_VIEW}>
+                      <TrialBalancePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="reports"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_REPORTS_VIEW}>
+                      <FinanceReportsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="settings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_SETTINGS_MANAGE}>
+                      <FinanceSettingsPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
-              <Route
-                path="accounting/general-ledger"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_GL_VIEW}>
-                    <GeneralLedgerPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="accounting/trial-balance"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_TRIAL_BALANCE_VIEW}>
-                    <TrialBalancePage />
-                  </RequirePermission>
-                }
-              />
 
+              {/* Accounts Payable: supplier bills and AP aging. */}
               <Route
-                path="ap/bills"
                 element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_AP_VIEW}>
+                  <RequireModule moduleKey="FINANCE_AP">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<SupplierBillsPage />} />
-                <Route path=":billId" element={<SupplierBillDetailPage />} />
+                <Route
+                  path="ap/bills"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_AP_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<SupplierBillsPage />} />
+                  <Route path=":billId" element={<SupplierBillDetailPage />} />
+                </Route>
+                <Route
+                  path="ap/aging"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_AP_VIEW}>
+                      <ApAgingPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
-              <Route
-                path="ap/aging"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_AP_VIEW}>
-                    <ApAgingPage />
-                  </RequirePermission>
-                }
-              />
 
+              {/* Accounts Receivable: customers, invoices, and AR aging. */}
               <Route
-                path="ar/customers"
                 element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_CUSTOMERS_VIEW}>
-                    <CustomersPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="ar/invoices"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_AR_VIEW}>
+                  <RequireModule moduleKey="FINANCE_AR">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<CustomerInvoicesPage />} />
-                <Route path=":invoiceId" element={<CustomerInvoiceDetailPage />} />
+                <Route
+                  path="ar/customers"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_CUSTOMERS_VIEW}>
+                      <CustomersPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="ar/invoices"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_AR_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<CustomerInvoicesPage />} />
+                  <Route path=":invoiceId" element={<CustomerInvoiceDetailPage />} />
+                </Route>
+                <Route
+                  path="ar/aging"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_AR_VIEW}>
+                      <ArAgingPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
-              <Route
-                path="ar/aging"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_AR_VIEW}>
-                    <ArAgingPage />
-                  </RequirePermission>
-                }
-              />
 
+              {/* Expenses: employee expense claims and approvals. */}
               <Route
-                path="expenses"
                 element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_EXPENSES_VIEW}>
+                  <RequireModule moduleKey="FINANCE_EXPENSES">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<ExpensesPage />} />
-                <Route path=":expenseId" element={<ExpenseDetailPage />} />
+                <Route
+                  path="expenses"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_EXPENSES_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<ExpensesPage />} />
+                  <Route path=":expenseId" element={<ExpenseDetailPage />} />
+                </Route>
               </Route>
 
+              {/* Cash & Bank: cash accounts, transactions, reconciliation. */}
               <Route
-                path="cash-bank"
                 element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_BANK_VIEW}>
+                  <RequireModule moduleKey="FINANCE_BANK">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<CashAccountsPage />} />
-                <Route path=":cashAccountId" element={<CashAccountDetailPage />} />
+                <Route
+                  path="cash-bank"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_BANK_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<CashAccountsPage />} />
+                  <Route path=":cashAccountId" element={<CashAccountDetailPage />} />
+                </Route>
               </Route>
 
+              {/* Payroll: payroll runs and payslips. */}
               <Route
-                path="payroll"
                 element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_PAYROLL_VIEW}>
+                  <RequireModule moduleKey="FINANCE_PAYROLL">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<PayrollRunsPage />} />
-                <Route path=":payrollRunId" element={<PayrollRunDetailPage />} />
+                <Route
+                  path="payroll"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_PAYROLL_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<PayrollRunsPage />} />
+                  <Route path=":payrollRunId" element={<PayrollRunDetailPage />} />
+                </Route>
               </Route>
-
-              <Route
-                path="reports"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_REPORTS_VIEW}>
-                    <FinanceReportsPage />
-                  </RequirePermission>
-                }
-              />
-              <Route
-                path="settings"
-                element={
-                  <RequirePermission permission={PERMISSIONS.FINANCE_SETTINGS_MANAGE}>
-                    <FinanceSettingsPage />
-                  </RequirePermission>
-                }
-              />
             </Route>
 
             <Route path="settings">
