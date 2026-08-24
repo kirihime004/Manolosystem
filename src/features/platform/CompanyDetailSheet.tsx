@@ -39,6 +39,57 @@ function initials(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
+// IT owns Ticketing plus two independently-toggleable sub-modules
+// (Inventory, Budget & Procurement) -- grouped here purely for display so
+// Platform Superadmin sees the same nesting the company sidebar already
+// shows. Each row is still its own row in company_modules and can be
+// switched on/off on its own; grouping doesn't add a dependency between them.
+const MODULE_GROUPS: { key: ModuleKey; subKeys: ModuleKey[] }[] = [
+  { key: "IT", subKeys: ["INVENTORY", "PROCUREMENT"] },
+  { key: "HR", subKeys: [] },
+  { key: "FINANCE", subKeys: [] },
+  { key: "ADMIN", subKeys: [] },
+  { key: "PRODUCTION", subKeys: [] },
+];
+
+interface CompanyModuleRow {
+  id: string;
+  module_key: string;
+  enabled: boolean;
+}
+
+function ModuleRow({ row, indent, onToggle }: { row: CompanyModuleRow; indent?: boolean; onToggle: (id: string, enabled: boolean) => void }) {
+  return (
+    <div className={`flex items-center justify-between rounded-md px-2 py-2.5 ${indent ? "ml-5 border-l border-border pl-3" : ""}`}>
+      <span className={`text-sm ${indent ? "text-muted-foreground" : "font-medium text-foreground"}`}>
+        {MODULE_INFO[row.module_key as ModuleKey].label}
+      </span>
+      <Switch checked={row.enabled} onCheckedChange={(checked) => onToggle(row.id, checked)} />
+    </div>
+  );
+}
+
+function ModulesList({ data, onToggle }: { data: CompanyModuleRow[]; onToggle: (id: string, enabled: boolean) => void }) {
+  const byKey = new Map(data.map((m) => [m.module_key, m]));
+  return (
+    <>
+      {MODULE_GROUPS.map((group) => {
+        const parent = byKey.get(group.key);
+        if (!parent) return null;
+        return (
+          <div key={group.key}>
+            <ModuleRow row={parent} onToggle={onToggle} />
+            {group.subKeys.map((subKey) => {
+              const sub = byKey.get(subKey);
+              return sub ? <ModuleRow key={subKey} row={sub} indent onToggle={onToggle} /> : null;
+            })}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 
 export function CompanyDetailSheet({
   company,
@@ -345,17 +396,9 @@ export function CompanyDetailSheet({
             </TabsContent>
 
             <TabsContent value="modules" className="space-y-1 pt-4">
-              {modulesQuery.data?.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-md px-2 py-2.5">
-                  <span className="text-sm font-medium text-foreground">
-                    {MODULE_INFO[m.module_key as ModuleKey].label}
-                  </span>
-                  <Switch
-                    checked={m.enabled}
-                    onCheckedChange={(checked) => toggleModule.mutate({ id: m.id, enabled: checked })}
-                  />
-                </div>
-              ))}
+              {modulesQuery.data && (
+                <ModulesList data={modulesQuery.data} onToggle={(id, enabled) => toggleModule.mutate({ id, enabled })} />
+              )}
             </TabsContent>
 
             <TabsContent value="users" className="pt-4">
