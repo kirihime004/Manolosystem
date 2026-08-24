@@ -224,6 +224,14 @@ export async function createJournalEntry(input: {
   return data as JournalEntry;
 }
 
+export async function updateJournalEntry(id: string, patch: Partial<{ date: string; description: string }>): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  if (patch.date !== undefined) fields.date = patch.date;
+  if (patch.description !== undefined) fields.description = patch.description;
+  const { error } = await supabase.from("journal_entries").update(fields).eq("id", id);
+  if (error) throw error;
+}
+
 export async function addJournalEntryLine(input: {
   journalEntryId: string;
   lineNumber: number;

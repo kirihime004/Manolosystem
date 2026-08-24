@@ -9,9 +9,7 @@ import {
   ShieldCheck,
   Palette,
   BookOpen,
-  Inbox,
   Boxes,
-  FolderTree,
   Wallet,
   ShoppingCart,
   BarChart3,
@@ -181,123 +179,144 @@ export function CompanyShell({ children }: { children: ReactNode }) {
             <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Modules
             </p>
-            {enabledModules.has("TICKETING") && (
+            {(enabledModules.has("TICKETING") || enabledModules.has("INVENTORY") || enabledModules.has("PROCUREMENT")) && (
               <>
                 <NavLink
                   to={`${base}/it`}
-                  icon={MODULE_INFO.TICKETING.icon}
-                  label="Ticketing"
+                  icon={MODULE_INFO.IT.icon}
+                  label="IT"
                   active={location.pathname === `${base}/it`}
                 />
-                <NavLink
-                  to={`${base}/it/tickets`}
-                  icon={Inbox}
-                  label="Tickets"
-                  active={location.pathname.startsWith(`${base}/it/tickets`)}
-                />
-
-                {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
-                  <NavLink
-                    to={`${base}/it/categories`}
-                    icon={FolderTree}
-                    label="Categories"
-                    active={location.pathname === `${base}/it/categories`}
-                  />
-                )}
-              </>
-            )}
-
-            {/* Inventory is its own toggleable module (Platform Superadmin controls
-                it independently of Ticketing), so it's gated on enabledModules
-                separately even though it's presented nested in the same area. */}
-            {enabledModules.has("INVENTORY") && hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (
-              <>
-                <NavLink
-                  to={`${base}/it/inventory`}
-                  icon={Boxes}
-                  label="Inventory"
-                  active={location.pathname === `${base}/it/inventory`}
-                />
                 <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
-                    <Link
-                      key={s.path}
-                      to={`${base}/it/inventory/${s.path}`}
-                      className={cn(
-                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                        location.pathname === `${base}/it/inventory/${s.path}`
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  {enabledModules.has("TICKETING") && (
+                    <>
+                      <Link
+                        to={`${base}/it/tickets`}
+                        className={cn(
+                          "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                          location.pathname.startsWith(`${base}/it/tickets`)
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        Tickets
+                      </Link>
+                      {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
+                        <Link
+                          to={`${base}/it/categories`}
+                          className={cn(
+                            "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                            location.pathname === `${base}/it/categories`
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          )}
+                        >
+                          Categories
+                        </Link>
                       )}
-                    >
-                      {s.label}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
+                    </>
+                  )}
 
-            {/* Budget & Procurement share one PROCUREMENT module toggle (they're
-                tightly coupled -- a company without Procurement has no use for
-                a standalone IT Budget tracker), but each section still checks
-                its own permission set independently. */}
-            {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_BUDGET_VIEW) && (
-              <>
-                <NavLink
-                  to={`${base}/it/budget`}
-                  icon={Wallet}
-                  label="Budget"
-                  active={location.pathname === `${base}/it/budget`}
-                />
-                <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {BUDGET_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
-                    <Link
-                      key={s.path}
-                      to={`${base}/it/budget/${s.path}`}
-                      className={cn(
-                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                        location.pathname.startsWith(`${base}/it/budget/${s.path}`)
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )}
-                    >
-                      {s.label}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
+                  {/* Inventory is its own toggleable module (Platform Superadmin
+                      controls it independently of Ticketing), so it's gated on
+                      enabledModules separately even though it's presented nested
+                      in the same IT group. */}
+                  {enabledModules.has("INVENTORY") && hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (
+                    <>
+                      <NavLink
+                        to={`${base}/it/inventory`}
+                        icon={Boxes}
+                        label="Inventory"
+                        active={location.pathname === `${base}/it/inventory`}
+                      />
+                      <div className="ml-4 space-y-1 border-l border-border pl-2">
+                        {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                          <Link
+                            key={s.path}
+                            to={`${base}/it/inventory/${s.path}`}
+                            className={cn(
+                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                              location.pathname === `${base}/it/inventory/${s.path}`
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            {s.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </>
+                  )}
 
-            {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_PROCUREMENT_VIEW) && (
-              <>
-                <NavLink
-                  to={`${base}/it/procurement`}
-                  icon={ShoppingCart}
-                  label="Procurement"
-                  active={location.pathname === `${base}/it/procurement`}
-                />
-                <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
-                    <Link
-                      key={s.path}
-                      to={`${base}/it/procurement/${s.path}`}
-                      className={cn(
-                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                        location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )}
-                    >
-                      {s.label}
-                    </Link>
-                  ))}
+                  {/* Budget & Procurement share one PROCUREMENT module toggle
+                      (they're tightly coupled -- a company without Procurement
+                      has no use for a standalone IT Budget tracker), but each
+                      section still checks its own permission set independently. */}
+                  {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_BUDGET_VIEW) && (
+                    <>
+                      <NavLink
+                        to={`${base}/it/budget`}
+                        icon={Wallet}
+                        label="Budget"
+                        active={location.pathname === `${base}/it/budget`}
+                      />
+                      <div className="ml-4 space-y-1 border-l border-border pl-2">
+                        {BUDGET_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                          <Link
+                            key={s.path}
+                            to={`${base}/it/budget/${s.path}`}
+                            className={cn(
+                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                              location.pathname.startsWith(`${base}/it/budget/${s.path}`)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            {s.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_PROCUREMENT_VIEW) && (
+                    <>
+                      <NavLink
+                        to={`${base}/it/procurement`}
+                        icon={ShoppingCart}
+                        label="Procurement"
+                        active={location.pathname === `${base}/it/procurement`}
+                      />
+                      <div className="ml-4 space-y-1 border-l border-border pl-2">
+                        {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                          <Link
+                            key={s.path}
+                            to={`${base}/it/procurement/${s.path}`}
+                            className={cn(
+                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                              location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            {s.label}
+                          </Link>
+                        ))}
+                      </div>
+                      <Link
+                        to={`${base}/it/reports`}
+                        className={cn(
+                          "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                          location.pathname === `${base}/it/reports`
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        Reports
+                      </Link>
+                    </>
+                  )}
                 </div>
-                <NavLink
-                  to={`${base}/it/reports`}
-                  icon={BarChart3}
-                  label="Reports"
-                  active={location.pathname === `${base}/it/reports`}
-                />
               </>
             )}
 

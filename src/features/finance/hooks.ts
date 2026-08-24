@@ -136,6 +136,10 @@ export function useJournalEntryMutations(companyId: string | undefined) {
     invalidateList();
   };
   const create = useMutation({ mutationFn: coreApi.createJournalEntry, onSuccess: invalidateList });
+  const update = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof coreApi.updateJournalEntry>[1] }) => coreApi.updateJournalEntry(input.id, input.patch),
+    onSuccess: (_d, vars) => invalidateOne(vars.id),
+  });
   const addLine = useMutation({
     mutationFn: coreApi.addJournalEntryLine,
     onSuccess: (_d, vars) => invalidateOne(vars.journalEntryId),
@@ -159,7 +163,7 @@ export function useJournalEntryMutations(companyId: string | undefined) {
       coreApi.decideJournalEntryApproval(input.approvalId, input.decision, input.comments),
     onSuccess: (_d, vars) => invalidateOne(vars.journalEntryId),
   });
-  return { create, addLine, deleteLine, submitForApproval, post, voidEntry, reverse, decideApproval };
+  return { create, update, addLine, deleteLine, submitForApproval, post, voidEntry, reverse, decideApproval };
 }
 
 export function useGeneralLedger(companyId: string | undefined, filters: GeneralLedgerFilters, page: number, pageSize = 50) {
@@ -219,6 +223,10 @@ export function useSupplierBillMutations(companyId: string | undefined) {
     invalidateList();
   };
   const create = useMutation({ mutationFn: apApi.createSupplierBill, onSuccess: invalidateList });
+  const update = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof apApi.updateSupplierBill>[1] }) => apApi.updateSupplierBill(input.id, input.patch),
+    onSuccess: (_d, vars) => invalidateOne(vars.id),
+  });
   const addItem = useMutation({ mutationFn: apApi.addSupplierBillItem, onSuccess: (_d, vars) => invalidateOne(vars.supplierBillId) });
   const deleteItem = useMutation({
     mutationFn: (input: { id: string; billId: string }) => apApi.deleteSupplierBillItem(input.id),
@@ -238,7 +246,7 @@ export function useSupplierBillMutations(companyId: string | undefined) {
     mutationFn: apApi.recordSupplierPayment,
     onSuccess: (_d, vars) => invalidateOne(vars.supplierBillId),
   });
-  return { create, addItem, deleteItem, submit, decideApproval, voidBill, recordPayment };
+  return { create, update, addItem, deleteItem, submit, decideApproval, voidBill, recordPayment };
 }
 
 // ---------------------------------------------------------------------
@@ -292,6 +300,10 @@ export function useCustomerInvoiceMutations(companyId: string | undefined) {
     invalidateList();
   };
   const create = useMutation({ mutationFn: arApi.createCustomerInvoice, onSuccess: invalidateList });
+  const update = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof arApi.updateCustomerInvoice>[1] }) => arApi.updateCustomerInvoice(input.id, input.patch),
+    onSuccess: (_d, vars) => invalidateOne(vars.id),
+  });
   const addItem = useMutation({ mutationFn: arApi.addCustomerInvoiceItem, onSuccess: (_d, vars) => invalidateOne(vars.customerInvoiceId) });
   const deleteItem = useMutation({
     mutationFn: (input: { id: string; invoiceId: string }) => arApi.deleteCustomerInvoiceItem(input.id),
@@ -307,7 +319,7 @@ export function useCustomerInvoiceMutations(companyId: string | undefined) {
     mutationFn: arApi.recordCustomerPayment,
     onSuccess: (_d, vars) => invalidateOne(vars.customerInvoiceId),
   });
-  return { create, addItem, deleteItem, send, cancel, voidInvoice, recordPayment };
+  return { create, update, addItem, deleteItem, send, cancel, voidInvoice, recordPayment };
 }
 
 // ---------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useCustomerInvoice, useCustomerInvoiceItems, useCustomerInvoicePayments,
@@ -29,7 +29,7 @@ export default function CustomerInvoiceDetailPage() {
   const { data: customers } = useCustomers(company?.id);
   const { data: cashAccounts } = useCashAccounts(company?.id);
   const { data: accounts } = useChartOfAccounts(company?.id);
-  const { addItem, deleteItem, send, voidInvoice, recordPayment } = useCustomerInvoiceMutations(company?.id);
+  const { update, addItem, deleteItem, send, voidInvoice, recordPayment } = useCustomerInvoiceMutations(company?.id);
 
   const [itemOpen, setItemOpen] = useState(false);
   const [description, setDescription] = useState("");
@@ -41,6 +41,11 @@ export default function CustomerInvoiceDetailPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [cashAccountId, setCashAccountId] = useState("");
   const [payAmount, setPayAmount] = useState("");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editPaymentTerms, setEditPaymentTerms] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   if (isLoading || !inv) {
     return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
@@ -97,6 +102,40 @@ export default function CustomerInvoiceDetailPage() {
           <p className="text-sm text-muted-foreground">{customer?.name} · Due {inv.due_date}</p>
         </div>
         <div className="flex gap-2">
+          {!["PAID", "VOID", "CANCELLED"].includes(inv.status) && (
+            <Can permission={PERMISSIONS.FINANCE_AR_CREATE}>
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setEditDueDate(inv.due_date); setEditPaymentTerms(inv.payment_terms ?? ""); setEditNotes(inv.notes ?? ""); setEditOpen(true); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />Edit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Edit invoice</DialogTitle></DialogHeader>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await update.mutateAsync({ id: inv.id, patch: { dueDate: editDueDate, paymentTerms: editPaymentTerms || null, notes: editNotes || null } });
+                        setEditOpen(false);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Failed to update invoice");
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5"><Label>Due date</Label><Input type="date" required value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} /></div>
+                    <div className="space-y-1.5"><Label>Payment terms</Label><Input value={editPaymentTerms} onChange={(e) => setEditPaymentTerms(e.target.value)} placeholder="e.g. Net 30" /></div>
+                    <div className="space-y-1.5"><Label>Notes</Label><Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
+                    <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </Can>
+          )}
           {inv.status === "DRAFT" && (
             <Can permission={PERMISSIONS.FINANCE_AR_APPROVE}>
               <Button onClick={() => runAction(() => send.mutateAsync(inv.id), "Invoice sent")}>Send invoice</Button>

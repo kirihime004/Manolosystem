@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { BookOpen, Plus, Archive } from "lucide-react";
+import { BookOpen, Plus, Archive, Pencil } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useChartOfAccounts, useChartOfAccountsMutations } from "@/features/finance/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,13 +21,18 @@ const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE", "CO
 export default function ChartOfAccountsPage() {
   const { company } = useCompany();
   const { data: accounts, isLoading } = useChartOfAccounts(company?.id);
-  const { create, archive } = useChartOfAccountsMutations(company?.id);
+  const { create, update, archive } = useChartOfAccountsMutations(company?.id);
 
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState("EXPENSE");
   const [parentAccountId, setParentAccountId] = useState<string>("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editParentAccountId, setEditParentAccountId] = useState("");
 
   const headers = (accounts ?? []).filter((a) => a.is_header);
 
@@ -44,6 +49,27 @@ export default function ChartOfAccountsPage() {
       setCode(""); setName(""); setParentAccountId("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create account");
+    }
+  };
+
+  const startEdit = (a: { id: string; name: string; description: string | null; parent_account_id: string | null; is_header: boolean }) => {
+    setEditingId(a.id);
+    setEditName(a.name);
+    setEditDescription(a.description ?? "");
+    setEditParentAccountId(a.parent_account_id ?? "");
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+    try {
+      await update.mutateAsync({
+        id: editingId,
+        patch: { name: editName, description: editDescription || null, parentAccountId: editParentAccountId || null },
+      });
+      setEditingId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update account");
     }
   };
 
@@ -111,7 +137,10 @@ export default function ChartOfAccountsPage() {
                   <TableCell className={a.is_header ? "font-semibold text-foreground" : a.parent_account_id ? "pl-6" : ""}>{a.name}</TableCell>
                   <TableCell className="text-muted-foreground">{a.account_type}</TableCell>
                   <TableCell><FinanceStatusBadge status={a.status} /></TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-1">
+                    <Can permission={PERMISSIONS.FINANCE_ACCOUNTS_UPDATE}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    </Can>
                     {!a.is_system && a.status === "ACTIVE" && (
                       <Can permission={PERMISSIONS.FINANCE_ACCOUNTS_ARCHIVE}>
                         <AlertDialog>
@@ -138,6 +167,27 @@ export default function ChartOfAccountsPage() {
           </Table>
         )}
       </div>
+
+      <Dialog open={!!editingId} onOpenChange={(v) => !v && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit account</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Description</Label><Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Parent account (optional)</Label>
+              <Select value={editParentAccountId || "none"} onValueChange={(v) => setEditParentAccountId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {headers.filter((h) => h.id !== editingId).map((h) => <SelectItem key={h.id} value={h.id}>{h.code} {h.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

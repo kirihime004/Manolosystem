@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useJournalEntry, useJournalEntryLines, useJournalApprovals, useJournalEntryMutations, useChartOfAccounts,
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +27,7 @@ export default function JournalEntryDetailPage() {
   const { data: lines } = useJournalEntryLines(journalEntryId);
   const { data: approvals } = useJournalApprovals(journalEntryId);
   const { data: accounts } = useChartOfAccounts(company?.id);
-  const { addLine, deleteLine, submitForApproval, post, voidEntry, reverse, decideApproval } = useJournalEntryMutations(company?.id);
+  const { update, addLine, deleteLine, submitForApproval, post, voidEntry, reverse, decideApproval } = useJournalEntryMutations(company?.id);
 
   const [lineOpen, setLineOpen] = useState(false);
   const [accountId, setAccountId] = useState("");
@@ -35,6 +36,10 @@ export default function JournalEntryDetailPage() {
   const [amount, setAmount] = useState("");
   const [reverseOpen, setReverseOpen] = useState(false);
   const [reverseReason, setReverseReason] = useState("");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   if (isLoading || !je) {
     return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
@@ -79,6 +84,39 @@ export default function JournalEntryDetailPage() {
           <p className="text-sm text-muted-foreground">{je.description}</p>
         </div>
         <div className="flex gap-2">
+          {["DRAFT", "PENDING_APPROVAL", "APPROVED"].includes(je.status) && (
+            <Can permission={PERMISSIONS.FINANCE_JOURNALS_UPDATE}>
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setEditDate(je.date); setEditDescription(je.description); setEditOpen(true); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />Edit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Edit journal entry</DialogTitle></DialogHeader>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await update.mutateAsync({ id: je.id, patch: { date: editDate, description: editDescription } });
+                        setEditOpen(false);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Failed to update journal entry");
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5"><Label>Date</Label><Input type="date" required value={editDate} onChange={(e) => setEditDate(e.target.value)} /></div>
+                    <div className="space-y-1.5"><Label>Description</Label><Textarea required rows={2} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} /></div>
+                    <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </Can>
+          )}
           {isDraft && (
             <Can permission={PERMISSIONS.FINANCE_JOURNALS_CREATE}>
               <Button variant="outline" onClick={() => runAction(() => submitForApproval.mutateAsync(je.id), "Submitted for approval")}>

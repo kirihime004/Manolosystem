@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useFiscalYears, useFinancialPeriods, useFiscalPeriodMutations, usePeriodCloseChecklist,
@@ -146,11 +146,16 @@ function CostCentersTab() {
   const { company } = useCompany();
   const { data: costCenters } = useCostCenters(company?.id);
   const { data: departments } = useDepartments(company?.id);
-  const { create, remove } = useCostCenterMutations(company?.id);
+  const { create, update, remove } = useCostCenterMutations(company?.id);
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDepartmentId, setEditDepartmentId] = useState("");
+  const [editStatus, setEditStatus] = useState("ACTIVE");
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -161,6 +166,24 @@ function CostCentersTab() {
       setCode(""); setName(""); setDepartmentId("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create cost center");
+    }
+  };
+
+  const startEdit = (c: { id: string; name: string; department_id: string | null; status: string }) => {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditDepartmentId(c.department_id ?? "");
+    setEditStatus(c.status);
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+    try {
+      await update.mutateAsync({ id: editingId, patch: { name: editName, departmentId: editDepartmentId || null, status: editStatus } });
+      setEditingId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update cost center");
     }
   };
 
@@ -197,19 +220,51 @@ function CostCentersTab() {
         <EmptyState icon={Building2} title="No cost centers yet" />
       ) : (
         <Table>
-          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="w-20" /></TableRow></TableHeader>
           <TableBody>
             {costCenters.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-mono text-xs text-muted-foreground">{c.code}</TableCell>
                 <TableCell>{c.name}</TableCell>
                 <TableCell><FinanceStatusBadge status={c.status} /></TableCell>
-                <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                <TableCell className="flex gap-1">
+                  <Can permission={PERMISSIONS.FINANCE_COST_CENTERS_MANAGE}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </Can>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={!!editingId} onOpenChange={(v) => !v && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit cost center</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Select value={editDepartmentId || "none"} onValueChange={(v) => setEditDepartmentId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {(departments ?? []).map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -217,10 +272,15 @@ function CostCentersTab() {
 function ProfitCentersTab() {
   const { company } = useCompany();
   const { data: profitCenters } = useProfitCenters(company?.id);
-  const { create, remove } = useProfitCenterMutations(company?.id);
+  const { create, update, remove } = useProfitCenterMutations(company?.id);
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState("ACTIVE");
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -231,6 +291,24 @@ function ProfitCentersTab() {
       setCode(""); setName("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create profit center");
+    }
+  };
+
+  const startEdit = (c: { id: string; name: string; description: string | null; status: string }) => {
+    setEditingId(c.id);
+    setEditName(c.name);
+    setEditDescription(c.description ?? "");
+    setEditStatus(c.status);
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+    try {
+      await update.mutateAsync({ id: editingId, patch: { name: editName, description: editDescription || null, status: editStatus } });
+      setEditingId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update profit center");
     }
   };
 
@@ -257,19 +335,42 @@ function ProfitCentersTab() {
         <EmptyState icon={TrendingUp} title="No profit centers yet" description="Optional -- only configure these if you report profitability by line of business." />
       ) : (
         <Table>
-          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="w-20" /></TableRow></TableHeader>
           <TableBody>
             {profitCenters.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-mono text-xs text-muted-foreground">{c.code}</TableCell>
                 <TableCell>{c.name}</TableCell>
                 <TableCell><FinanceStatusBadge status={c.status} /></TableCell>
-                <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                <TableCell className="flex gap-1">
+                  <Can permission={PERMISSIONS.FINANCE_PROFIT_CENTERS_MANAGE}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove.mutate(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </Can>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={!!editingId} onOpenChange={(v) => !v && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit profit center</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Description</Label><Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -279,12 +380,18 @@ const TAX_TYPES = ["VAT", "WITHHOLDING_TAX", "SALES_TAX", "SSS_EMPLOYEE", "SSS_E
 function TaxRatesTab() {
   const { company } = useCompany();
   const { data: taxRates } = useTaxRates(company?.id);
-  const { create, remove } = useTaxRateMutations(company?.id);
+  const { create, update, remove } = useTaxRateMutations(company?.id);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [rate, setRate] = useState("");
   const [taxType, setTaxType] = useState("VAT");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRate, setEditRate] = useState("");
+  const [editExpiryDate, setEditExpiryDate] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -295,6 +402,25 @@ function TaxRatesTab() {
       setName(""); setCode(""); setRate("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create tax rate");
+    }
+  };
+
+  const startEdit = (t: { id: string; name: string; rate: number; expiry_date: string | null; is_active: boolean }) => {
+    setEditingId(t.id);
+    setEditName(t.name);
+    setEditRate(String(t.rate));
+    setEditExpiryDate(t.expiry_date ?? "");
+    setEditIsActive(t.is_active);
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+    try {
+      await update.mutateAsync({ id: editingId, patch: { name: editName, rate: Number(editRate), expiryDate: editExpiryDate || null, isActive: editIsActive } });
+      setEditingId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update tax rate");
     }
   };
 
@@ -331,7 +457,7 @@ function TaxRatesTab() {
         <EmptyState icon={Percent} title="No tax rates configured" description="Add SSS/PhilHealth/Pag-IBIG/withholding rates here -- nothing is hard-coded." />
       ) : (
         <Table>
-          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Rate</TableHead><TableHead>Effective</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Rate</TableHead><TableHead>Effective</TableHead><TableHead>Active</TableHead><TableHead className="w-20" /></TableRow></TableHeader>
           <TableBody>
             {taxRates.map((t) => (
               <TableRow key={t.id}>
@@ -339,12 +465,39 @@ function TaxRatesTab() {
                 <TableCell className="text-muted-foreground">{t.tax_type.replace(/_/g, " ")}</TableCell>
                 <TableCell>{t.rate}%</TableCell>
                 <TableCell className="text-muted-foreground">{t.effective_date}</TableCell>
-                <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove.mutate(t.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                <TableCell>{t.is_active ? "Yes" : "No"}</TableCell>
+                <TableCell className="flex gap-1">
+                  <Can permission={PERMISSIONS.FINANCE_TAX_MANAGE}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove.mutate(t.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </Can>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={!!editingId} onOpenChange={(v) => !v && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit tax rate</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>Rate (%)</Label><Input type="number" step="0.001" required value={editRate} onChange={(e) => setEditRate(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Expiry date (optional)</Label><Input type="date" value={editExpiryDate} onChange={(e) => setEditExpiryDate(e.target.value)} /></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Active</Label>
+              <Select value={editIsActive ? "true" : "false"} onValueChange={(v) => setEditIsActive(v === "true")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="true">Active</SelectItem><SelectItem value="false">Inactive</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

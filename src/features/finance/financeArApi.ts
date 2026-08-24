@@ -110,6 +110,15 @@ export async function createCustomerInvoice(input: {
   return data as CustomerInvoice;
 }
 
+export async function updateCustomerInvoice(id: string, patch: Partial<{ dueDate: string; paymentTerms: string | null; notes: string | null }>): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  if (patch.dueDate !== undefined) fields.due_date = patch.dueDate;
+  if (patch.paymentTerms !== undefined) fields.payment_terms = patch.paymentTerms;
+  if (patch.notes !== undefined) fields.notes = patch.notes;
+  const { error } = await supabase.from("customer_invoices").update(fields).eq("id", id);
+  if (error) throw error;
+}
+
 export async function addCustomerInvoiceItem(input: {
   customerInvoiceId: string;
   description: string;

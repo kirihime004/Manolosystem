@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useSupplierBill, useSupplierBillItems, useSupplierBillApprovals, useSupplierPayments,
@@ -31,7 +31,7 @@ export default function SupplierBillDetailPage() {
   const { data: suppliers } = useSuppliers(company?.id);
   const { data: cashAccounts } = useCashAccounts(company?.id);
   const { data: accounts } = useChartOfAccounts(company?.id);
-  const { addItem, deleteItem, submit, decideApproval, voidBill, recordPayment } = useSupplierBillMutations(company?.id);
+  const { update, addItem, deleteItem, submit, decideApproval, voidBill, recordPayment } = useSupplierBillMutations(company?.id);
 
   const [itemOpen, setItemOpen] = useState(false);
   const [description, setDescription] = useState("");
@@ -43,6 +43,10 @@ export default function SupplierBillDetailPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [cashAccountId, setCashAccountId] = useState("");
   const [payAmount, setPayAmount] = useState("");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   if (isLoading || !bill) {
     return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
@@ -100,6 +104,39 @@ export default function SupplierBillDetailPage() {
           <p className="text-sm text-muted-foreground">{supplier?.name} · Due {bill.due_date}</p>
         </div>
         <div className="flex gap-2">
+          {!["PAID", "VOID"].includes(bill.status) && (
+            <Can permission={PERMISSIONS.FINANCE_AP_CREATE}>
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setEditDueDate(bill.due_date); setEditNotes(bill.notes ?? ""); setEditOpen(true); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />Edit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Edit bill</DialogTitle></DialogHeader>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await update.mutateAsync({ id: bill.id, patch: { dueDate: editDueDate, notes: editNotes || null } });
+                        setEditOpen(false);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Failed to update bill");
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5"><Label>Due date</Label><Input type="date" required value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} /></div>
+                    <div className="space-y-1.5"><Label>Notes</Label><Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
+                    <DialogFooter><Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save"}</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </Can>
+          )}
           {bill.status === "DRAFT" && (
             <Can permission={PERMISSIONS.FINANCE_AP_CREATE}>
               <Button onClick={() => runAction(() => submit.mutateAsync(bill.id), "Submitted for approval")}>Submit for approval</Button>

@@ -66,6 +66,14 @@ export async function createSupplierBill(input: {
   return data as SupplierBill;
 }
 
+export async function updateSupplierBill(id: string, patch: Partial<{ dueDate: string; notes: string | null }>): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  if (patch.dueDate !== undefined) fields.due_date = patch.dueDate;
+  if (patch.notes !== undefined) fields.notes = patch.notes;
+  const { error } = await supabase.from("supplier_bills").update(fields).eq("id", id);
+  if (error) throw error;
+}
+
 export async function addSupplierBillItem(input: {
   supplierBillId: string;
   description: string;
