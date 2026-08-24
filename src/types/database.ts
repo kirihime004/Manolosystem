@@ -1332,3 +1332,566 @@ export interface TicketStatusHistory {
   changed_by: string | null;
   created_at: string;
 }
+
+// ---------------------------------------------------------------------
+// Phase 5: Finance & Accounting
+// ---------------------------------------------------------------------
+export type FiscalYearStatus = "ACTIVE" | "CLOSED";
+export type FinancialPeriodStatus = "OPEN" | "CLOSED" | "LOCKED";
+export type FinancialPeriodType = "MONTHLY" | "QUARTERLY" | "YEARLY";
+export type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | "COGS";
+export type JournalEntryStatus = "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "POSTED" | "REVERSED" | "VOID";
+export type SupplierBillStatus = "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "PARTIALLY_PAID" | "PAID" | "OVERDUE" | "VOID";
+export type MatchStatus = "MATCHED" | "MISMATCH" | "NOT_APPLICABLE";
+export type PaymentMethod = "BANK_TRANSFER" | "CASH" | "CHEQUE" | "CARD" | "OTHER";
+export type SupplierPaymentStatus = "DRAFT" | "COMPLETED" | "VOID";
+export type CashAccountType = "BANK" | "CASH" | "PETTY_CASH" | "CREDIT_CARD" | "OTHER";
+export type CashAccountStatus = "ACTIVE" | "INACTIVE" | "CLOSED";
+export type BankTransactionType = "DEPOSIT" | "WITHDRAWAL" | "TRANSFER" | "BANK_FEE" | "INTEREST" | "ADJUSTMENT";
+export type BankTransactionDirection = "IN" | "OUT";
+export type BankReconciliationStatus = "IN_PROGRESS" | "COMPLETED";
+export type CustomerType = "CLIENT" | "STUDIO" | "NETWORK" | "PRODUCTION_COMPANY" | "CORPORATE" | "OTHER";
+export type CustomerInvoiceStatus = "DRAFT" | "SENT" | "PARTIALLY_PAID" | "PAID" | "OVERDUE" | "VOID" | "CANCELLED";
+export type CustomerPaymentStatus = "DRAFT" | "COMPLETED" | "REFUNDED" | "VOID";
+export type ExpenseCategory = "TRAVEL" | "MEALS" | "TRANSPORTATION" | "TRAINING" | "OFFICE" | "CLIENT" | "PRODUCTION" | "IT" | "OTHER";
+export type ExpenseStatus = "DRAFT" | "SUBMITTED" | "MANAGER_APPROVED" | "FINANCE_REVIEW" | "APPROVED" | "REJECTED" | "PAID" | "CANCELLED";
+export type TaxType =
+  | "VAT" | "WITHHOLDING_TAX" | "SALES_TAX"
+  | "SSS_EMPLOYEE" | "SSS_EMPLOYER" | "PHILHEALTH_EMPLOYEE" | "PHILHEALTH_EMPLOYER"
+  | "PAGIBIG_EMPLOYEE" | "PAGIBIG_EMPLOYER" | "OTHER";
+export type TaxDirection = "OUTPUT" | "INPUT";
+export type PayrollRunType = "REGULAR" | "THIRTEENTH_MONTH";
+export type PayrollRunStatus = "DRAFT" | "PROCESSING" | "REVIEW" | "APPROVED" | "PAID" | "CLOSED" | "CANCELLED";
+
+export interface FiscalYear {
+  id: string;
+  company_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: FiscalYearStatus;
+  is_current: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinancialPeriod {
+  id: string;
+  company_id: string;
+  fiscal_year_id: string;
+  name: string;
+  period_type: FinancialPeriodType;
+  start_date: string;
+  end_date: string;
+  status: FinancialPeriodStatus;
+  closed_by: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChartOfAccount {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  account_type: AccountType;
+  parent_account_id: string | null;
+  is_header: boolean;
+  is_system: boolean;
+  status: "ACTIVE" | "ARCHIVED";
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CostCenter {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  department_id: string | null;
+  parent_id: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfitCenter {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  company_id: string;
+  journal_number: string;
+  date: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  description: string;
+  currency_id: string;
+  exchange_rate: number;
+  base_currency_id: string;
+  financial_period_id: string | null;
+  status: JournalEntryStatus;
+  total_debit: number;
+  total_credit: number;
+  reversal_of_id: string | null;
+  reversal_reason: string | null;
+  created_by: string | null;
+  posted_by: string | null;
+  posted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JournalEntryLine {
+  id: string;
+  journal_entry_id: string;
+  company_id: string;
+  line_number: number;
+  account_id: string;
+  description: string | null;
+  debit: number;
+  credit: number;
+  original_amount: number | null;
+  exchange_rate: number | null;
+  base_debit: number;
+  base_credit: number;
+  department_id: string | null;
+  employee_id: string | null;
+  supplier_id: string | null;
+  customer_id: string | null;
+  project_id: string | null;
+  cost_center_id: string | null;
+  profit_center_id: string | null;
+  created_at: string;
+}
+
+export interface JournalEntryApproval {
+  id: string;
+  company_id: string;
+  journal_entry_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  approval_level: number;
+  sequence: number;
+  decision: ApprovalDecision;
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface GeneralLedgerRow {
+  line_id: string;
+  company_id: string;
+  journal_entry_id: string;
+  journal_number: string;
+  date: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: AccountType;
+  description: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+  department_id: string | null;
+  employee_id: string | null;
+  supplier_id: string | null;
+  customer_id: string | null;
+  project_id: string | null;
+  cost_center_id: string | null;
+  profit_center_id: string | null;
+  currency_id: string;
+  base_currency_id: string;
+  status: JournalEntryStatus;
+}
+
+export interface TrialBalanceRow {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: AccountType;
+  opening_debit: number;
+  opening_credit: number;
+  period_debit: number;
+  period_credit: number;
+  closing_debit: number;
+  closing_credit: number;
+}
+
+export interface SupplierBill {
+  id: string;
+  company_id: string;
+  bill_number: string;
+  supplier_id: string;
+  purchase_order_id: string | null;
+  bill_date: string;
+  due_date: string;
+  currency_id: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_total: number | null;
+  paid_amount: number;
+  status: SupplierBillStatus;
+  match_status: MatchStatus;
+  matched_at: string | null;
+  department_id: string | null;
+  cost_center_id: string | null;
+  budget_id: string | null;
+  budget_category_id: string | null;
+  journal_entry_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierBillItem {
+  id: string;
+  supplier_bill_id: string;
+  company_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  tax: number;
+  discount: number;
+  line_total: number;
+  account_id: string | null;
+  purchase_order_item_id: string | null;
+  tax_rate_id: string | null;
+  created_at: string;
+}
+
+export interface SupplierBillApproval {
+  id: string;
+  company_id: string;
+  supplier_bill_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  approval_level: number;
+  sequence: number;
+  decision: ApprovalDecision;
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface SupplierPayment {
+  id: string;
+  company_id: string;
+  payment_number: string;
+  supplier_id: string;
+  supplier_bill_id: string;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  bank_account_id: string;
+  currency_id: string;
+  amount: number;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_amount: number | null;
+  reference: string | null;
+  status: SupplierPaymentStatus;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashAccount {
+  id: string;
+  company_id: string;
+  name: string;
+  account_type: CashAccountType;
+  bank_name: string | null;
+  account_number_masked: string | null;
+  currency_id: string;
+  gl_account_id: string;
+  opening_balance: number;
+  current_balance: number;
+  status: CashAccountStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BankTransaction {
+  id: string;
+  company_id: string;
+  cash_account_id: string;
+  transaction_date: string;
+  transaction_type: BankTransactionType;
+  direction: BankTransactionDirection;
+  reference: string | null;
+  description: string | null;
+  amount: number;
+  currency_id: string;
+  reconciled: boolean;
+  reconciliation_id: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BankReconciliation {
+  id: string;
+  company_id: string;
+  cash_account_id: string;
+  statement_date: string;
+  statement_balance: number;
+  system_balance: number;
+  status: BankReconciliationStatus;
+  notes: string | null;
+  reconciled_by: string | null;
+  reconciled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Customer {
+  id: string;
+  company_id: string;
+  customer_code: string;
+  name: string;
+  customer_type: CustomerType;
+  contact_person: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  tax_number: string | null;
+  currency_id: string | null;
+  payment_terms: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerInvoice {
+  id: string;
+  company_id: string;
+  invoice_number: string;
+  customer_id: string;
+  project_id: string | null;
+  invoice_date: string;
+  due_date: string;
+  currency_id: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_total: number | null;
+  paid_amount: number;
+  status: CustomerInvoiceStatus;
+  department_id: string | null;
+  cost_center_id: string | null;
+  profit_center_id: string | null;
+  payment_terms: string | null;
+  notes: string | null;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerInvoiceItem {
+  id: string;
+  customer_invoice_id: string;
+  company_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  tax: number;
+  discount: number;
+  line_total: number;
+  revenue_account_id: string | null;
+  project_id: string | null;
+  tax_rate_id: string | null;
+  created_at: string;
+}
+
+export interface CustomerPayment {
+  id: string;
+  company_id: string;
+  payment_number: string;
+  customer_id: string;
+  customer_invoice_id: string;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  bank_account_id: string;
+  currency_id: string;
+  amount: number;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_amount: number | null;
+  is_overpayment: boolean;
+  reference: string | null;
+  status: CustomerPaymentStatus;
+  journal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Expense {
+  id: string;
+  company_id: string;
+  expense_number: string;
+  employee_id: string;
+  department_id: string | null;
+  expense_date: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  currency_id: string;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_amount: number | null;
+  receipt_path: string | null;
+  project_id: string | null;
+  customer_id: string | null;
+  account_id: string | null;
+  cost_center_id: string | null;
+  budget_id: string | null;
+  budget_category_id: string | null;
+  status: ExpenseStatus;
+  approver_id: string | null;
+  finance_reviewer: string | null;
+  journal_entry_id: string | null;
+  paid_via_cash_account_id: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseApproval {
+  id: string;
+  company_id: string;
+  expense_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  approval_level: number;
+  sequence: number;
+  decision: ApprovalDecision;
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface TaxRate {
+  id: string;
+  company_id: string;
+  name: string;
+  code: string;
+  rate: number;
+  tax_type: TaxType;
+  country: string | null;
+  effective_date: string;
+  expiry_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxTransaction {
+  id: string;
+  company_id: string;
+  reference_type: string;
+  reference_id: string;
+  tax_type: TaxType;
+  direction: TaxDirection;
+  tax_rate_id: string | null;
+  supplier_id: string | null;
+  customer_id: string | null;
+  department_id: string | null;
+  transaction_date: string;
+  base_amount: number;
+  tax_amount: number;
+  currency_id: string;
+  base_currency_id: string | null;
+  base_currency_tax_amount: number | null;
+  created_at: string;
+}
+
+export interface PayrollRun {
+  id: string;
+  company_id: string;
+  payroll_period_id: string;
+  run_type: PayrollRunType;
+  status: PayrollRunStatus;
+  currency_id: string;
+  total_gross_pay: number;
+  total_deductions: number;
+  total_employer_contributions: number;
+  total_net_pay: number;
+  journal_entry_id: string | null;
+  payment_journal_entry_id: string | null;
+  processed_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PayrollItem {
+  id: string;
+  payroll_run_id: string;
+  company_id: string;
+  employee_id: string;
+  basic_salary: number;
+  allowances: number;
+  overtime_hours: number;
+  overtime_pay: number;
+  bonuses: number;
+  gross_pay: number;
+  sss_employee: number;
+  philhealth_employee: number;
+  pagibig_employee: number;
+  withholding_tax: number;
+  other_deductions: number;
+  total_deductions: number;
+  sss_employer: number;
+  philhealth_employer: number;
+  pagibig_employer: number;
+  total_employer_contributions: number;
+  net_pay: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgingRow {
+  supplier_id?: string;
+  supplier_name?: string;
+  customer_id?: string;
+  customer_name?: string;
+  bill_id?: string;
+  bill_number?: string;
+  invoice_id?: string;
+  invoice_number?: string;
+  due_date: string;
+  original_amount: number;
+  paid_amount: number;
+  outstanding: number;
+  days_overdue: number;
+  bucket: "Current" | "1-30" | "31-60" | "61-90" | "90+";
+}

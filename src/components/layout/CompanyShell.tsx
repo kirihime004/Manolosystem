@@ -39,6 +39,7 @@ import type { ModuleKey } from "@/types/database";
 const NESTED_MODULE_KEYS: ModuleKey[] = [
   "IT", "TICKETING", "INVENTORY", "PROCUREMENT",
   "HR", "HR_EMPLOYEES", "HR_ATTENDANCE_LEAVE", "HR_PAYROLL",
+  "FINANCE",
 ];
 
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
@@ -62,6 +63,23 @@ const HR_NAV: { label: string; path: string; permission: string; moduleKey: Modu
   { label: "Payroll", path: "payroll", permission: PERMISSIONS.HR_PAYROLL_VIEW, moduleKey: "HR_PAYROLL" },
   { label: "Reports", path: "reports", permission: PERMISSIONS.HR_REPORTS_VIEW, moduleKey: "HR_EMPLOYEES" },
   { label: "Settings", path: "settings", permission: PERMISSIONS.HR_SETTINGS_MANAGE, moduleKey: "HR_EMPLOYEES" },
+];
+
+const FINANCE_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Chart of Accounts", path: "accounting/chart-of-accounts", permission: PERMISSIONS.FINANCE_ACCOUNTS_VIEW },
+  { label: "Journal Entries", path: "accounting/journals", permission: PERMISSIONS.FINANCE_JOURNALS_VIEW },
+  { label: "General Ledger", path: "accounting/general-ledger", permission: PERMISSIONS.FINANCE_GL_VIEW },
+  { label: "Trial Balance", path: "accounting/trial-balance", permission: PERMISSIONS.FINANCE_TRIAL_BALANCE_VIEW },
+  { label: "Bills", path: "ap/bills", permission: PERMISSIONS.FINANCE_AP_VIEW },
+  { label: "AP Aging", path: "ap/aging", permission: PERMISSIONS.FINANCE_AP_VIEW },
+  { label: "Customers", path: "ar/customers", permission: PERMISSIONS.FINANCE_CUSTOMERS_VIEW },
+  { label: "Invoices", path: "ar/invoices", permission: PERMISSIONS.FINANCE_AR_VIEW },
+  { label: "AR Aging", path: "ar/aging", permission: PERMISSIONS.FINANCE_AR_VIEW },
+  { label: "Expenses", path: "expenses", permission: PERMISSIONS.FINANCE_EXPENSES_VIEW },
+  { label: "Cash & Bank", path: "cash-bank", permission: PERMISSIONS.FINANCE_BANK_VIEW },
+  { label: "Payroll", path: "payroll", permission: PERMISSIONS.FINANCE_PAYROLL_VIEW },
+  { label: "Reports", path: "reports", permission: PERMISSIONS.FINANCE_REPORTS_VIEW },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.FINANCE_SETTINGS_MANAGE },
 ];
 
 const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
@@ -300,6 +318,33 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       className={cn(
                         "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
                         location.pathname.startsWith(`${base}/hr/${s.path}`)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      )}
+                    >
+                      {s.label}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {enabledModules.has("FINANCE") && hasPermission(PERMISSIONS.FINANCE_DASHBOARD_VIEW) && (
+              <>
+                <NavLink
+                  to={`${base}/finance`}
+                  icon={MODULE_INFO.FINANCE.icon}
+                  label="Finance"
+                  active={location.pathname === `${base}/finance`}
+                />
+                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                  {FINANCE_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                    <Link
+                      key={s.path}
+                      to={`${base}/finance/${s.path}`}
+                      className={cn(
+                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                        location.pathname.startsWith(`${base}/finance/${s.path}`)
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground",
                       )}
