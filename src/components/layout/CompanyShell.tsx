@@ -75,21 +75,40 @@ const HR_PAYROLL_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Payroll", path: "payroll", permission: PERMISSIONS.HR_PAYROLL_VIEW },
 ];
 
-const FINANCE_NAV: { label: string; path: string; permission: string; moduleKey: ModuleKey }[] = [
-  { label: "Chart of Accounts", path: "accounting/chart-of-accounts", permission: PERMISSIONS.FINANCE_ACCOUNTS_VIEW, moduleKey: "FINANCE_ACCOUNTING" },
-  { label: "Journal Entries", path: "accounting/journals", permission: PERMISSIONS.FINANCE_JOURNALS_VIEW, moduleKey: "FINANCE_ACCOUNTING" },
-  { label: "General Ledger", path: "accounting/general-ledger", permission: PERMISSIONS.FINANCE_GL_VIEW, moduleKey: "FINANCE_ACCOUNTING" },
-  { label: "Trial Balance", path: "accounting/trial-balance", permission: PERMISSIONS.FINANCE_TRIAL_BALANCE_VIEW, moduleKey: "FINANCE_ACCOUNTING" },
-  { label: "Bills", path: "ap/bills", permission: PERMISSIONS.FINANCE_AP_VIEW, moduleKey: "FINANCE_AP" },
-  { label: "AP Aging", path: "ap/aging", permission: PERMISSIONS.FINANCE_AP_VIEW, moduleKey: "FINANCE_AP" },
-  { label: "Customers", path: "ar/customers", permission: PERMISSIONS.FINANCE_CUSTOMERS_VIEW, moduleKey: "FINANCE_AR" },
-  { label: "Invoices", path: "ar/invoices", permission: PERMISSIONS.FINANCE_AR_VIEW, moduleKey: "FINANCE_AR" },
-  { label: "AR Aging", path: "ar/aging", permission: PERMISSIONS.FINANCE_AR_VIEW, moduleKey: "FINANCE_AR" },
-  { label: "Expenses", path: "expenses", permission: PERMISSIONS.FINANCE_EXPENSES_VIEW, moduleKey: "FINANCE_EXPENSES" },
-  { label: "Cash & Bank", path: "cash-bank", permission: PERMISSIONS.FINANCE_BANK_VIEW, moduleKey: "FINANCE_BANK" },
-  { label: "Payroll", path: "payroll", permission: PERMISSIONS.FINANCE_PAYROLL_VIEW, moduleKey: "FINANCE_PAYROLL" },
-  { label: "Reports", path: "reports", permission: PERMISSIONS.FINANCE_REPORTS_VIEW, moduleKey: "FINANCE_ACCOUNTING" },
-  { label: "Settings", path: "settings", permission: PERMISSIONS.FINANCE_SETTINGS_MANAGE, moduleKey: "FINANCE_ACCOUNTING" },
+// Split by sub-module (matching AppRouter's own FINANCE_ACCOUNTING/
+// FINANCE_AP/FINANCE_AR/FINANCE_EXPENSES/FINANCE_BANK/FINANCE_PAYROLL
+// route groups) instead of one flat list, so the sidebar can render each
+// as its own collapsible group -- same treatment IT and HR already got.
+const FINANCE_ACCOUNTING_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Chart of Accounts", path: "accounting/chart-of-accounts", permission: PERMISSIONS.FINANCE_ACCOUNTS_VIEW },
+  { label: "Journal Entries", path: "accounting/journals", permission: PERMISSIONS.FINANCE_JOURNALS_VIEW },
+  { label: "General Ledger", path: "accounting/general-ledger", permission: PERMISSIONS.FINANCE_GL_VIEW },
+  { label: "Trial Balance", path: "accounting/trial-balance", permission: PERMISSIONS.FINANCE_TRIAL_BALANCE_VIEW },
+  { label: "Reports", path: "reports", permission: PERMISSIONS.FINANCE_REPORTS_VIEW },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.FINANCE_SETTINGS_MANAGE },
+];
+
+const FINANCE_AP_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Bills", path: "ap/bills", permission: PERMISSIONS.FINANCE_AP_VIEW },
+  { label: "AP Aging", path: "ap/aging", permission: PERMISSIONS.FINANCE_AP_VIEW },
+];
+
+const FINANCE_AR_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Customers", path: "ar/customers", permission: PERMISSIONS.FINANCE_CUSTOMERS_VIEW },
+  { label: "Invoices", path: "ar/invoices", permission: PERMISSIONS.FINANCE_AR_VIEW },
+  { label: "AR Aging", path: "ar/aging", permission: PERMISSIONS.FINANCE_AR_VIEW },
+];
+
+const FINANCE_EXPENSES_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Expenses", path: "expenses", permission: PERMISSIONS.FINANCE_EXPENSES_VIEW },
+];
+
+const FINANCE_BANK_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Cash & Bank", path: "cash-bank", permission: PERMISSIONS.FINANCE_BANK_VIEW },
+];
+
+const FINANCE_PAYROLL_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Payroll", path: "payroll", permission: PERMISSIONS.FINANCE_PAYROLL_VIEW },
 ];
 
 const INVENTORY_NAV: { label: string; path: string; permission: string }[] = [
@@ -179,6 +198,54 @@ export function CompanyShell({ children }: { children: ReactNode }) {
     });
   };
   const isGroupExpanded = (key: string, activeWithin: boolean) => activeWithin || !collapsedGroups.has(key);
+
+  // Finance has six parallel leaf sub-modules (vs. IT/HR's three each), so
+  // rendering each as its own collapsible group inline would repeat the
+  // same ~25 lines six times. This closure captures the same base/
+  // location/hasPermission/enabledModules/isGroupExpanded/toggleGroup the
+  // inline IT/HR groups use, just parameterized per Finance section.
+  const renderFinanceGroup = (opts: {
+    storageKey: string;
+    moduleKey: ModuleKey;
+    to: string;
+    icon: LucideIcon;
+    label: string;
+    items: { label: string; path: string; permission: string }[];
+  }) => {
+    if (!enabledModules.has(opts.moduleKey)) return null;
+    const active = opts.items.some((s) => location.pathname.startsWith(`${base}/finance/${s.path}`));
+    const expanded = isGroupExpanded(opts.storageKey, active);
+    return (
+      <div key={opts.storageKey}>
+        <GroupHeader
+          to={`${base}/finance/${opts.to}`}
+          icon={opts.icon}
+          label={opts.label}
+          active={active}
+          expanded={expanded}
+          onToggle={() => toggleGroup(opts.storageKey)}
+        />
+        {expanded && (
+          <div className="ml-4 space-y-1 border-l border-border pl-2">
+            {opts.items.filter((s) => hasPermission(s.permission)).map((s) => (
+              <Link
+                key={s.path}
+                to={`${base}/finance/${s.path}`}
+                className={cn(
+                  "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                  location.pathname.startsWith(`${base}/finance/${s.path}`)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // A custom background can be any arbitrary photo or color the admin
   // picked, so the sidebar can't just assume the app's normal light-card
@@ -561,20 +628,54 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                     />
                     {financeExpanded && (
                       <div className="ml-4 space-y-1 border-l border-border pl-2">
-                        {FINANCE_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
-                          <Link
-                            key={s.path}
-                            to={`${base}/finance/${s.path}`}
-                            className={cn(
-                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                              location.pathname.startsWith(`${base}/finance/${s.path}`)
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                            )}
-                          >
-                            {s.label}
-                          </Link>
-                        ))}
+                        {renderFinanceGroup({
+                          storageKey: "finance.accounting",
+                          moduleKey: "FINANCE_ACCOUNTING",
+                          to: "accounting/chart-of-accounts",
+                          icon: MODULE_INFO.FINANCE_ACCOUNTING.icon,
+                          label: "Accounting",
+                          items: FINANCE_ACCOUNTING_NAV,
+                        })}
+                        {renderFinanceGroup({
+                          storageKey: "finance.ap",
+                          moduleKey: "FINANCE_AP",
+                          to: "ap/bills",
+                          icon: MODULE_INFO.FINANCE_AP.icon,
+                          label: "Accounts Payable",
+                          items: FINANCE_AP_NAV,
+                        })}
+                        {renderFinanceGroup({
+                          storageKey: "finance.ar",
+                          moduleKey: "FINANCE_AR",
+                          to: "ar/customers",
+                          icon: MODULE_INFO.FINANCE_AR.icon,
+                          label: "Accounts Receivable",
+                          items: FINANCE_AR_NAV,
+                        })}
+                        {renderFinanceGroup({
+                          storageKey: "finance.expenses",
+                          moduleKey: "FINANCE_EXPENSES",
+                          to: "expenses",
+                          icon: MODULE_INFO.FINANCE_EXPENSES.icon,
+                          label: "Expenses",
+                          items: FINANCE_EXPENSES_NAV,
+                        })}
+                        {renderFinanceGroup({
+                          storageKey: "finance.bank",
+                          moduleKey: "FINANCE_BANK",
+                          to: "cash-bank",
+                          icon: MODULE_INFO.FINANCE_BANK.icon,
+                          label: "Cash & Bank",
+                          items: FINANCE_BANK_NAV,
+                        })}
+                        {renderFinanceGroup({
+                          storageKey: "finance.payroll",
+                          moduleKey: "FINANCE_PAYROLL",
+                          to: "payroll",
+                          icon: MODULE_INFO.FINANCE_PAYROLL.icon,
+                          label: "Payroll",
+                          items: FINANCE_PAYROLL_NAV,
+                        })}
                       </div>
                     )}
                   </>
