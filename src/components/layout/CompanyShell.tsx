@@ -1,10 +1,11 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   LayoutDashboard,
   Building2,
   LogOut,
   ChevronsUpDown,
+  ChevronDown,
   UserCog,
   ShieldCheck,
   Palette,
@@ -110,6 +111,25 @@ const PROCUREMENT_NAV: { label: string; path: string; permission: string }[] = [
   { label: "History", path: "history", permission: PERMISSIONS.IT_PROCUREMENT_VIEW },
 ];
 
+// Sidebar sections can nest three levels deep (IT > Inventory > "All Items")
+// once every module/sub-module is enabled, which is a lot to scroll past to
+// reach something unrelated. Each group header below gets its own
+// collapse/expand toggle, persisted across reloads so the user's layout
+// sticks. A group still force-expands whenever the active route is inside
+// it, so navigating there directly (e.g. a bookmark) never hides the page
+// you're actually on behind a collapsed section.
+const SIDEBAR_COLLAPSE_STORAGE_KEY = "mindburst:sidebar-collapsed-groups";
+
+function loadCollapsedGroups(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 const SETTINGS_NAV: { label: string; icon: LucideIcon; path: string; permissions: string[] }[] = [
   { label: "Users", icon: UserCog, path: "settings/users", permissions: [PERMISSIONS.ADMIN_USERS_VIEW, PERMISSIONS.ADMIN_USERS_MANAGE] },
   { label: "Departments", icon: Building2, path: "settings/departments", permissions: [PERMISSIONS.ADMIN_DEPARTMENTS_MANAGE] },
@@ -132,6 +152,23 @@ export function CompanyShell({ children }: { children: ReactNode }) {
   const displayName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const initials =
     (profile?.first_name?.[0] ?? user?.email?.[0] ?? "?").toUpperCase();
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(loadCollapsedGroups);
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        // Best-effort persistence -- a private-browsing tab or a full quota
+        // shouldn't block collapsing the sidebar, just the memory of it.
+      }
+      return next;
+    });
+  };
+  const isGroupExpanded = (key: string, activeWithin: boolean) => activeWithin || !collapsedGroups.has(key);
 
   // A custom background can be any arbitrary photo or color the admin
   // picked, so the sidebar can't just assume the app's normal light-card
@@ -180,203 +217,254 @@ export function CompanyShell({ children }: { children: ReactNode }) {
             <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Modules
             </p>
-            {(enabledModules.has("TICKETING") || enabledModules.has("INVENTORY") || enabledModules.has("PROCUREMENT")) && (
-              <>
-                <NavLink
-                  to={`${base}/it`}
-                  icon={MODULE_INFO.IT.icon}
-                  label="IT"
-                  active={location.pathname === `${base}/it`}
-                />
-                <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {enabledModules.has("TICKETING") && (
-                    <>
-                      <Link
-                        to={`${base}/it/tickets`}
-                        className={cn(
-                          "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                          location.pathname.startsWith(`${base}/it/tickets`)
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                        )}
-                      >
-                        Tickets
-                      </Link>
-                      {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
-                        <Link
-                          to={`${base}/it/categories`}
-                          className={cn(
-                            "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                            location.pathname === `${base}/it/categories`
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+            {(enabledModules.has("TICKETING") || enabledModules.has("INVENTORY") || enabledModules.has("PROCUREMENT")) && (() => {
+              const itActive = location.pathname.startsWith(`${base}/it`);
+              const itExpanded = isGroupExpanded("it", itActive);
+              return (
+                <>
+                  <GroupHeader
+                    to={`${base}/it`}
+                    icon={MODULE_INFO.IT.icon}
+                    label="IT"
+                    active={location.pathname === `${base}/it`}
+                    expanded={itExpanded}
+                    onToggle={() => toggleGroup("it")}
+                  />
+                  {itExpanded && (
+                    <div className="ml-4 space-y-1 border-l border-border pl-2">
+                      {enabledModules.has("TICKETING") && (
+                        <>
+                          <Link
+                            to={`${base}/it/tickets`}
+                            className={cn(
+                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                              location.pathname.startsWith(`${base}/it/tickets`)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            Tickets
+                          </Link>
+                          {hasPermission(PERMISSIONS.ADMIN_IT_CATEGORIES_MANAGE) && (
+                            <Link
+                              to={`${base}/it/categories`}
+                              className={cn(
+                                "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                location.pathname === `${base}/it/categories`
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                              )}
+                            >
+                              Categories
+                            </Link>
                           )}
-                        >
-                          Categories
-                        </Link>
+                        </>
                       )}
-                    </>
-                  )}
 
-                  {/* Inventory is its own toggleable module (Platform Superadmin
-                      controls it independently of Ticketing), so it's gated on
-                      enabledModules separately even though it's presented nested
-                      in the same IT group. */}
-                  {enabledModules.has("INVENTORY") && hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (
-                    <>
-                      <NavLink
-                        to={`${base}/it/inventory`}
-                        icon={Boxes}
-                        label="Inventory"
-                        active={location.pathname === `${base}/it/inventory`}
-                      />
-                      <div className="ml-4 space-y-1 border-l border-border pl-2">
-                        {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
-                          <Link
-                            key={s.path}
-                            to={`${base}/it/inventory/${s.path}`}
-                            className={cn(
-                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                              location.pathname === `${base}/it/inventory/${s.path}`
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      {/* Inventory is its own toggleable module (Platform Superadmin
+                          controls it independently of Ticketing), so it's gated on
+                          enabledModules separately even though it's presented nested
+                          in the same IT group. */}
+                      {enabledModules.has("INVENTORY") && hasPermission(PERMISSIONS.IT_INVENTORY_VIEW) && (() => {
+                        const inventoryActive = location.pathname.startsWith(`${base}/it/inventory`);
+                        const inventoryExpanded = isGroupExpanded("it.inventory", inventoryActive);
+                        return (
+                          <>
+                            <GroupHeader
+                              to={`${base}/it/inventory`}
+                              icon={Boxes}
+                              label="Inventory"
+                              active={location.pathname === `${base}/it/inventory`}
+                              expanded={inventoryExpanded}
+                              onToggle={() => toggleGroup("it.inventory")}
+                            />
+                            {inventoryExpanded && (
+                              <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                {INVENTORY_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                                  <Link
+                                    key={s.path}
+                                    to={`${base}/it/inventory/${s.path}`}
+                                    className={cn(
+                                      "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                      location.pathname === `${base}/it/inventory/${s.path}`
+                                        ? "bg-primary text-primary-foreground"
+                                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                    )}
+                                  >
+                                    {s.label}
+                                  </Link>
+                                ))}
+                              </div>
                             )}
-                          >
-                            {s.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                          </>
+                        );
+                      })()}
 
-                  {/* Budget & Procurement share one PROCUREMENT module toggle
-                      (they're tightly coupled -- a company without Procurement
-                      has no use for a standalone IT Budget tracker), but each
-                      section still checks its own permission set independently. */}
-                  {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_BUDGET_VIEW) && (
-                    <>
-                      <NavLink
-                        to={`${base}/it/budget`}
-                        icon={Wallet}
-                        label="Budget"
-                        active={location.pathname === `${base}/it/budget`}
-                      />
-                      <div className="ml-4 space-y-1 border-l border-border pl-2">
-                        {BUDGET_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
-                          <Link
-                            key={s.path}
-                            to={`${base}/it/budget/${s.path}`}
-                            className={cn(
-                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                              location.pathname.startsWith(`${base}/it/budget/${s.path}`)
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      {/* Budget & Procurement share one PROCUREMENT module toggle
+                          (they're tightly coupled -- a company without Procurement
+                          has no use for a standalone IT Budget tracker), but each
+                          section still checks its own permission set independently. */}
+                      {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_BUDGET_VIEW) && (() => {
+                        const budgetActive = location.pathname.startsWith(`${base}/it/budget`);
+                        const budgetExpanded = isGroupExpanded("it.budget", budgetActive);
+                        return (
+                          <>
+                            <GroupHeader
+                              to={`${base}/it/budget`}
+                              icon={Wallet}
+                              label="Budget"
+                              active={location.pathname === `${base}/it/budget`}
+                              expanded={budgetExpanded}
+                              onToggle={() => toggleGroup("it.budget")}
+                            />
+                            {budgetExpanded && (
+                              <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                {BUDGET_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                                  <Link
+                                    key={s.path}
+                                    to={`${base}/it/budget/${s.path}`}
+                                    className={cn(
+                                      "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                      location.pathname.startsWith(`${base}/it/budget/${s.path}`)
+                                        ? "bg-primary text-primary-foreground"
+                                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                    )}
+                                  >
+                                    {s.label}
+                                  </Link>
+                                ))}
+                              </div>
                             )}
-                          >
-                            {s.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                          </>
+                        );
+                      })()}
 
-                  {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_PROCUREMENT_VIEW) && (
-                    <>
-                      <NavLink
-                        to={`${base}/it/procurement`}
-                        icon={ShoppingCart}
-                        label="Procurement"
-                        active={location.pathname === `${base}/it/procurement`}
-                      />
-                      <div className="ml-4 space-y-1 border-l border-border pl-2">
-                        {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
-                          <Link
-                            key={s.path}
-                            to={`${base}/it/procurement/${s.path}`}
-                            className={cn(
-                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                              location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      {enabledModules.has("PROCUREMENT") && hasPermission(PERMISSIONS.IT_PROCUREMENT_VIEW) && (() => {
+                        const procurementActive =
+                          location.pathname.startsWith(`${base}/it/procurement`) || location.pathname === `${base}/it/reports`;
+                        const procurementExpanded = isGroupExpanded("it.procurement", procurementActive);
+                        return (
+                          <>
+                            <GroupHeader
+                              to={`${base}/it/procurement`}
+                              icon={ShoppingCart}
+                              label="Procurement"
+                              active={location.pathname === `${base}/it/procurement`}
+                              expanded={procurementExpanded}
+                              onToggle={() => toggleGroup("it.procurement")}
+                            />
+                            {procurementExpanded && (
+                              <>
+                                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                  {PROCUREMENT_NAV.filter((s) => s.path !== "" && hasPermission(s.permission)).map((s) => (
+                                    <Link
+                                      key={s.path}
+                                      to={`${base}/it/procurement/${s.path}`}
+                                      className={cn(
+                                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                        location.pathname.startsWith(`${base}/it/procurement/${s.path}`)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                      )}
+                                    >
+                                      {s.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                                <Link
+                                  to={`${base}/it/reports`}
+                                  className={cn(
+                                    "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                    location.pathname === `${base}/it/reports`
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                  )}
+                                >
+                                  Reports
+                                </Link>
+                              </>
                             )}
-                          >
-                            {s.label}
-                          </Link>
-                        ))}
-                      </div>
-                      <Link
-                        to={`${base}/it/reports`}
-                        className={cn(
-                          "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                          location.pathname === `${base}/it/reports`
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                        )}
-                      >
-                        Reports
-                      </Link>
-                    </>
+                          </>
+                        );
+                      })()}
+                    </div>
                   )}
-                </div>
-              </>
-            )}
+                </>
+              );
+            })()}
 
             {(enabledModules.has("HR_EMPLOYEES") || enabledModules.has("HR_ATTENDANCE_LEAVE") || enabledModules.has("HR_PAYROLL")) &&
-              hasPermission(PERMISSIONS.HR_DASHBOARD_VIEW) && (
-              <>
-                <NavLink
-                  to={`${base}/hr`}
-                  icon={Users}
-                  label="HR"
-                  active={location.pathname === `${base}/hr`}
-                />
-                <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {HR_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
-                    <Link
-                      key={s.path}
-                      to={`${base}/hr/${s.path}`}
-                      className={cn(
-                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                        location.pathname.startsWith(`${base}/hr/${s.path}`)
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )}
-                    >
-                      {s.label}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
+              hasPermission(PERMISSIONS.HR_DASHBOARD_VIEW) && (() => {
+                const hrActive = location.pathname.startsWith(`${base}/hr`);
+                const hrExpanded = isGroupExpanded("hr", hrActive);
+                return (
+                  <>
+                    <GroupHeader
+                      to={`${base}/hr`}
+                      icon={Users}
+                      label="HR"
+                      active={location.pathname === `${base}/hr`}
+                      expanded={hrExpanded}
+                      onToggle={() => toggleGroup("hr")}
+                    />
+                    {hrExpanded && (
+                      <div className="ml-4 space-y-1 border-l border-border pl-2">
+                        {HR_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
+                          <Link
+                            key={s.path}
+                            to={`${base}/hr/${s.path}`}
+                            className={cn(
+                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                              location.pathname.startsWith(`${base}/hr/${s.path}`)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            {s.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
             {(enabledModules.has("FINANCE_ACCOUNTING") || enabledModules.has("FINANCE_AP") || enabledModules.has("FINANCE_AR") ||
               enabledModules.has("FINANCE_EXPENSES") || enabledModules.has("FINANCE_BANK") || enabledModules.has("FINANCE_PAYROLL")) &&
-              hasPermission(PERMISSIONS.FINANCE_DASHBOARD_VIEW) && (
-              <>
-                <NavLink
-                  to={`${base}/finance`}
-                  icon={MODULE_INFO.FINANCE.icon}
-                  label="Finance"
-                  active={location.pathname === `${base}/finance`}
-                />
-                <div className="ml-4 space-y-1 border-l border-border pl-2">
-                  {FINANCE_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
-                    <Link
-                      key={s.path}
-                      to={`${base}/finance/${s.path}`}
-                      className={cn(
-                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                        location.pathname.startsWith(`${base}/finance/${s.path}`)
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )}
-                    >
-                      {s.label}
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
+              hasPermission(PERMISSIONS.FINANCE_DASHBOARD_VIEW) && (() => {
+                const financeActive = location.pathname.startsWith(`${base}/finance`);
+                const financeExpanded = isGroupExpanded("finance", financeActive);
+                return (
+                  <>
+                    <GroupHeader
+                      to={`${base}/finance`}
+                      icon={MODULE_INFO.FINANCE.icon}
+                      label="Finance"
+                      active={location.pathname === `${base}/finance`}
+                      expanded={financeExpanded}
+                      onToggle={() => toggleGroup("finance")}
+                    />
+                    {financeExpanded && (
+                      <div className="ml-4 space-y-1 border-l border-border pl-2">
+                        {FINANCE_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
+                          <Link
+                            key={s.path}
+                            to={`${base}/finance/${s.path}`}
+                            className={cn(
+                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                              location.pathname.startsWith(`${base}/finance/${s.path}`)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                            )}
+                          >
+                            {s.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
             {MODULE_NAV.filter((m) => enabledModules.has(m.key)).map((m) => (
               <NavLink
@@ -458,11 +546,13 @@ function NavLink({
   icon: Icon,
   label,
   active,
+  className,
 }: {
   to: string;
   icon: LucideIcon;
   label: string;
   active: boolean;
+  className?: string;
 }) {
   return (
     <Link
@@ -472,10 +562,46 @@ function NavLink({
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-foreground",
+        className,
       )}
     >
       <Icon className="h-4 w-4" />
       {label}
     </Link>
+  );
+}
+
+// A module group's header row: the label still navigates to that module's
+// overview page like before, but now shares the row with a dedicated
+// chevron button that only collapses/expands the nested list -- clicking
+// the chevron never navigates, and clicking the label never collapses.
+function GroupHeader({
+  to,
+  icon,
+  label,
+  active,
+  expanded,
+  onToggle,
+}: {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5">
+      <NavLink to={to} icon={icon} label={label} active={active} className="flex-1" />
+      <button
+        type="button"
+        onClick={onToggle}
+        className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-expanded={expanded}
+        aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
+      >
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !expanded && "-rotate-90")} />
+      </button>
+    </div>
   );
 }
