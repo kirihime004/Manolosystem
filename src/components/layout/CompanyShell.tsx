@@ -46,23 +46,33 @@ const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_IN
   .filter(([key]) => !NESTED_MODULE_KEYS.includes(key)) // each gets its own nested nav block below
   .map(([key, info]) => ({ key, label: info.label, icon: info.icon, path: info.path }));
 
-const HR_NAV: { label: string; path: string; permission: string; moduleKey: ModuleKey }[] = [
-  { label: "Employees", path: "employees", permission: PERMISSIONS.HR_EMPLOYEES_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Departments", path: "organization/departments", permission: PERMISSIONS.HR_DEPARTMENTS_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Positions", path: "organization/positions", permission: PERMISSIONS.HR_POSITIONS_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Org Chart", path: "organization/chart", permission: PERMISSIONS.HR_EMPLOYEES_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Attendance", path: "attendance", permission: PERMISSIONS.HR_ATTENDANCE_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
-  { label: "Leave", path: "leave", permission: PERMISSIONS.HR_LEAVE_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
-  { label: "Overtime", path: "overtime", permission: PERMISSIONS.HR_OVERTIME_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
-  { label: "Timesheets", path: "timesheets", permission: PERMISSIONS.HR_TIMESHEETS_VIEW, moduleKey: "HR_ATTENDANCE_LEAVE" },
-  { label: "Employee Requests", path: "requests", permission: PERMISSIONS.HR_REQUESTS_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Documents", path: "documents", permission: PERMISSIONS.HR_DOCUMENTS_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Contracts", path: "contracts", permission: PERMISSIONS.HR_CONTRACTS_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Benefits", path: "benefits", permission: PERMISSIONS.HR_BENEFITS_VIEW, moduleKey: "HR_PAYROLL" },
-  { label: "Deductions", path: "deductions", permission: PERMISSIONS.HR_DEDUCTIONS_VIEW, moduleKey: "HR_PAYROLL" },
-  { label: "Payroll", path: "payroll", permission: PERMISSIONS.HR_PAYROLL_VIEW, moduleKey: "HR_PAYROLL" },
-  { label: "Reports", path: "reports", permission: PERMISSIONS.HR_REPORTS_VIEW, moduleKey: "HR_EMPLOYEES" },
-  { label: "Settings", path: "settings", permission: PERMISSIONS.HR_SETTINGS_MANAGE, moduleKey: "HR_EMPLOYEES" },
+// Split by sub-module (matching AppRouter's own HR_EMPLOYEES/
+// HR_ATTENDANCE_LEAVE/HR_PAYROLL route groups) instead of one flat list,
+// so the sidebar can render each as its own collapsible group -- same
+// treatment IT's Ticketing/Inventory/Budget/Procurement already got.
+const HR_EMPLOYEES_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Employees", path: "employees", permission: PERMISSIONS.HR_EMPLOYEES_VIEW },
+  { label: "Departments", path: "organization/departments", permission: PERMISSIONS.HR_DEPARTMENTS_VIEW },
+  { label: "Positions", path: "organization/positions", permission: PERMISSIONS.HR_POSITIONS_VIEW },
+  { label: "Org Chart", path: "organization/chart", permission: PERMISSIONS.HR_EMPLOYEES_VIEW },
+  { label: "Employee Requests", path: "requests", permission: PERMISSIONS.HR_REQUESTS_VIEW },
+  { label: "Documents", path: "documents", permission: PERMISSIONS.HR_DOCUMENTS_VIEW },
+  { label: "Contracts", path: "contracts", permission: PERMISSIONS.HR_CONTRACTS_VIEW },
+  { label: "Reports", path: "reports", permission: PERMISSIONS.HR_REPORTS_VIEW },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.HR_SETTINGS_MANAGE },
+];
+
+const HR_ATTENDANCE_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Attendance", path: "attendance", permission: PERMISSIONS.HR_ATTENDANCE_VIEW },
+  { label: "Leave", path: "leave", permission: PERMISSIONS.HR_LEAVE_VIEW },
+  { label: "Overtime", path: "overtime", permission: PERMISSIONS.HR_OVERTIME_VIEW },
+  { label: "Timesheets", path: "timesheets", permission: PERMISSIONS.HR_TIMESHEETS_VIEW },
+];
+
+const HR_PAYROLL_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Benefits", path: "benefits", permission: PERMISSIONS.HR_BENEFITS_VIEW },
+  { label: "Deductions", path: "deductions", permission: PERMISSIONS.HR_DEDUCTIONS_VIEW },
+  { label: "Payroll", path: "payroll", permission: PERMISSIONS.HR_PAYROLL_VIEW },
 ];
 
 const FINANCE_NAV: { label: string; path: string; permission: string; moduleKey: ModuleKey }[] = [
@@ -424,20 +434,110 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                     />
                     {hrExpanded && (
                       <div className="ml-4 space-y-1 border-l border-border pl-2">
-                        {HR_NAV.filter((s) => hasPermission(s.permission) && enabledModules.has(s.moduleKey)).map((s) => (
-                          <Link
-                            key={s.path}
-                            to={`${base}/hr/${s.path}`}
-                            className={cn(
-                              "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                              location.pathname.startsWith(`${base}/hr/${s.path}`)
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                            )}
-                          >
-                            {s.label}
-                          </Link>
-                        ))}
+                        {enabledModules.has("HR_EMPLOYEES") && (() => {
+                          const employeesActive = HR_EMPLOYEES_NAV.some((s) => location.pathname.startsWith(`${base}/hr/${s.path}`));
+                          const employeesExpanded = isGroupExpanded("hr.employees", employeesActive);
+                          return (
+                            <>
+                              <GroupHeader
+                                to={`${base}/hr/employees`}
+                                icon={MODULE_INFO.HR_EMPLOYEES.icon}
+                                label="Employees"
+                                active={location.pathname.startsWith(`${base}/hr/employees`)}
+                                expanded={employeesExpanded}
+                                onToggle={() => toggleGroup("hr.employees")}
+                              />
+                              {employeesExpanded && (
+                                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                  {HR_EMPLOYEES_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                                    <Link
+                                      key={s.path}
+                                      to={`${base}/hr/${s.path}`}
+                                      className={cn(
+                                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                        location.pathname.startsWith(`${base}/hr/${s.path}`)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                      )}
+                                    >
+                                      {s.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        {enabledModules.has("HR_ATTENDANCE_LEAVE") && (() => {
+                          const attendanceActive = HR_ATTENDANCE_NAV.some((s) => location.pathname.startsWith(`${base}/hr/${s.path}`));
+                          const attendanceExpanded = isGroupExpanded("hr.attendance", attendanceActive);
+                          return (
+                            <>
+                              <GroupHeader
+                                to={`${base}/hr/attendance`}
+                                icon={MODULE_INFO.HR_ATTENDANCE_LEAVE.icon}
+                                label="Attendance & Leave"
+                                active={location.pathname.startsWith(`${base}/hr/attendance`)}
+                                expanded={attendanceExpanded}
+                                onToggle={() => toggleGroup("hr.attendance")}
+                              />
+                              {attendanceExpanded && (
+                                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                  {HR_ATTENDANCE_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                                    <Link
+                                      key={s.path}
+                                      to={`${base}/hr/${s.path}`}
+                                      className={cn(
+                                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                        location.pathname.startsWith(`${base}/hr/${s.path}`)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                      )}
+                                    >
+                                      {s.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        {enabledModules.has("HR_PAYROLL") && (() => {
+                          const payrollActive = HR_PAYROLL_NAV.some((s) => location.pathname.startsWith(`${base}/hr/${s.path}`));
+                          const payrollExpanded = isGroupExpanded("hr.payroll", payrollActive);
+                          return (
+                            <>
+                              <GroupHeader
+                                to={`${base}/hr/benefits`}
+                                icon={MODULE_INFO.HR_PAYROLL.icon}
+                                label="Payroll & Benefits"
+                                active={location.pathname.startsWith(`${base}/hr/benefits`) || location.pathname.startsWith(`${base}/hr/deductions`) || location.pathname.startsWith(`${base}/hr/payroll`)}
+                                expanded={payrollExpanded}
+                                onToggle={() => toggleGroup("hr.payroll")}
+                              />
+                              {payrollExpanded && (
+                                <div className="ml-4 space-y-1 border-l border-border pl-2">
+                                  {HR_PAYROLL_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                                    <Link
+                                      key={s.path}
+                                      to={`${base}/hr/${s.path}`}
+                                      className={cn(
+                                        "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                        location.pathname.startsWith(`${base}/hr/${s.path}`)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                                      )}
+                                    >
+                                      {s.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </>
