@@ -373,7 +373,7 @@ export function CompanyDetailSheet({
           <SheetTitle>{name || company.name}</SheetTitle>
         </SheetHeader>
 
-        <div className="px-4 pb-6">
+        <div className="overflow-y-auto px-4 pb-6">
           <Tabs defaultValue="details">
             <TabsList className="w-full">
               <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
