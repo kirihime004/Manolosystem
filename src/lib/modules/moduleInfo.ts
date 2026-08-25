@@ -1,19 +1,18 @@
 import {
   Ticket, Users, DollarSign, Building2, Clapperboard, Boxes, ShoppingCart,
   Wrench, UserSquare2, CalendarClock, Wallet, BookOpen, Receipt, Landmark,
-  ReceiptText, PiggyBank, type LucideIcon,
+  ReceiptText, PiggyBank, ClipboardList, MapPin, Package, Armchair, Car,
+  Plane, UserCheck, PartyPopper, FileSignature, Megaphone, type LucideIcon,
 } from "lucide-react";
 import type { ModuleKey } from "@/types/database";
 
 // Single source of truth for how each module is presented in the UI.
-// IT, HR, and Finance are pure parent/master switches -- turning any of
-// them off hides everything nested under it (Platform Superadmin's Modules
-// tab, the company sidebar, and RLS via has_module_enabled()'s cascade all
-// agree on this same parent/child structure). ADMIN stays a single flat
-// module (not split into leaf sub-modules like IT/HR/Finance) -- Phase 6's
-// ~15 sections are cohesive enough, and gated by permission, that the
-// enum-split machinery isn't worth it here. PRODUCTION doesn't have a
-// concrete feature built yet, so it's still named after its department.
+// IT, HR, Finance, and ADMIN are pure parent/master switches -- turning
+// any of them off hides everything nested under it (Platform
+// Superadmin's Modules tab, the company sidebar, and RLS via
+// has_module_enabled()'s cascade all agree on this same parent/child
+// structure). PRODUCTION doesn't have a concrete feature built yet, so
+// it's still named after its department.
 export const MODULE_INFO: Record<ModuleKey, { label: string; description: string; icon: LucideIcon; path: string }> = {
   IT: { label: "IT", description: "Ticketing, inventory, and budget & procurement", icon: Wrench, path: "it" },
   TICKETING: { label: "Ticketing", description: "Support tickets and technical requests", icon: Ticket, path: "it" },
@@ -34,5 +33,15 @@ export const MODULE_INFO: Record<ModuleKey, { label: string; description: string
   FINANCE_PAYROLL: { label: "Payroll", description: "Payroll runs and payslips", icon: PiggyBank, path: "finance/payroll" },
 
   ADMIN: { label: "Administration", description: "Requests, facilities, assets, vehicles, travel, and office operations", icon: Building2, path: "admin" },
+  ADMIN_REQUESTS: { label: "Requests", description: "General administrative service requests", icon: ClipboardList, path: "admin/requests" },
+  ADMIN_FACILITIES: { label: "Facilities", description: "Locations, rooms, room bookings, and workspaces", icon: MapPin, path: "admin/facilities" },
+  ADMIN_SUPPLIES: { label: "Office Supplies", description: "Consumables inventory and supply requests", icon: Package, path: "admin/supplies" },
+  ADMIN_ASSETS: { label: "Administrative Assets", description: "Furniture, appliances, and their maintenance", icon: Armchair, path: "admin/assets" },
+  ADMIN_VEHICLES: { label: "Vehicles", description: "Company fleet management", icon: Car, path: "admin/vehicles" },
+  ADMIN_TRAVEL: { label: "Travel", description: "Company travel coordination and approvals", icon: Plane, path: "admin/travel" },
+  ADMIN_VISITORS: { label: "Visitors", description: "Visitor check-in/out and internal meetings", icon: UserCheck, path: "admin/visitors" },
+  ADMIN_EVENTS: { label: "Events", description: "Company events and event tasks", icon: PartyPopper, path: "admin/events" },
+  ADMIN_CONTRACTS: { label: "Contracts", description: "Contracts, documents, and compliance records", icon: FileSignature, path: "admin/contracts" },
+  ADMIN_COMMS: { label: "Announcements & Courier", description: "Company announcements and courier/mail tracking", icon: Megaphone, path: "admin/announcements" },
   PRODUCTION: { label: "Production", description: "Shots, tasks, and reviews", icon: Clapperboard, path: "production" },
 };

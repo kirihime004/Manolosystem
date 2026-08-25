@@ -37,6 +37,16 @@ const MODULE_PARENT: Partial<Record<ModuleKey, ModuleKey>> = {
   FINANCE_EXPENSES: "FINANCE",
   FINANCE_BANK: "FINANCE",
   FINANCE_PAYROLL: "FINANCE",
+  ADMIN_REQUESTS: "ADMIN",
+  ADMIN_FACILITIES: "ADMIN",
+  ADMIN_SUPPLIES: "ADMIN",
+  ADMIN_ASSETS: "ADMIN",
+  ADMIN_VEHICLES: "ADMIN",
+  ADMIN_TRAVEL: "ADMIN",
+  ADMIN_VISITORS: "ADMIN",
+  ADMIN_EVENTS: "ADMIN",
+  ADMIN_CONTRACTS: "ADMIN",
+  ADMIN_COMMS: "ADMIN",
 };
 
 function computeEffectiveModules(rows: { module_key: string; enabled: boolean }[]): Set<ModuleKey> {

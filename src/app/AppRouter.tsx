@@ -695,7 +695,12 @@ export function AppRouter() {
             <Route
               path="admin"
               element={
-                <RequireModule moduleKey="ADMIN">
+                <RequireModule
+                  moduleKey={[
+                    "ADMIN_REQUESTS", "ADMIN_FACILITIES", "ADMIN_SUPPLIES", "ADMIN_ASSETS", "ADMIN_VEHICLES",
+                    "ADMIN_TRAVEL", "ADMIN_VISITORS", "ADMIN_EVENTS", "ADMIN_CONTRACTS", "ADMIN_COMMS",
+                  ]}
+                >
                   <RequirePermission permission={PERMISSIONS.ADMIN_DASHBOARD_VIEW}>
                     <Outlet />
                   </RequirePermission>
@@ -704,179 +709,240 @@ export function AppRouter() {
             >
               <Route index element={<AdminDashboardPage />} />
 
+              {/* Requests: request queue + settings (request categories). */}
               <Route
-                path="requests"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_REQUESTS_VIEW}>
+                  <RequireModule moduleKey="ADMIN_REQUESTS">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<AdminRequestsListPage />} />
-                <Route path=":requestId" element={<AdminRequestDetailPage />} />
+                <Route
+                  path="requests"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_REQUESTS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<AdminRequestsListPage />} />
+                  <Route path=":requestId" element={<AdminRequestDetailPage />} />
+                </Route>
+                <Route
+                  path="settings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_SETTINGS_MANAGE}>
+                      <AdminSettingsPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
 
+              {/* Facilities: locations, rooms + bookings, workspaces. */}
               <Route
-                path="facilities"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_FACILITIES_VIEW}>
-                    <LocationsPage />
-                  </RequirePermission>
-                }
-              />
-
-              <Route
-                path="rooms"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_ROOMS_VIEW}>
+                  <RequireModule moduleKey="ADMIN_FACILITIES">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<RoomsPage />} />
-                <Route path="bookings" element={<RoomBookingsPage />} />
+                <Route
+                  path="facilities"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_FACILITIES_VIEW}>
+                      <LocationsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="rooms"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_ROOMS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<RoomsPage />} />
+                  <Route path="bookings" element={<RoomBookingsPage />} />
+                </Route>
+                <Route
+                  path="workspaces"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_WORKSPACES_VIEW}>
+                      <WorkspacesPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
 
+              {/* Office Supplies: consumables + supply requests. */}
               <Route
-                path="workspaces"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_WORKSPACES_VIEW}>
-                    <WorkspacesPage />
-                  </RequirePermission>
-                }
-              />
-
-              <Route
-                path="supplies"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_SUPPLIES_VIEW}>
+                  <RequireModule moduleKey="ADMIN_SUPPLIES">
                     <Outlet />
-                  </RequirePermission>
+                  </RequireModule>
                 }
               >
-                <Route index element={<OfficeSuppliesPage />} />
-                <Route path="requests" element={<OfficeSupplyRequestsPage />} />
+                <Route
+                  path="supplies"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_SUPPLIES_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<OfficeSuppliesPage />} />
+                  <Route path="requests" element={<OfficeSupplyRequestsPage />} />
+                </Route>
               </Route>
 
+              {/* Administrative Assets: assets + maintenance. */}
               <Route
-                path="assets"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_ASSETS_VIEW}>
-                    <AdminAssetsPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_ASSETS">
+                    <Outlet />
+                  </RequireModule>
                 }
-              />
-
-              <Route
-                path="maintenance"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_MAINTENANCE_VIEW}>
-                    <MaintenancePage />
-                  </RequirePermission>
-                }
-              />
+              >
+                <Route
+                  path="assets"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_ASSETS_VIEW}>
+                      <AdminAssetsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="maintenance"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_MAINTENANCE_VIEW}>
+                      <MaintenancePage />
+                    </RequirePermission>
+                  }
+                />
+              </Route>
 
               <Route
                 path="vehicles"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_VEHICLES_VIEW}>
-                    <VehiclesPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_VEHICLES">
+                    <RequirePermission permission={PERMISSIONS.ADMIN_VEHICLES_VIEW}>
+                      <VehiclesPage />
+                    </RequirePermission>
+                  </RequireModule>
                 }
               />
 
               <Route
                 path="travel"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_TRAVEL_VIEW}>
-                    <TravelPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_TRAVEL">
+                    <RequirePermission permission={PERMISSIONS.ADMIN_TRAVEL_VIEW}>
+                      <TravelPage />
+                    </RequirePermission>
+                  </RequireModule>
                 }
               />
 
+              {/* Visitors + Meetings (front-of-house / room coordination cluster). */}
               <Route
-                path="visitors"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_VISITORS_VIEW}>
-                    <VisitorsPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_VISITORS">
+                    <Outlet />
+                  </RequireModule>
                 }
-              />
-
-              <Route
-                path="meetings"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_MEETINGS_VIEW}>
-                    <MeetingsPage />
-                  </RequirePermission>
-                }
-              />
+              >
+                <Route
+                  path="visitors"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_VISITORS_VIEW}>
+                      <VisitorsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="meetings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_MEETINGS_VIEW}>
+                      <MeetingsPage />
+                    </RequirePermission>
+                  }
+                />
+              </Route>
 
               <Route
                 path="events"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_EVENTS_VIEW}>
-                    <Outlet />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_EVENTS">
+                    <RequirePermission permission={PERMISSIONS.ADMIN_EVENTS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  </RequireModule>
                 }
               >
                 <Route index element={<EventsPage />} />
                 <Route path=":eventId" element={<EventDetailPage />} />
               </Route>
 
+              {/* Contracts + Documents + Compliance (legal/paperwork cluster). */}
               <Route
-                path="contracts"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_CONTRACTS_VIEW}>
-                    <AdminContractsPage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_CONTRACTS">
+                    <Outlet />
+                  </RequireModule>
                 }
-              />
+              >
+                <Route
+                  path="contracts"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_CONTRACTS_VIEW}>
+                      <AdminContractsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="compliance"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_COMPLIANCE_VIEW}>
+                      <CompliancePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="documents"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_DOCUMENTS_VIEW}>
+                      <AdminDocumentsPage />
+                    </RequirePermission>
+                  }
+                />
+              </Route>
 
+              {/* Announcements + Courier/Mail (office communications cluster). */}
               <Route
-                path="compliance"
                 element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_COMPLIANCE_VIEW}>
-                    <CompliancePage />
-                  </RequirePermission>
+                  <RequireModule moduleKey="ADMIN_COMMS">
+                    <Outlet />
+                  </RequireModule>
                 }
-              />
-
-              <Route
-                path="documents"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_DOCUMENTS_VIEW}>
-                    <AdminDocumentsPage />
-                  </RequirePermission>
-                }
-              />
-
-              <Route
-                path="announcements"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_ANNOUNCEMENTS_VIEW}>
-                    <AnnouncementsPage />
-                  </RequirePermission>
-                }
-              />
-
-              <Route
-                path="courier"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_COURIER_VIEW}>
-                    <CourierPage />
-                  </RequirePermission>
-                }
-              />
-
-              <Route
-                path="settings"
-                element={
-                  <RequirePermission permission={PERMISSIONS.ADMIN_SETTINGS_MANAGE}>
-                    <AdminSettingsPage />
-                  </RequirePermission>
-                }
-              />
+              >
+                <Route
+                  path="announcements"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_ANNOUNCEMENTS_VIEW}>
+                      <AnnouncementsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="courier"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.ADMIN_COURIER_VIEW}>
+                      <CourierPage />
+                    </RequirePermission>
+                  }
+                />
+              </Route>
             </Route>
 
             <Route path="settings">

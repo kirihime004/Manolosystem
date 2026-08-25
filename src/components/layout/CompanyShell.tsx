@@ -40,34 +40,64 @@ const NESTED_MODULE_KEYS: ModuleKey[] = [
   "HR", "HR_EMPLOYEES", "HR_ATTENDANCE_LEAVE", "HR_PAYROLL",
   "FINANCE", "FINANCE_ACCOUNTING", "FINANCE_AP", "FINANCE_AR",
   "FINANCE_EXPENSES", "FINANCE_BANK", "FINANCE_PAYROLL",
-  "ADMIN",
+  "ADMIN", "ADMIN_REQUESTS", "ADMIN_FACILITIES", "ADMIN_SUPPLIES", "ADMIN_ASSETS",
+  "ADMIN_VEHICLES", "ADMIN_TRAVEL", "ADMIN_VISITORS", "ADMIN_EVENTS", "ADMIN_CONTRACTS", "ADMIN_COMMS",
 ];
 
-// ADMIN is a single flat module (no leaf sub-module keys, unlike IT/HR/
-// Finance -- see moduleInfo.ts), so its ~19 sub-pages are gated purely by
-// permission, not by a per-item module key the way FINANCE_NAV/HR_NAV
-// entries are.
-const ADMIN_NAV: { label: string; path: string; permission: string }[] = [
+// Split by sub-module (matching AppRouter's own ADMIN_REQUESTS/
+// ADMIN_FACILITIES/... route groups) instead of one flat list, so the
+// sidebar can render each as its own collapsible group -- same treatment
+// IT/HR/Finance already got. Settings (request categories) is tied to
+// ADMIN_REQUESTS, the same way Finance ties its Settings tab to
+// FINANCE_ACCOUNTING rather than inventing an eleventh leaf for it.
+const ADMIN_REQUESTS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Requests", path: "requests", permission: PERMISSIONS.ADMIN_REQUESTS_VIEW },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.ADMIN_SETTINGS_MANAGE },
+];
+
+const ADMIN_FACILITIES_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Facilities", path: "facilities", permission: PERMISSIONS.ADMIN_FACILITIES_VIEW },
   { label: "Rooms", path: "rooms", permission: PERMISSIONS.ADMIN_ROOMS_VIEW },
   { label: "Room Bookings", path: "rooms/bookings", permission: PERMISSIONS.ADMIN_ROOMS_VIEW },
   { label: "Workspaces", path: "workspaces", permission: PERMISSIONS.ADMIN_WORKSPACES_VIEW },
+];
+
+const ADMIN_SUPPLIES_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Office Supplies", path: "supplies", permission: PERMISSIONS.ADMIN_SUPPLIES_VIEW },
   { label: "Supply Requests", path: "supplies/requests", permission: PERMISSIONS.ADMIN_SUPPLIES_VIEW },
+];
+
+const ADMIN_ASSETS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Administrative Assets", path: "assets", permission: PERMISSIONS.ADMIN_ASSETS_VIEW },
   { label: "Maintenance", path: "maintenance", permission: PERMISSIONS.ADMIN_MAINTENANCE_VIEW },
+];
+
+const ADMIN_VEHICLES_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Vehicles", path: "vehicles", permission: PERMISSIONS.ADMIN_VEHICLES_VIEW },
+];
+
+const ADMIN_TRAVEL_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Travel", path: "travel", permission: PERMISSIONS.ADMIN_TRAVEL_VIEW },
+];
+
+const ADMIN_VISITORS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Visitors", path: "visitors", permission: PERMISSIONS.ADMIN_VISITORS_VIEW },
   { label: "Meetings", path: "meetings", permission: PERMISSIONS.ADMIN_MEETINGS_VIEW },
+];
+
+const ADMIN_EVENTS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Events", path: "events", permission: PERMISSIONS.ADMIN_EVENTS_VIEW },
+];
+
+const ADMIN_CONTRACTS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Contracts", path: "contracts", permission: PERMISSIONS.ADMIN_CONTRACTS_VIEW },
   { label: "Documents", path: "documents", permission: PERMISSIONS.ADMIN_DOCUMENTS_VIEW },
   { label: "Compliance", path: "compliance", permission: PERMISSIONS.ADMIN_COMPLIANCE_VIEW },
+];
+
+const ADMIN_COMMS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Announcements", path: "announcements", permission: PERMISSIONS.ADMIN_ANNOUNCEMENTS_VIEW },
   { label: "Courier / Mail", path: "courier", permission: PERMISSIONS.ADMIN_COURIER_VIEW },
-  { label: "Settings", path: "settings", permission: PERMISSIONS.ADMIN_SETTINGS_MANAGE },
 ];
 
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
@@ -262,6 +292,52 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
                   location.pathname.startsWith(`${base}/finance/${s.path}`)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Same shape as renderFinanceGroup, parameterized for /admin instead of
+  // /finance -- Administration has ten parallel leaf sub-modules (more
+  // than Finance's six), so this closure is even more load-bearing here.
+  const renderAdminGroup = (opts: {
+    storageKey: string;
+    moduleKey: ModuleKey;
+    to: string;
+    icon: LucideIcon;
+    label: string;
+    items: { label: string; path: string; permission: string }[];
+  }) => {
+    if (!enabledModules.has(opts.moduleKey)) return null;
+    const active = opts.items.some((s) => location.pathname.startsWith(`${base}/admin/${s.path}`));
+    const expanded = isGroupExpanded(opts.storageKey, active);
+    return (
+      <div key={opts.storageKey}>
+        <GroupHeader
+          to={`${base}/admin/${opts.to}`}
+          icon={opts.icon}
+          label={opts.label}
+          active={active}
+          expanded={expanded}
+          onToggle={() => toggleGroup(opts.storageKey)}
+        />
+        {expanded && (
+          <div className="ml-4 space-y-1 border-l border-border pl-2">
+            {opts.items.filter((s) => hasPermission(s.permission)).map((s) => (
+              <Link
+                key={s.path}
+                to={`${base}/admin/${s.path}`}
+                className={cn(
+                  "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                  location.pathname.startsWith(`${base}/admin/${s.path}`)
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
@@ -710,7 +786,11 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                 );
               })()}
 
-            {enabledModules.has("ADMIN") && hasPermission(PERMISSIONS.ADMIN_DASHBOARD_VIEW) && (() => {
+            {(enabledModules.has("ADMIN_REQUESTS") || enabledModules.has("ADMIN_FACILITIES") || enabledModules.has("ADMIN_SUPPLIES") ||
+              enabledModules.has("ADMIN_ASSETS") || enabledModules.has("ADMIN_VEHICLES") || enabledModules.has("ADMIN_TRAVEL") ||
+              enabledModules.has("ADMIN_VISITORS") || enabledModules.has("ADMIN_EVENTS") || enabledModules.has("ADMIN_CONTRACTS") ||
+              enabledModules.has("ADMIN_COMMS")) &&
+              hasPermission(PERMISSIONS.ADMIN_DASHBOARD_VIEW) && (() => {
               const adminActive = location.pathname.startsWith(`${base}/admin`);
               const adminExpanded = isGroupExpanded("admin", adminActive);
               return (
@@ -725,20 +805,86 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                   />
                   {adminExpanded && (
                     <div className="ml-4 space-y-1 border-l border-border pl-2">
-                      {ADMIN_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
-                        <Link
-                          key={s.path}
-                          to={`${base}/admin/${s.path}`}
-                          className={cn(
-                            "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                            location.pathname.startsWith(`${base}/admin/${s.path}`)
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                          )}
-                        >
-                          {s.label}
-                        </Link>
-                      ))}
+                      {renderAdminGroup({
+                        storageKey: "admin.requests",
+                        moduleKey: "ADMIN_REQUESTS",
+                        to: "requests",
+                        icon: MODULE_INFO.ADMIN_REQUESTS.icon,
+                        label: "Requests",
+                        items: ADMIN_REQUESTS_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.facilities",
+                        moduleKey: "ADMIN_FACILITIES",
+                        to: "facilities",
+                        icon: MODULE_INFO.ADMIN_FACILITIES.icon,
+                        label: "Facilities",
+                        items: ADMIN_FACILITIES_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.supplies",
+                        moduleKey: "ADMIN_SUPPLIES",
+                        to: "supplies",
+                        icon: MODULE_INFO.ADMIN_SUPPLIES.icon,
+                        label: "Office Supplies",
+                        items: ADMIN_SUPPLIES_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.assets",
+                        moduleKey: "ADMIN_ASSETS",
+                        to: "assets",
+                        icon: MODULE_INFO.ADMIN_ASSETS.icon,
+                        label: "Administrative Assets",
+                        items: ADMIN_ASSETS_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.vehicles",
+                        moduleKey: "ADMIN_VEHICLES",
+                        to: "vehicles",
+                        icon: MODULE_INFO.ADMIN_VEHICLES.icon,
+                        label: "Vehicles",
+                        items: ADMIN_VEHICLES_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.travel",
+                        moduleKey: "ADMIN_TRAVEL",
+                        to: "travel",
+                        icon: MODULE_INFO.ADMIN_TRAVEL.icon,
+                        label: "Travel",
+                        items: ADMIN_TRAVEL_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.visitors",
+                        moduleKey: "ADMIN_VISITORS",
+                        to: "visitors",
+                        icon: MODULE_INFO.ADMIN_VISITORS.icon,
+                        label: "Visitors",
+                        items: ADMIN_VISITORS_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.events",
+                        moduleKey: "ADMIN_EVENTS",
+                        to: "events",
+                        icon: MODULE_INFO.ADMIN_EVENTS.icon,
+                        label: "Events",
+                        items: ADMIN_EVENTS_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.contracts",
+                        moduleKey: "ADMIN_CONTRACTS",
+                        to: "contracts",
+                        icon: MODULE_INFO.ADMIN_CONTRACTS.icon,
+                        label: "Contracts",
+                        items: ADMIN_CONTRACTS_NAV,
+                      })}
+                      {renderAdminGroup({
+                        storageKey: "admin.comms",
+                        moduleKey: "ADMIN_COMMS",
+                        to: "announcements",
+                        icon: MODULE_INFO.ADMIN_COMMS.icon,
+                        label: "Announcements & Courier",
+                        items: ADMIN_COMMS_NAV,
+                      })}
                     </div>
                   )}
                 </>

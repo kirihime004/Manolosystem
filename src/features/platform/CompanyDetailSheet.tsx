@@ -39,7 +39,7 @@ function initials(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-// IT, HR, and Finance are real master switches now: turning the parent OFF
+// IT, HR, Finance, and Admin are real master switches now: turning the parent OFF
 // hides/disables every sub-module underneath it regardless of the
 // sub-module's own setting (has_module_enabled()'s parent/child cascade
 // enforces this server-side too -- this UI just mirrors it). Each
@@ -73,7 +73,21 @@ const MODULE_GROUPS: { key: ModuleKey; subKeys: { key: ModuleKey; label: string 
       { key: "FINANCE_PAYROLL", label: "Finance: Payroll" },
     ],
   },
-  { key: "ADMIN", subKeys: [] },
+  {
+    key: "ADMIN",
+    subKeys: [
+      { key: "ADMIN_REQUESTS", label: "Admin: Requests" },
+      { key: "ADMIN_FACILITIES", label: "Admin: Facilities" },
+      { key: "ADMIN_SUPPLIES", label: "Admin: Office Supplies" },
+      { key: "ADMIN_ASSETS", label: "Admin: Administrative Assets" },
+      { key: "ADMIN_VEHICLES", label: "Admin: Vehicles" },
+      { key: "ADMIN_TRAVEL", label: "Admin: Travel" },
+      { key: "ADMIN_VISITORS", label: "Admin: Visitors" },
+      { key: "ADMIN_EVENTS", label: "Admin: Events" },
+      { key: "ADMIN_CONTRACTS", label: "Admin: Contracts" },
+      { key: "ADMIN_COMMS", label: "Admin: Announcements & Courier" },
+    ],
+  },
   { key: "PRODUCTION", subKeys: [] },
 ];
 
