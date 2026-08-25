@@ -40,6 +40,34 @@ const NESTED_MODULE_KEYS: ModuleKey[] = [
   "HR", "HR_EMPLOYEES", "HR_ATTENDANCE_LEAVE", "HR_PAYROLL",
   "FINANCE", "FINANCE_ACCOUNTING", "FINANCE_AP", "FINANCE_AR",
   "FINANCE_EXPENSES", "FINANCE_BANK", "FINANCE_PAYROLL",
+  "ADMIN",
+];
+
+// ADMIN is a single flat module (no leaf sub-module keys, unlike IT/HR/
+// Finance -- see moduleInfo.ts), so its ~19 sub-pages are gated purely by
+// permission, not by a per-item module key the way FINANCE_NAV/HR_NAV
+// entries are.
+const ADMIN_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Requests", path: "requests", permission: PERMISSIONS.ADMIN_REQUESTS_VIEW },
+  { label: "Facilities", path: "facilities", permission: PERMISSIONS.ADMIN_FACILITIES_VIEW },
+  { label: "Rooms", path: "rooms", permission: PERMISSIONS.ADMIN_ROOMS_VIEW },
+  { label: "Room Bookings", path: "rooms/bookings", permission: PERMISSIONS.ADMIN_ROOMS_VIEW },
+  { label: "Workspaces", path: "workspaces", permission: PERMISSIONS.ADMIN_WORKSPACES_VIEW },
+  { label: "Office Supplies", path: "supplies", permission: PERMISSIONS.ADMIN_SUPPLIES_VIEW },
+  { label: "Supply Requests", path: "supplies/requests", permission: PERMISSIONS.ADMIN_SUPPLIES_VIEW },
+  { label: "Administrative Assets", path: "assets", permission: PERMISSIONS.ADMIN_ASSETS_VIEW },
+  { label: "Maintenance", path: "maintenance", permission: PERMISSIONS.ADMIN_MAINTENANCE_VIEW },
+  { label: "Vehicles", path: "vehicles", permission: PERMISSIONS.ADMIN_VEHICLES_VIEW },
+  { label: "Travel", path: "travel", permission: PERMISSIONS.ADMIN_TRAVEL_VIEW },
+  { label: "Visitors", path: "visitors", permission: PERMISSIONS.ADMIN_VISITORS_VIEW },
+  { label: "Meetings", path: "meetings", permission: PERMISSIONS.ADMIN_MEETINGS_VIEW },
+  { label: "Events", path: "events", permission: PERMISSIONS.ADMIN_EVENTS_VIEW },
+  { label: "Contracts", path: "contracts", permission: PERMISSIONS.ADMIN_CONTRACTS_VIEW },
+  { label: "Documents", path: "documents", permission: PERMISSIONS.ADMIN_DOCUMENTS_VIEW },
+  { label: "Compliance", path: "compliance", permission: PERMISSIONS.ADMIN_COMPLIANCE_VIEW },
+  { label: "Announcements", path: "announcements", permission: PERMISSIONS.ADMIN_ANNOUNCEMENTS_VIEW },
+  { label: "Courier / Mail", path: "courier", permission: PERMISSIONS.ADMIN_COURIER_VIEW },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.ADMIN_SETTINGS_MANAGE },
 ];
 
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
@@ -681,6 +709,41 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                   </>
                 );
               })()}
+
+            {enabledModules.has("ADMIN") && hasPermission(PERMISSIONS.ADMIN_DASHBOARD_VIEW) && (() => {
+              const adminActive = location.pathname.startsWith(`${base}/admin`);
+              const adminExpanded = isGroupExpanded("admin", adminActive);
+              return (
+                <>
+                  <GroupHeader
+                    to={`${base}/admin`}
+                    icon={MODULE_INFO.ADMIN.icon}
+                    label="Administration"
+                    active={location.pathname === `${base}/admin`}
+                    expanded={adminExpanded}
+                    onToggle={() => toggleGroup("admin")}
+                  />
+                  {adminExpanded && (
+                    <div className="ml-4 space-y-1 border-l border-border pl-2">
+                      {ADMIN_NAV.filter((s) => hasPermission(s.permission)).map((s) => (
+                        <Link
+                          key={s.path}
+                          to={`${base}/admin/${s.path}`}
+                          className={cn(
+                            "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                            location.pathname.startsWith(`${base}/admin/${s.path}`)
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                          )}
+                        >
+                          {s.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {MODULE_NAV.filter((m) => enabledModules.has(m.key)).map((m) => (
               <NavLink

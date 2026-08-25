@@ -1897,3 +1897,623 @@ export interface AgingRow {
   days_overdue: number;
   bucket: "Current" | "1-30" | "31-60" | "61-90" | "90+";
 }
+
+// ---------------------------------------------------------------------
+// Phase 6: Administration
+// ---------------------------------------------------------------------
+export type AdminRequestPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type AdminRequestStatus =
+  | "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+  | "ASSIGNED" | "IN_PROGRESS" | "WAITING" | "COMPLETED" | "CANCELLED" | "CLOSED";
+
+export interface AdminRequestCategory {
+  id: string;
+  company_id: string;
+  name: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  requester_id: string;
+  department_id: string | null;
+  category_id: string | null;
+  assigned_to: string | null;
+  subject: string;
+  description: string | null;
+  priority: AdminRequestPriority;
+  status: AdminRequestStatus;
+  required_date: string | null;
+  location_id: string | null;
+  estimated_cost: number | null;
+  currency_id: string | null;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_amount: number | null;
+  approval_required: boolean;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+  completed_at: string | null;
+}
+
+export interface AdminRequestComment {
+  id: string;
+  company_id: string;
+  request_id: string;
+  author_id: string;
+  comment: string;
+  is_internal: boolean;
+  created_at: string;
+}
+
+export interface AdminRequestApproval {
+  id: string;
+  company_id: string;
+  request_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  sequence: number;
+  decision: "PENDING" | "APPROVED" | "REJECTED";
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface AdminHistoryEntry {
+  id: string;
+  company_id: string;
+  resource_type: string;
+  resource_id: string;
+  event_type: string;
+  performed_by: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata: Record<string, unknown>;
+  notes: string | null;
+  created_at: string;
+}
+
+export type LocationType = "HEAD_OFFICE" | "BRANCH" | "STUDIO" | "WAREHOUSE" | "REMOTE_OFFICE" | "OTHER";
+
+export interface AdminLocation {
+  id: string;
+  company_id: string;
+  name: string;
+  code: string | null;
+  type: LocationType;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+  building: string | null;
+  floor: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  manager_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Building {
+  id: string;
+  company_id: string;
+  location_id: string;
+  name: string;
+  code: string | null;
+  address: string | null;
+  floors: number | null;
+  status: "ACTIVE" | "INACTIVE";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Floor {
+  id: string;
+  company_id: string;
+  building_id: string;
+  floor_number: string;
+  floor_name: string | null;
+  description: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at: string;
+}
+
+export type RoomType =
+  | "MEETING_ROOM" | "CONFERENCE_ROOM" | "TRAINING_ROOM" | "STUDIO" | "OFFICE"
+  | "RECEPTION" | "KITCHEN" | "STORAGE" | "OTHER";
+
+export interface Room {
+  id: string;
+  company_id: string;
+  location_id: string | null;
+  building_id: string | null;
+  floor_id: string | null;
+  room_code: string;
+  name: string;
+  room_number: string | null;
+  type: RoomType;
+  capacity: number | null;
+  status: "ACTIVE" | "INACTIVE" | "MAINTENANCE";
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RoomBookingStatus = "REQUESTED" | "APPROVED" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+
+export interface RoomBooking {
+  id: string;
+  company_id: string;
+  room_id: string;
+  requester_id: string;
+  department_id: string | null;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  purpose: string | null;
+  attendees: number | null;
+  status: RoomBookingStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkspaceStatus = "AVAILABLE" | "OCCUPIED" | "RESERVED" | "MAINTENANCE" | "UNAVAILABLE";
+
+export interface Workspace {
+  id: string;
+  company_id: string;
+  location_id: string | null;
+  building_id: string | null;
+  floor_id: string | null;
+  workspace_code: string;
+  area: string | null;
+  desk_number: string | null;
+  status: WorkspaceStatus;
+  current_employee_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceAssignment {
+  id: string;
+  company_id: string;
+  workspace_id: string;
+  employee_id: string;
+  department_id: string | null;
+  assigned_date: string;
+  released_date: string | null;
+  status: "ACTIVE" | "RELEASED";
+  assigned_by: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface OfficeSupply {
+  id: string;
+  company_id: string;
+  item_code: string;
+  name: string;
+  category: string | null;
+  unit: string;
+  current_quantity: number;
+  minimum_quantity: number;
+  reorder_quantity: number | null;
+  location_id: string | null;
+  supplier_id: string | null;
+  unit_cost: number | null;
+  currency_id: string | null;
+  status: "ACTIVE" | "DISCONTINUED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SupplyMovementType = "STOCK_IN" | "STOCK_OUT" | "TRANSFER" | "ADJUSTMENT" | "RETURN" | "DISPOSAL";
+
+export interface OfficeSupplyMovement {
+  id: string;
+  company_id: string;
+  supply_id: string;
+  movement_type: SupplyMovementType;
+  quantity: number;
+  previous_quantity: number;
+  new_quantity: number;
+  reference_type: string | null;
+  reference_id: string | null;
+  performed_by: string | null;
+  reason: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface OfficeSupplyRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  requester_id: string;
+  department_id: string | null;
+  supply_id: string;
+  quantity_requested: number;
+  quantity_issued: number | null;
+  reason: string | null;
+  needed_by: string | null;
+  status: "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "ISSUED" | "CANCELLED";
+  purchase_request_id: string | null;
+  reviewed_by: string | null;
+  issued_by: string | null;
+  issued_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdminAssetStatus = "ACTIVE" | "AVAILABLE" | "ASSIGNED" | "MAINTENANCE" | "DAMAGED" | "LOST" | "DISPOSED" | "RETIRED";
+
+export interface AdminAsset {
+  id: string;
+  company_id: string;
+  asset_code: string;
+  name: string;
+  category: string | null;
+  brand: string | null;
+  model: string | null;
+  serial_number: string | null;
+  status: AdminAssetStatus;
+  condition: "NEW" | "GOOD" | "FAIR" | "POOR" | "DEFECTIVE" | "NON_FUNCTIONAL" | null;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  currency_id: string | null;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  base_currency_amount: number | null;
+  supplier_id: string | null;
+  warranty_start: string | null;
+  warranty_end: string | null;
+  location_id: string | null;
+  assigned_to: string | null;
+  department_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MaintenanceStatus = "REPORTED" | "ASSESSED" | "SCHEDULED" | "IN_PROGRESS" | "WAITING_PARTS" | "COMPLETED" | "CANCELLED";
+
+export interface MaintenanceRecord {
+  id: string;
+  company_id: string;
+  maintenance_number: string;
+  asset_id: string | null;
+  room_id: string | null;
+  location_id: string | null;
+  reported_by: string | null;
+  assigned_to: string | null;
+  supplier_id: string | null;
+  issue: string;
+  priority: AdminRequestPriority;
+  status: MaintenanceStatus;
+  scheduled_date: string | null;
+  completed_date: string | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
+  currency_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaintenanceSchedule {
+  id: string;
+  company_id: string;
+  asset_id: string | null;
+  room_id: string | null;
+  location_id: string | null;
+  title: string;
+  frequency: "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL" | "CUSTOM";
+  interval_days: number | null;
+  last_maintenance_date: string | null;
+  next_maintenance_date: string;
+  supplier_id: string | null;
+  estimated_cost: number | null;
+  currency_id: string | null;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type VehicleStatus = "AVAILABLE" | "ASSIGNED" | "IN_USE" | "MAINTENANCE" | "REPAIR" | "ACCIDENT" | "RETIRED" | "DISPOSED";
+export type VehicleType = "COMPANY_CAR" | "VAN" | "TRUCK" | "MOTORCYCLE" | "PRODUCTION_TRANSPORT" | "SERVICE_VEHICLE" | "OTHER";
+
+export interface Vehicle {
+  id: string;
+  company_id: string;
+  vehicle_code: string;
+  plate_number: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  vehicle_type: VehicleType;
+  color: string | null;
+  vin: string | null;
+  registration_number: string | null;
+  registration_expiry: string | null;
+  insurance_expiry: string | null;
+  assigned_driver: string | null;
+  department_id: string | null;
+  location_id: string | null;
+  status: VehicleStatus;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  currency_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleAssignment {
+  id: string;
+  company_id: string;
+  vehicle_id: string;
+  employee_id: string;
+  department_id: string | null;
+  assigned_date: string;
+  returned_date: string | null;
+  status: "ACTIVE" | "RETURNED";
+  assigned_by: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface VehicleMaintenance {
+  id: string;
+  company_id: string;
+  vehicle_id: string;
+  maintenance_type: "OIL_CHANGE" | "SERVICE" | "REPAIR" | "TIRE_REPLACEMENT" | "INSPECTION" | "REGISTRATION" | "INSURANCE" | "OTHER";
+  service_date: string;
+  mileage: number | null;
+  cost: number | null;
+  currency_id: string | null;
+  supplier_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export type TravelRequestStatus =
+  | "DRAFT" | "SUBMITTED" | "MANAGER_APPROVED" | "ADMIN_REVIEW" | "FINANCE_REVIEW"
+  | "APPROVED" | "BOOKED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "REJECTED";
+
+export interface TravelRequest {
+  id: string;
+  company_id: string;
+  request_number: string;
+  employee_id: string;
+  department_id: string | null;
+  purpose: string;
+  destination: string;
+  travel_type: "DOMESTIC" | "INTERNATIONAL";
+  departure_date: string;
+  return_date: string;
+  estimated_cost: number | null;
+  currency_id: string | null;
+  status: TravelRequestStatus;
+  approver_id: string | null;
+  flight_details: string | null;
+  hotel_details: string | null;
+  transportation_details: string | null;
+  visa_required: boolean;
+  insurance_required: boolean;
+  per_diem: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+  completed_at: string | null;
+}
+
+export type VisitorStatus = "EXPECTED" | "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED" | "NO_SHOW";
+export type VisitorType = "CLIENT" | "VENDOR" | "CANDIDATE" | "PARTNER" | "GUEST" | "DELIVERY" | "OTHER";
+
+export interface Visitor {
+  id: string;
+  company_id: string;
+  name: string;
+  organization: string | null;
+  visitor_type: VisitorType;
+  email: string | null;
+  phone: string | null;
+  host_employee_id: string;
+  purpose: string | null;
+  visit_date: string;
+  arrival_time: string | null;
+  departure_time: string | null;
+  status: VisitorStatus;
+  badge_number: string | null;
+  badge_issued_at: string | null;
+  badge_returned_at: string | null;
+  badge_status: "ISSUED" | "RETURNED" | "LOST" | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Meeting {
+  id: string;
+  company_id: string;
+  organizer_id: string;
+  room_booking_id: string | null;
+  title: string;
+  purpose: string | null;
+  agenda: string | null;
+  meeting_date: string;
+  start_time: string;
+  end_time: string;
+  status: "SCHEDULED" | "CANCELLED" | "COMPLETED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingParticipant {
+  id: string;
+  company_id: string;
+  meeting_id: string;
+  employee_id: string;
+  response_status: "INVITED" | "ACCEPTED" | "DECLINED" | "TENTATIVE";
+  created_at: string;
+}
+
+export type EventType =
+  | "COMPANY_ANNIVERSARY" | "CHRISTMAS_PARTY" | "TEAM_BUILDING" | "TRAINING_EVENT"
+  | "TOWN_HALL" | "CLIENT_EVENT" | "CORPORATE_EVENT" | "OTHER";
+
+export interface AdminEvent {
+  id: string;
+  company_id: string;
+  name: string;
+  event_type: EventType;
+  location_id: string | null;
+  start_date: string;
+  end_date: string;
+  organizer_id: string | null;
+  budget_id: string | null;
+  budget_category_id: string | null;
+  status: "PLANNING" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventTask {
+  id: string;
+  company_id: string;
+  event_id: string;
+  category: "VENUE" | "CATERING" | "DECORATION" | "TRANSPORTATION" | "INVITATIONS" | "EQUIPMENT" | "SECURITY" | "CLEANING" | "OTHER";
+  title: string;
+  description: string | null;
+  assigned_to: string | null;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
+  due_date: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdminContractStatus = "DRAFT" | "ACTIVE" | "EXPIRING" | "EXPIRED" | "RENEWED" | "TERMINATED" | "CANCELLED";
+export type AdminContractType = "OFFICE_LEASE" | "CLEANING" | "SECURITY" | "MAINTENANCE" | "UTILITY" | "VEHICLE_LEASE" | "SERVICE" | "OTHER";
+
+export interface AdminContract {
+  id: string;
+  company_id: string;
+  contract_number: string;
+  contract_name: string;
+  contract_type: AdminContractType;
+  supplier_id: string | null;
+  start_date: string;
+  end_date: string;
+  renewal_date: string | null;
+  value: number | null;
+  currency_id: string | null;
+  payment_terms: string | null;
+  owner_id: string | null;
+  status: AdminContractStatus;
+  renewed_from_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminCompliance {
+  id: string;
+  company_id: string;
+  compliance_number: string;
+  type: string;
+  name: string;
+  authority: string | null;
+  reference_number: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+  responsible_person: string | null;
+  status: "ACTIVE" | "EXPIRING" | "EXPIRED" | "PENDING" | "CANCELLED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminDocument {
+  id: string;
+  company_id: string;
+  resource_type: string;
+  resource_id: string;
+  document_type: string;
+  title: string;
+  storage_path: string;
+  issue_date: string | null;
+  expiry_date: string | null;
+  uploaded_by: string | null;
+  status: "ACTIVE" | "EXPIRED" | "ARCHIVED";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Announcement {
+  id: string;
+  company_id: string;
+  title: string;
+  content: string;
+  audience: "ENTIRE_COMPANY" | "DEPARTMENT" | "LOCATION" | "ROLE";
+  audience_department_id: string | null;
+  audience_location_id: string | null;
+  audience_role_id: string | null;
+  priority: AdminRequestPriority;
+  publish_date: string;
+  expiry_date: string | null;
+  status: "DRAFT" | "PUBLISHED" | "EXPIRED" | "RETRACTED";
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CourierMail {
+  id: string;
+  company_id: string;
+  direction: "INCOMING" | "OUTGOING";
+  tracking_number: string | null;
+  sender: string | null;
+  recipient: string | null;
+  department_id: string | null;
+  courier_provider: string | null;
+  log_date: string;
+  status: "RECEIVED" | "IN_TRANSIT" | "READY_FOR_PICKUP" | "DELIVERED" | "RETURNED" | "CANCELLED";
+  received_by: string | null;
+  delivered_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminDashboardSummary {
+  open_requests: number;
+  pending_approvals: number;
+  today_visitors: number;
+  today_meetings: number;
+  upcoming_events: number;
+  low_stock_supplies: number;
+  maintenance_due: number;
+  contracts_expiring: number;
+  documents_expiring: number;
+  compliance_due: number;
+  vehicle_renewals: number;
+  upcoming_travel: number;
+}

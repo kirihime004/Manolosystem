@@ -97,6 +97,30 @@ import PayrollRunDetailPage from "@/pages/finance/payroll/PayrollRunDetailPage";
 import FinanceReportsPage from "@/pages/finance/FinanceReportsPage";
 import FinanceSettingsPage from "@/pages/finance/FinanceSettingsPage";
 
+import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
+import AdminRequestsListPage from "@/pages/admin/requests/AdminRequestsListPage";
+import AdminRequestDetailPage from "@/pages/admin/requests/AdminRequestDetailPage";
+import LocationsPage from "@/pages/admin/facilities/LocationsPage";
+import RoomsPage from "@/pages/admin/facilities/RoomsPage";
+import RoomBookingsPage from "@/pages/admin/facilities/RoomBookingsPage";
+import WorkspacesPage from "@/pages/admin/facilities/WorkspacesPage";
+import OfficeSuppliesPage from "@/pages/admin/OfficeSuppliesPage";
+import OfficeSupplyRequestsPage from "@/pages/admin/OfficeSupplyRequestsPage";
+import AdminAssetsPage from "@/pages/admin/AdminAssetsPage";
+import MaintenancePage from "@/pages/admin/MaintenancePage";
+import VehiclesPage from "@/pages/admin/VehiclesPage";
+import TravelPage from "@/pages/admin/TravelPage";
+import VisitorsPage from "@/pages/admin/VisitorsPage";
+import MeetingsPage from "@/pages/admin/MeetingsPage";
+import EventsPage from "@/pages/admin/EventsPage";
+import EventDetailPage from "@/pages/admin/EventDetailPage";
+import AdminContractsPage from "@/pages/admin/ContractsPage";
+import CompliancePage from "@/pages/admin/CompliancePage";
+import AnnouncementsPage from "@/pages/admin/AnnouncementsPage";
+import CourierPage from "@/pages/admin/CourierPage";
+import AdminDocumentsPage from "@/pages/admin/AdminDocumentsPage";
+import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
+
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
@@ -666,6 +690,193 @@ export function AppRouter() {
                   <Route path=":payrollRunId" element={<PayrollRunDetailPage />} />
                 </Route>
               </Route>
+            </Route>
+
+            <Route
+              path="admin"
+              element={
+                <RequireModule moduleKey="ADMIN">
+                  <RequirePermission permission={PERMISSIONS.ADMIN_DASHBOARD_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route index element={<AdminDashboardPage />} />
+
+              <Route
+                path="requests"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_REQUESTS_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<AdminRequestsListPage />} />
+                <Route path=":requestId" element={<AdminRequestDetailPage />} />
+              </Route>
+
+              <Route
+                path="facilities"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_FACILITIES_VIEW}>
+                    <LocationsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="rooms"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_ROOMS_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<RoomsPage />} />
+                <Route path="bookings" element={<RoomBookingsPage />} />
+              </Route>
+
+              <Route
+                path="workspaces"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_WORKSPACES_VIEW}>
+                    <WorkspacesPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="supplies"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_SUPPLIES_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<OfficeSuppliesPage />} />
+                <Route path="requests" element={<OfficeSupplyRequestsPage />} />
+              </Route>
+
+              <Route
+                path="assets"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_ASSETS_VIEW}>
+                    <AdminAssetsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="maintenance"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_MAINTENANCE_VIEW}>
+                    <MaintenancePage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="vehicles"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_VEHICLES_VIEW}>
+                    <VehiclesPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="travel"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_TRAVEL_VIEW}>
+                    <TravelPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="visitors"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_VISITORS_VIEW}>
+                    <VisitorsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="meetings"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_MEETINGS_VIEW}>
+                    <MeetingsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="events"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_EVENTS_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<EventsPage />} />
+                <Route path=":eventId" element={<EventDetailPage />} />
+              </Route>
+
+              <Route
+                path="contracts"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_CONTRACTS_VIEW}>
+                    <AdminContractsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="compliance"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_COMPLIANCE_VIEW}>
+                    <CompliancePage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="documents"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_DOCUMENTS_VIEW}>
+                    <AdminDocumentsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="announcements"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_ANNOUNCEMENTS_VIEW}>
+                    <AnnouncementsPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="courier"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_COURIER_VIEW}>
+                    <CourierPage />
+                  </RequirePermission>
+                }
+              />
+
+              <Route
+                path="settings"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_SETTINGS_MANAGE}>
+                    <AdminSettingsPage />
+                  </RequirePermission>
+                }
+              />
             </Route>
 
             <Route path="settings">
