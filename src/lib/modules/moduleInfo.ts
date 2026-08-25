@@ -2,7 +2,9 @@ import {
   Ticket, Users, DollarSign, Building2, Clapperboard, Boxes, ShoppingCart,
   Wrench, UserSquare2, CalendarClock, Wallet, BookOpen, Receipt, Landmark,
   ReceiptText, PiggyBank, ClipboardList, MapPin, Package, Armchair, Car,
-  Plane, UserCheck, PartyPopper, FileSignature, Megaphone, type LucideIcon,
+  Plane, UserCheck, PartyPopper, FileSignature, Megaphone, FolderKanban,
+  Film, Shapes, ListChecks, CalendarRange, GitBranch, SendToBack, Gauge,
+  type LucideIcon,
 } from "lucide-react";
 import type { ModuleKey } from "@/types/database";
 
@@ -43,5 +45,13 @@ export const MODULE_INFO: Record<ModuleKey, { label: string; description: string
   ADMIN_EVENTS: { label: "Events", description: "Company events and event tasks", icon: PartyPopper, path: "admin/events" },
   ADMIN_CONTRACTS: { label: "Contracts", description: "Contracts, documents, and compliance records", icon: FileSignature, path: "admin/contracts" },
   ADMIN_COMMS: { label: "Announcements & Courier", description: "Company announcements and courier/mail tracking", icon: Megaphone, path: "admin/announcements" },
-  PRODUCTION: { label: "Production", description: "Shots, tasks, and reviews", icon: Clapperboard, path: "production" },
+  PRODUCTION: { label: "Production", description: "Projects, shots, tasks, versions, and reviews", icon: Clapperboard, path: "production" },
+  PRODUCTION_PROJECTS: { label: "Projects", description: "Projects, shows, episodes, and sequences", icon: FolderKanban, path: "production/projects" },
+  PRODUCTION_SHOTS: { label: "Shots", description: "The shot grid", icon: Film, path: "production/shots" },
+  PRODUCTION_ASSETS: { label: "Assets", description: "Characters, props, environments, and rigs", icon: Shapes, path: "production/assets" },
+  PRODUCTION_TASKS: { label: "Tasks", description: "Task board, assignments, and dependencies", icon: ListChecks, path: "production/tasks" },
+  PRODUCTION_SCHEDULE: { label: "Schedule", description: "Milestones and the production calendar", icon: CalendarRange, path: "production/schedule" },
+  PRODUCTION_VERSIONS: { label: "Reviews", description: "Versions, review decisions, and notes", icon: GitBranch, path: "production/reviews" },
+  PRODUCTION_DELIVERABLES: { label: "Deliverables", description: "Client deliverables and production files", icon: SendToBack, path: "production/deliverables" },
+  PRODUCTION_RESOURCES: { label: "Resources", description: "Team workload, budgets, and reports", icon: Gauge, path: "production/resources" },
 };

@@ -88,7 +88,19 @@ const MODULE_GROUPS: { key: ModuleKey; subKeys: { key: ModuleKey; label: string 
       { key: "ADMIN_COMMS", label: "Admin: Announcements & Courier" },
     ],
   },
-  { key: "PRODUCTION", subKeys: [] },
+  {
+    key: "PRODUCTION",
+    subKeys: [
+      { key: "PRODUCTION_PROJECTS", label: "Production: Projects" },
+      { key: "PRODUCTION_SHOTS", label: "Production: Shots" },
+      { key: "PRODUCTION_ASSETS", label: "Production: Assets" },
+      { key: "PRODUCTION_TASKS", label: "Production: Tasks" },
+      { key: "PRODUCTION_SCHEDULE", label: "Production: Schedule" },
+      { key: "PRODUCTION_VERSIONS", label: "Production: Reviews" },
+      { key: "PRODUCTION_DELIVERABLES", label: "Production: Deliverables" },
+      { key: "PRODUCTION_RESOURCES", label: "Production: Resources" },
+    ],
+  },
 ];
 
 interface CompanyModuleRow {

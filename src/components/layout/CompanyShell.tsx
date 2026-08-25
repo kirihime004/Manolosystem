@@ -42,6 +42,8 @@ const NESTED_MODULE_KEYS: ModuleKey[] = [
   "FINANCE_EXPENSES", "FINANCE_BANK", "FINANCE_PAYROLL",
   "ADMIN", "ADMIN_REQUESTS", "ADMIN_FACILITIES", "ADMIN_SUPPLIES", "ADMIN_ASSETS",
   "ADMIN_VEHICLES", "ADMIN_TRAVEL", "ADMIN_VISITORS", "ADMIN_EVENTS", "ADMIN_CONTRACTS", "ADMIN_COMMS",
+  "PRODUCTION", "PRODUCTION_PROJECTS", "PRODUCTION_SHOTS", "PRODUCTION_ASSETS", "PRODUCTION_TASKS",
+  "PRODUCTION_SCHEDULE", "PRODUCTION_VERSIONS", "PRODUCTION_DELIVERABLES", "PRODUCTION_RESOURCES",
 ];
 
 // Split by sub-module (matching AppRouter's own ADMIN_REQUESTS/
@@ -98,6 +100,44 @@ const ADMIN_CONTRACTS_NAV: { label: string; path: string; permission: string }[]
 const ADMIN_COMMS_NAV: { label: string; path: string; permission: string }[] = [
   { label: "Announcements", path: "announcements", permission: PERMISSIONS.ADMIN_ANNOUNCEMENTS_VIEW },
   { label: "Courier / Mail", path: "courier", permission: PERMISSIONS.ADMIN_COURIER_VIEW },
+];
+
+// Split by sub-module (matching AppRouter's own PRODUCTION_PROJECTS/
+// PRODUCTION_SHOTS/... route groups), same treatment every other
+// multi-leaf module already got. Settings (task types, naming, custom
+// fields, workflows, client access) is tied to PRODUCTION_PROJECTS, the
+// same way Admin ties request categories to ADMIN_REQUESTS.
+const PRODUCTION_PROJECTS_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Projects", path: "projects", permission: PERMISSIONS.PRODUCTION_PROJECTS_VIEW },
+  { label: "Settings", path: "settings", permission: PERMISSIONS.PRODUCTION_SETTINGS_MANAGE },
+];
+
+const PRODUCTION_SHOTS_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Shots", path: "shots", permission: PERMISSIONS.PRODUCTION_SHOTS_VIEW },
+];
+
+const PRODUCTION_ASSETS_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Assets", path: "assets", permission: PERMISSIONS.PRODUCTION_ASSETS_VIEW },
+];
+
+const PRODUCTION_TASKS_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Task Board", path: "tasks", permission: PERMISSIONS.PRODUCTION_TASKS_VIEW },
+];
+
+const PRODUCTION_SCHEDULE_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Schedule", path: "schedule", permission: PERMISSIONS.PRODUCTION_MILESTONES_VIEW },
+];
+
+const PRODUCTION_VERSIONS_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Reviews", path: "reviews", permission: PERMISSIONS.PRODUCTION_REVIEWS_VIEW },
+];
+
+const PRODUCTION_DELIVERABLES_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Deliverables", path: "deliverables", permission: PERMISSIONS.PRODUCTION_DELIVERABLES_VIEW },
+];
+
+const PRODUCTION_RESOURCES_NAV: { label: string; path: string; permission: string }[] = [
+  { label: "Resources", path: "resources", permission: PERMISSIONS.PRODUCTION_RESOURCES_VIEW },
 ];
 
 const MODULE_NAV = (Object.entries(MODULE_INFO) as [ModuleKey, (typeof MODULE_INFO)[ModuleKey]][])
@@ -338,6 +378,50 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
                   location.pathname.startsWith(`${base}/admin/${s.path}`)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Same shape again, parameterized for /production.
+  const renderProductionGroup = (opts: {
+    storageKey: string;
+    moduleKey: ModuleKey;
+    to: string;
+    icon: LucideIcon;
+    label: string;
+    items: { label: string; path: string; permission: string }[];
+  }) => {
+    if (!enabledModules.has(opts.moduleKey)) return null;
+    const active = opts.items.some((s) => location.pathname.startsWith(`${base}/production/${s.path}`));
+    const expanded = isGroupExpanded(opts.storageKey, active);
+    return (
+      <div key={opts.storageKey}>
+        <GroupHeader
+          to={`${base}/production/${opts.to}`}
+          icon={opts.icon}
+          label={opts.label}
+          active={active}
+          expanded={expanded}
+          onToggle={() => toggleGroup(opts.storageKey)}
+        />
+        {expanded && (
+          <div className="ml-4 space-y-1 border-l border-border pl-2">
+            {opts.items.filter((s) => hasPermission(s.permission)).map((s) => (
+              <Link
+                key={s.path}
+                to={`${base}/production/${s.path}`}
+                className={cn(
+                  "block truncate rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                  location.pathname.startsWith(`${base}/production/${s.path}`)
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
@@ -884,6 +968,94 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                         icon: MODULE_INFO.ADMIN_COMMS.icon,
                         label: "Announcements & Courier",
                         items: ADMIN_COMMS_NAV,
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {(enabledModules.has("PRODUCTION_PROJECTS") || enabledModules.has("PRODUCTION_SHOTS") || enabledModules.has("PRODUCTION_ASSETS") ||
+              enabledModules.has("PRODUCTION_TASKS") || enabledModules.has("PRODUCTION_SCHEDULE") || enabledModules.has("PRODUCTION_VERSIONS") ||
+              enabledModules.has("PRODUCTION_DELIVERABLES") || enabledModules.has("PRODUCTION_RESOURCES")) &&
+              hasPermission(PERMISSIONS.PRODUCTION_DASHBOARD_VIEW) && (() => {
+              const productionActive = location.pathname.startsWith(`${base}/production`);
+              const productionExpanded = isGroupExpanded("production", productionActive);
+              return (
+                <>
+                  <GroupHeader
+                    to={`${base}/production`}
+                    icon={MODULE_INFO.PRODUCTION.icon}
+                    label="Production"
+                    active={location.pathname === `${base}/production`}
+                    expanded={productionExpanded}
+                    onToggle={() => toggleGroup("production")}
+                  />
+                  {productionExpanded && (
+                    <div className="ml-4 space-y-1 border-l border-border pl-2">
+                      {renderProductionGroup({
+                        storageKey: "production.projects",
+                        moduleKey: "PRODUCTION_PROJECTS",
+                        to: "projects",
+                        icon: MODULE_INFO.PRODUCTION_PROJECTS.icon,
+                        label: "Projects",
+                        items: PRODUCTION_PROJECTS_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.shots",
+                        moduleKey: "PRODUCTION_SHOTS",
+                        to: "shots",
+                        icon: MODULE_INFO.PRODUCTION_SHOTS.icon,
+                        label: "Shots",
+                        items: PRODUCTION_SHOTS_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.assets",
+                        moduleKey: "PRODUCTION_ASSETS",
+                        to: "assets",
+                        icon: MODULE_INFO.PRODUCTION_ASSETS.icon,
+                        label: "Assets",
+                        items: PRODUCTION_ASSETS_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.tasks",
+                        moduleKey: "PRODUCTION_TASKS",
+                        to: "tasks",
+                        icon: MODULE_INFO.PRODUCTION_TASKS.icon,
+                        label: "Tasks",
+                        items: PRODUCTION_TASKS_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.schedule",
+                        moduleKey: "PRODUCTION_SCHEDULE",
+                        to: "schedule",
+                        icon: MODULE_INFO.PRODUCTION_SCHEDULE.icon,
+                        label: "Schedule",
+                        items: PRODUCTION_SCHEDULE_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.versions",
+                        moduleKey: "PRODUCTION_VERSIONS",
+                        to: "reviews",
+                        icon: MODULE_INFO.PRODUCTION_VERSIONS.icon,
+                        label: "Reviews",
+                        items: PRODUCTION_VERSIONS_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.deliverables",
+                        moduleKey: "PRODUCTION_DELIVERABLES",
+                        to: "deliverables",
+                        icon: MODULE_INFO.PRODUCTION_DELIVERABLES.icon,
+                        label: "Deliverables",
+                        items: PRODUCTION_DELIVERABLES_NAV,
+                      })}
+                      {renderProductionGroup({
+                        storageKey: "production.resources",
+                        moduleKey: "PRODUCTION_RESOURCES",
+                        to: "resources",
+                        icon: MODULE_INFO.PRODUCTION_RESOURCES.icon,
+                        label: "Resources",
+                        items: PRODUCTION_RESOURCES_NAV,
                       })}
                     </div>
                   )}

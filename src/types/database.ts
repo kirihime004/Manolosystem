@@ -11,7 +11,8 @@ export type ModuleKey =
   | "FINANCE_EXPENSES" | "FINANCE_BANK" | "FINANCE_PAYROLL"
   | "ADMIN" | "ADMIN_REQUESTS" | "ADMIN_FACILITIES" | "ADMIN_SUPPLIES" | "ADMIN_ASSETS"
   | "ADMIN_VEHICLES" | "ADMIN_TRAVEL" | "ADMIN_VISITORS" | "ADMIN_EVENTS" | "ADMIN_CONTRACTS" | "ADMIN_COMMS"
-  | "PRODUCTION";
+  | "PRODUCTION" | "PRODUCTION_PROJECTS" | "PRODUCTION_SHOTS" | "PRODUCTION_ASSETS" | "PRODUCTION_TASKS"
+  | "PRODUCTION_SCHEDULE" | "PRODUCTION_VERSIONS" | "PRODUCTION_DELIVERABLES" | "PRODUCTION_RESOURCES";
 export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type TicketStatus =
   | "OPEN"
@@ -2518,4 +2519,411 @@ export interface AdminDashboardSummary {
   compliance_due: number;
   vehicle_renewals: number;
   upcoming_travel: number;
+}
+
+// ---------------------------------------------------------------------
+// Phase 7: Animation Production Management
+// ---------------------------------------------------------------------
+export type ProductionProjectType = "FEATURE_FILM" | "SERIES" | "SHORT" | "COMMERCIAL" | "GAME_CINEMATIC" | "OTHER";
+export type ProductionProjectStatus = "PLANNING" | "IN_PROGRESS" | "ON_HOLD" | "COMPLETED" | "CANCELLED" | "ARCHIVED";
+export type ProductionPipelineStatus =
+  | "NOT_STARTED" | "READY" | "IN_PROGRESS" | "PENDING_REVIEW" | "CHANGES_REQUESTED"
+  | "APPROVED" | "COMPLETED" | "ON_HOLD" | "OMITTED";
+export type ProductionRiskStatus = "ON_TRACK" | "AT_RISK" | "LATE";
+export type ProjectMemberRole = "DIRECTOR" | "PRODUCER" | "SUPERVISOR" | "ARTIST" | "COORDINATOR" | "CLIENT_LIAISON";
+
+export interface ProductionSettings {
+  company_id: string;
+  shot_naming_format: string;
+  default_task_statuses: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionProject {
+  id: string;
+  company_id: string;
+  project_code: string;
+  name: string;
+  description: string | null;
+  project_type: ProductionProjectType;
+  client_id: string | null;
+  department_id: string | null;
+  director_id: string | null;
+  producer_id: string | null;
+  status: ProductionProjectStatus;
+  start_date: string | null;
+  target_end_date: string | null;
+  actual_end_date: string | null;
+  currency_id: string | null;
+  notes: string | null;
+  custom_field_values: Record<string, unknown>;
+  budget_id: string | null;
+  client_portal_enabled: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionProjectMember {
+  id: string;
+  company_id: string;
+  project_id: string;
+  employee_id: string;
+  project_role: ProjectMemberRole;
+  department: string | null;
+  added_by: string | null;
+  added_at: string;
+}
+
+export interface ProductionShow {
+  id: string;
+  company_id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionEpisode {
+  id: string;
+  company_id: string;
+  project_id: string;
+  show_id: string | null;
+  episode_number: number;
+  episode_code: string;
+  name: string | null;
+  status: "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "DELIVERED" | "ON_HOLD";
+  air_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionSequence {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string | null;
+  sequence_number: number;
+  sequence_code: string;
+  name: string | null;
+  description: string | null;
+  status: "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "ON_HOLD";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionShot {
+  id: string;
+  company_id: string;
+  project_id: string;
+  sequence_id: string;
+  shot_number: number;
+  shot_code: string;
+  description: string | null;
+  frame_start: number;
+  frame_end: number | null;
+  duration_frames: number | null;
+  status: ProductionPipelineStatus;
+  risk_status: ProductionRiskStatus;
+  complexity: "LOW" | "MEDIUM" | "HIGH" | null;
+  thumbnail_path: string | null;
+  due_date: string | null;
+  custom_field_values: Record<string, unknown>;
+  client_visible: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionAsset {
+  id: string;
+  company_id: string;
+  project_id: string;
+  asset_code: string;
+  name: string;
+  asset_category: "CHARACTER" | "PROP" | "ENVIRONMENT" | "VEHICLE" | "RIG" | "EFFECT" | "OTHER";
+  description: string | null;
+  status: ProductionPipelineStatus;
+  thumbnail_path: string | null;
+  custom_field_values: Record<string, unknown>;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionTaskType {
+  id: string;
+  company_id: string;
+  name: string;
+  applies_to: "SHOT" | "ASSET" | "BOTH";
+  sort_order: number;
+  color: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProductionTask {
+  id: string;
+  company_id: string;
+  project_id: string;
+  task_type_id: string | null;
+  shot_id: string | null;
+  asset_id: string | null;
+  task_code: string;
+  name: string;
+  description: string | null;
+  status: ProductionPipelineStatus;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  risk_status: ProductionRiskStatus;
+  assigned_to: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  estimated_hours: number | null;
+  actual_hours: number | null;
+  bid_amount: number | null;
+  currency_id: string | null;
+  sort_order: number;
+  custom_field_values: Record<string, unknown>;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionTaskDependency {
+  id: string;
+  company_id: string;
+  task_id: string;
+  depends_on_task_id: string;
+  dependency_type: "FS" | "SS" | "FF" | "SF";
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ProductionMilestone {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string | null;
+  milestone_code: string;
+  name: string;
+  description: string | null;
+  milestone_type: "INTERNAL" | "CLIENT" | "DELIVERY";
+  due_date: string;
+  completed_date: string | null;
+  status: "UPCOMING" | "AT_RISK" | "LATE" | "COMPLETED" | "CANCELLED";
+  owner_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionVersion {
+  id: string;
+  company_id: string;
+  project_id: string;
+  shot_id: string | null;
+  asset_id: string | null;
+  task_id: string | null;
+  version_number: number;
+  name: string | null;
+  description: string | null;
+  file_path: string | null;
+  thumbnail_path: string | null;
+  frame_start: number | null;
+  frame_end: number | null;
+  status: "PENDING_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "ARCHIVED";
+  submitted_by: string | null;
+  submitted_at: string;
+  notes: string | null;
+  client_visible: boolean;
+  created_at: string;
+}
+
+export interface ProductionReview {
+  id: string;
+  company_id: string;
+  version_id: string;
+  reviewer_type: "EMPLOYEE" | "CLIENT";
+  reviewer_employee_id: string | null;
+  reviewer_client_id: string | null;
+  reviewer_name: string | null;
+  decision: "PENDING" | "APPROVED" | "CHANGES_REQUESTED" | "REJECTED";
+  comment: string | null;
+  requested_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+export interface ProductionNote {
+  id: string;
+  company_id: string;
+  resource_type: "PROJECT" | "SHOT" | "ASSET" | "TASK" | "VERSION";
+  resource_id: string;
+  parent_note_id: string | null;
+  author_id: string | null;
+  content: string;
+  frame_number: number | null;
+  status: "OPEN" | "RESOLVED";
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionDeliverable {
+  id: string;
+  company_id: string;
+  project_id: string;
+  episode_id: string | null;
+  shot_id: string | null;
+  deliverable_code: string;
+  name: string;
+  description: string | null;
+  version_id: string | null;
+  recipient_client_id: string | null;
+  due_date: string | null;
+  delivered_date: string | null;
+  status: "PENDING" | "IN_PROGRESS" | "READY" | "DELIVERED" | "REJECTED";
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionFile {
+  id: string;
+  company_id: string;
+  resource_type: "PROJECT" | "SHOT" | "ASSET" | "VERSION" | "DELIVERABLE";
+  resource_id: string;
+  filename: string;
+  storage_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  checksum: string | null;
+  uploaded_by: string | null;
+  uploaded_at: string;
+}
+
+export interface ProductionClientUser {
+  id: string;
+  company_id: string;
+  customer_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  is_active: boolean;
+  invited_by: string | null;
+  created_at: string;
+}
+
+export type ProductionCustomFieldType =
+  | "TEXT" | "TEXTAREA" | "NUMBER" | "BOOLEAN" | "DATE" | "DATETIME"
+  | "DROPDOWN" | "MULTI_SELECT" | "EMPLOYEE" | "PROJECT" | "SHOT" | "TASK" | "CURRENCY";
+
+export interface ProductionCustomField {
+  id: string;
+  company_id: string;
+  entity_type: "PROJECT" | "SHOT" | "ASSET" | "TASK";
+  field_key: string;
+  label: string;
+  field_type: ProductionCustomFieldType;
+  options: { value: string; label: string }[];
+  is_required: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProductionCustomFieldValue {
+  id: string;
+  company_id: string;
+  custom_field_id: string;
+  entity_type: "PROJECT" | "SHOT" | "ASSET" | "TASK";
+  entity_id: string;
+  value_text: string | null;
+  value_number: number | null;
+  value_boolean: boolean | null;
+  value_date: string | null;
+  value_uuid: string | null;
+  value_json: unknown;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionWorkflowTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  entity_type: "TASK" | "SHOT" | "ASSET";
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface ProductionWorkflowStage {
+  id: string;
+  company_id: string;
+  workflow_template_id: string;
+  name: string;
+  sort_order: number;
+  maps_to_status: string;
+  created_at: string;
+}
+
+export interface ProductionProjectTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  project_type: string | null;
+  description: string | null;
+  config: { milestones?: { name: string; days_offset: number; milestone_type: string }[] };
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ProductionHistoryEntry {
+  id: string;
+  company_id: string;
+  resource_type: "PROJECT" | "SHOW" | "EPISODE" | "SEQUENCE" | "SHOT" | "ASSET" | "TASK" | "VERSION" | "REVIEW" | "MILESTONE" | "DELIVERABLE";
+  resource_id: string;
+  event_type: string;
+  performed_by: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata: Record<string, unknown>;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ProductionDashboardSummary {
+  active_projects: number;
+  open_tasks: number;
+  my_tasks: number;
+  tasks_at_risk: number;
+  tasks_late: number;
+  pending_reviews: number;
+  upcoming_milestones: number;
+  overdue_milestones: number;
+  pending_deliverables: number;
+  overdue_deliverables: number;
+}
+
+export interface ProductionWorkloadRow {
+  employee_id: string;
+  employee_name: string;
+  open_task_count: number;
+  total_estimated_hours: number;
+  is_available_today: boolean;
+}
+
+export interface ProductionBudgetSummary {
+  budget_id: string;
+  budget_name: string;
+  total_budget: number;
+  allocated: number;
+  spent: number;
+  remaining: number;
+  currency_code: string;
 }

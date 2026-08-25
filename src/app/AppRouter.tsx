@@ -121,6 +121,22 @@ import CourierPage from "@/pages/admin/CourierPage";
 import AdminDocumentsPage from "@/pages/admin/AdminDocumentsPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 
+import ProductionDashboardPage from "@/pages/production/ProductionDashboardPage";
+import ProjectsListPage from "@/pages/production/projects/ProjectsListPage";
+import ProjectDetailPage from "@/pages/production/projects/ProjectDetailPage";
+import ShotsPage from "@/pages/production/shots/ShotsPage";
+import ShotDetailPage from "@/pages/production/shots/ShotDetailPage";
+import AssetsPage from "@/pages/production/assets/AssetsPage";
+import ProductionAssetDetailPage from "@/pages/production/assets/AssetDetailPage";
+import TasksBoardPage from "@/pages/production/tasks/TasksBoardPage";
+import MilestonesPage from "@/pages/production/schedule/MilestonesPage";
+import ReviewQueuePage from "@/pages/production/reviews/ReviewQueuePage";
+import DeliverablesPage from "@/pages/production/deliverables/DeliverablesPage";
+import ResourcesPage from "@/pages/production/resources/ResourcesPage";
+import ProductionSettingsPage from "@/pages/production/ProductionSettingsPage";
+import ClientLoginPage from "@/pages/client/ClientLoginPage";
+import ClientPortalPage from "@/pages/client/ClientPortalPage";
+
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
@@ -137,6 +153,12 @@ export function AppRouter() {
         <Route path="/" element={<Navigate to="/company" replace />} />
         <Route path="/company" element={<CompanySelectPage />} />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
+
+        {/* Client Portal: a separate auth path from /c/:companySlug -- a
+            client contact is a real Supabase auth user but never a
+            company_users row, so it never goes through RequireCompanyAccess. */}
+        <Route path="/client/:companySlug/login" element={<ClientLoginPage />} />
+        <Route path="/client/:companySlug" element={<ClientPortalPage />} />
 
         {/* Platform Superadmin */}
         <Route path="/platform/login" element={<PlatformLoginPage />} />
@@ -943,6 +965,147 @@ export function AppRouter() {
                   }
                 />
               </Route>
+            </Route>
+
+            <Route
+              path="production"
+              element={
+                <RequireModule
+                  moduleKey={[
+                    "PRODUCTION_PROJECTS", "PRODUCTION_SHOTS", "PRODUCTION_ASSETS", "PRODUCTION_TASKS",
+                    "PRODUCTION_SCHEDULE", "PRODUCTION_VERSIONS", "PRODUCTION_DELIVERABLES", "PRODUCTION_RESOURCES",
+                  ]}
+                >
+                  <RequirePermission permission={PERMISSIONS.PRODUCTION_DASHBOARD_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route index element={<ProductionDashboardPage />} />
+
+              <Route
+                element={
+                  <RequireModule moduleKey="PRODUCTION_PROJECTS">
+                    <Outlet />
+                  </RequireModule>
+                }
+              >
+                <Route
+                  path="projects"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_PROJECTS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<ProjectsListPage />} />
+                  <Route path=":projectId" element={<ProjectDetailPage />} />
+                </Route>
+                <Route
+                  path="settings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_SETTINGS_MANAGE}>
+                      <ProductionSettingsPage />
+                    </RequirePermission>
+                  }
+                />
+              </Route>
+
+              <Route
+                element={
+                  <RequireModule moduleKey="PRODUCTION_SHOTS">
+                    <Outlet />
+                  </RequireModule>
+                }
+              >
+                <Route
+                  path="shots"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_SHOTS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<ShotsPage />} />
+                  <Route path=":shotId" element={<ShotDetailPage />} />
+                </Route>
+              </Route>
+
+              <Route
+                element={
+                  <RequireModule moduleKey="PRODUCTION_ASSETS">
+                    <Outlet />
+                  </RequireModule>
+                }
+              >
+                <Route
+                  path="assets"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_ASSETS_VIEW}>
+                      <Outlet />
+                    </RequirePermission>
+                  }
+                >
+                  <Route index element={<AssetsPage />} />
+                  <Route path=":assetId" element={<ProductionAssetDetailPage />} />
+                </Route>
+              </Route>
+
+              <Route
+                path="tasks"
+                element={
+                  <RequireModule moduleKey="PRODUCTION_TASKS">
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_TASKS_VIEW}>
+                      <TasksBoardPage />
+                    </RequirePermission>
+                  </RequireModule>
+                }
+              />
+
+              <Route
+                path="schedule"
+                element={
+                  <RequireModule moduleKey="PRODUCTION_SCHEDULE">
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_MILESTONES_VIEW}>
+                      <MilestonesPage />
+                    </RequirePermission>
+                  </RequireModule>
+                }
+              />
+
+              <Route
+                path="reviews"
+                element={
+                  <RequireModule moduleKey="PRODUCTION_VERSIONS">
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_REVIEWS_VIEW}>
+                      <ReviewQueuePage />
+                    </RequirePermission>
+                  </RequireModule>
+                }
+              />
+
+              <Route
+                path="deliverables"
+                element={
+                  <RequireModule moduleKey="PRODUCTION_DELIVERABLES">
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_DELIVERABLES_VIEW}>
+                      <DeliverablesPage />
+                    </RequirePermission>
+                  </RequireModule>
+                }
+              />
+
+              <Route
+                path="resources"
+                element={
+                  <RequireModule moduleKey="PRODUCTION_RESOURCES">
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_RESOURCES_VIEW}>
+                      <ResourcesPage />
+                    </RequirePermission>
+                  </RequireModule>
+                }
+              />
             </Route>
 
             <Route path="settings">

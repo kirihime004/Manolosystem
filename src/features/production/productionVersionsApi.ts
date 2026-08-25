@@ -1,0 +1,101 @@
+import { supabase } from "@/lib/supabase/client";
+import type { ProductionVersion, ProductionReview, ProductionNote } from "@/types/database";
+
+// ---------------------------------------------------------------------
+// Versions
+// ---------------------------------------------------------------------
+export async function listVersions(filters: { shotId?: string; assetId?: string; taskId?: string }): Promise<ProductionVersion[]> {
+  let query = supabase.from("production_versions").select("*").order("version_number", { ascending: false });
+  if (filters.shotId) query = query.eq("shot_id", filters.shotId);
+  if (filters.assetId) query = query.eq("asset_id", filters.assetId);
+  if (filters.taskId) query = query.eq("task_id", filters.taskId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as ProductionVersion[];
+}
+
+export async function listPendingReviewVersions(companyId: string): Promise<ProductionVersion[]> {
+  const { data, error } = await supabase.from("production_versions").select("*").eq("company_id", companyId).eq("status", "PENDING_REVIEW").order("submitted_at", { ascending: false });
+  if (error) throw error;
+  return data as ProductionVersion[];
+}
+
+export async function createVersion(input: {
+  companyId: string; projectId: string; shotId?: string | null; assetId?: string | null; taskId?: string | null;
+  name?: string | null; description?: string | null; filePath?: string | null; thumbnailPath?: string | null;
+  frameStart?: number | null; frameEnd?: number | null; submittedBy: string; notes?: string | null;
+}): Promise<ProductionVersion> {
+  const { data, error } = await supabase
+    .from("production_versions")
+    .insert({
+      company_id: input.companyId, project_id: input.projectId, shot_id: input.shotId ?? null, asset_id: input.assetId ?? null,
+      task_id: input.taskId ?? null, name: input.name ?? null, description: input.description ?? null, file_path: input.filePath ?? null,
+      thumbnail_path: input.thumbnailPath ?? null, frame_start: input.frameStart ?? null, frame_end: input.frameEnd ?? null,
+      submitted_by: input.submittedBy, notes: input.notes ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as ProductionVersion;
+}
+
+export async function setVersionClientVisible(id: string, clientVisible: boolean): Promise<void> {
+  const { error } = await supabase.from("production_versions").update({ client_visible: clientVisible }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteVersion(id: string): Promise<void> {
+  const { error } = await supabase.from("production_versions").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------
+export async function listReviews(versionId: string): Promise<ProductionReview[]> {
+  const { data, error } = await supabase.from("production_reviews").select("*").eq("version_id", versionId).order("created_at");
+  if (error) throw error;
+  return data as ProductionReview[];
+}
+
+export async function requestReview(input: { companyId: string; versionId: string; reviewerEmployeeId: string; requestedBy: string }): Promise<ProductionReview> {
+  const { data, error } = await supabase
+    .from("production_reviews")
+    .insert({ company_id: input.companyId, version_id: input.versionId, reviewer_type: "EMPLOYEE", reviewer_employee_id: input.reviewerEmployeeId, requested_by: input.requestedBy })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as ProductionReview;
+}
+
+export async function decideReview(id: string, decision: "APPROVED" | "CHANGES_REQUESTED" | "REJECTED", comment?: string | null): Promise<void> {
+  const { error } = await supabase.from("production_reviews").update({ decision, comment: comment ?? null }).eq("id", id);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------
+export async function listNotes(resourceType: string, resourceId: string): Promise<ProductionNote[]> {
+  const { data, error } = await supabase.from("production_notes").select("*").eq("resource_type", resourceType).eq("resource_id", resourceId).order("created_at");
+  if (error) throw error;
+  return data as ProductionNote[];
+}
+
+export async function createNote(input: { companyId: string; resourceType: string; resourceId: string; authorId: string; content: string; parentNoteId?: string | null; frameNumber?: number | null }): Promise<ProductionNote> {
+  const { data, error } = await supabase
+    .from("production_notes")
+    .insert({
+      company_id: input.companyId, resource_type: input.resourceType, resource_id: input.resourceId, author_id: input.authorId,
+      content: input.content, parent_note_id: input.parentNoteId ?? null, frame_number: input.frameNumber ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as ProductionNote;
+}
+
+export async function resolveNote(id: string, resolvedBy: string): Promise<void> {
+  const { error } = await supabase.from("production_notes").update({ status: "RESOLVED", resolved_by: resolvedBy, resolved_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
