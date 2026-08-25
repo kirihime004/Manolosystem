@@ -312,6 +312,16 @@ export function CompanyShell({ children }: { children: ReactNode }) {
   }) => {
     if (!enabledModules.has(opts.moduleKey)) return null;
     const active = opts.items.some((s) => location.pathname.startsWith(`${base}/finance/${s.path}`));
+
+    // A single-item group has nothing to collapse -- the group header and
+    // its one nested link would just be the same destination twice. Render
+    // it as a plain flat link instead, like every other one-page module.
+    if (opts.items.length === 1) {
+      const only = opts.items[0];
+      if (!hasPermission(only.permission)) return null;
+      return <NavLink key={opts.storageKey} to={`${base}/finance/${only.path}`} icon={opts.icon} label={opts.label} active={active} />;
+    }
+
     const expanded = isGroupExpanded(opts.storageKey, active);
     return (
       <div key={opts.storageKey}>
@@ -358,6 +368,13 @@ export function CompanyShell({ children }: { children: ReactNode }) {
   }) => {
     if (!enabledModules.has(opts.moduleKey)) return null;
     const active = opts.items.some((s) => location.pathname.startsWith(`${base}/admin/${s.path}`));
+
+    if (opts.items.length === 1) {
+      const only = opts.items[0];
+      if (!hasPermission(only.permission)) return null;
+      return <NavLink key={opts.storageKey} to={`${base}/admin/${only.path}`} icon={opts.icon} label={opts.label} active={active} />;
+    }
+
     const expanded = isGroupExpanded(opts.storageKey, active);
     return (
       <div key={opts.storageKey}>
@@ -402,6 +419,13 @@ export function CompanyShell({ children }: { children: ReactNode }) {
   }) => {
     if (!enabledModules.has(opts.moduleKey)) return null;
     const active = opts.items.some((s) => location.pathname.startsWith(`${base}/production/${s.path}`));
+
+    if (opts.items.length === 1) {
+      const only = opts.items[0];
+      if (!hasPermission(only.permission)) return null;
+      return <NavLink key={opts.storageKey} to={`${base}/production/${only.path}`} icon={opts.icon} label={opts.label} active={active} />;
+    }
+
     const expanded = isGroupExpanded(opts.storageKey, active);
     return (
       <div key={opts.storageKey}>
