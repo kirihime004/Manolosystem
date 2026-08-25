@@ -2560,6 +2560,7 @@ export interface ProductionProject {
   custom_field_values: Record<string, unknown>;
   budget_id: string | null;
   client_portal_enabled: boolean;
+  fps: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -2756,6 +2757,12 @@ export interface ProductionReview {
   created_at: string;
 }
 
+export interface AnnotationStroke {
+  color: string;
+  width: number;
+  points: [number, number][];
+}
+
 export interface ProductionNote {
   id: string;
   company_id: string;
@@ -2765,6 +2772,9 @@ export interface ProductionNote {
   author_id: string | null;
   content: string;
   frame_number: number | null;
+  annotation_data: AnnotationStroke[] | null;
+  annotation_width: number | null;
+  annotation_height: number | null;
   status: "OPEN" | "RESOLVED";
   resolved_by: string | null;
   resolved_at: string | null;

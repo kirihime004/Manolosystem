@@ -5,9 +5,10 @@ import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useMyEmployeeRecord, useEmployees } from "@/features/hr/hooks";
 import {
-  useShot, useShotFullCode, useShotMutations, useTasks, useTaskMutations, useTaskTypes,
+  useProject, useShot, useShotFullCode, useShotMutations, useTasks, useTaskMutations, useTaskTypes,
   useVersions, useVersionMutations, useReviews, useReviewMutations, useNotes, useNoteMutations,
 } from "@/features/production/hooks";
+import { FrameReviewPlayer } from "@/components/production/FrameReviewPlayer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,18 +23,20 @@ import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { ProductionStatusBadge, ProductionRiskBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { AnnotationStroke } from "@/types/database";
 
 const TASK_STATUSES = ["NOT_STARTED", "READY", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"];
 
 export default function ShotDetailPage() {
   const { shotId } = useParams<{ shotId: string }>();
-  const { company } = useCompany();
+  const { company, hasPermission } = useCompany();
   const { user } = useAuth();
   const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
   const { data: employees } = useEmployees(company?.id);
   const { data: shot, isLoading } = useShot(shotId);
   const { data: fullCode } = useShotFullCode(shotId);
   const { update: updateShot } = useShotMutations(shot?.project_id);
+  const { data: project } = useProject(shot?.project_id);
 
   const { data: taskTypes } = useTaskTypes(company?.id);
   const { data: tasks } = useTasks(company?.id, { shotId });
@@ -49,13 +52,17 @@ export default function ShotDetailPage() {
   const { data: notes } = useNotes("SHOT", shotId);
   const noteMutations = useNoteMutations("SHOT", shotId);
 
+  const { data: versionNotes } = useNotes("VERSION", expandedVersionId ?? undefined);
+  const versionNoteMutations = useNoteMutations("VERSION", expandedVersionId ?? undefined);
+
   const [taskOpen, setTaskOpen] = useState(false);
   const [taskName, setTaskName] = useState("");
   const [taskTypeId, setTaskTypeId] = useState("");
   const [taskAssignee, setTaskAssignee] = useState("");
   const [versionOpen, setVersionOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
-  const [versionNotes, setVersionNotes] = useState("");
+  const [versionDescription, setVersionDescription] = useState("");
+  const [versionFile, setVersionFile] = useState<File | null>(null);
   const [reviewerId, setReviewerId] = useState("");
   const [noteContent, setNoteContent] = useState("");
 
@@ -77,10 +84,22 @@ export default function ShotDetailPage() {
     e.preventDefault();
     if (!myEmployee) { toast.error("No employee record linked to your account"); return; }
     try {
-      await versionMutations.create.mutateAsync({ companyId: company!.id, projectId: shot.project_id, shotId: shot.id, name: versionName || null, notes: versionNotes || null, submittedBy: myEmployee.id });
+      await versionMutations.create.mutateAsync({
+        companyId: company!.id, projectId: shot.project_id, shotId: shot.id, name: versionName || null,
+        notes: versionDescription || null, submittedBy: myEmployee.id, file: versionFile,
+      });
       toast.success("Version submitted");
-      setVersionOpen(false); setVersionName(""); setVersionNotes("");
+      setVersionOpen(false); setVersionName(""); setVersionDescription(""); setVersionFile(null);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to submit version"); }
+  };
+
+  const handleCreateFrameNote = async (input: { content: string; frameNumber: number; annotationData: AnnotationStroke[] | null; annotationWidth: number | null; annotationHeight: number | null }) => {
+    if (!user || !expandedVersionId) return;
+    await versionNoteMutations.create.mutateAsync({
+      companyId: company!.id, resourceType: "VERSION", resourceId: expandedVersionId, authorId: user.id,
+      content: input.content, frameNumber: input.frameNumber,
+      annotationData: input.annotationData, annotationWidth: input.annotationWidth, annotationHeight: input.annotationHeight,
+    });
   };
 
   const handleRequestReview = async () => {
@@ -189,7 +208,11 @@ export default function ShotDetailPage() {
                 <DialogHeader><DialogTitle>Submit version</DialogTitle></DialogHeader>
                 <form onSubmit={handleCreateVersion} className="space-y-3">
                   <div className="space-y-1.5"><Label>Name (optional)</Label><Input value={versionName} onChange={(e) => setVersionName(e.target.value)} /></div>
-                  <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={versionNotes} onChange={(e) => setVersionNotes(e.target.value)} /></div>
+                  <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={versionDescription} onChange={(e) => setVersionDescription(e.target.value)} /></div>
+                  <div className="space-y-1.5">
+                    <Label>Media (video or image, for frame-by-frame review)</Label>
+                    <Input type="file" accept="video/*,image/*" onChange={(e) => setVersionFile(e.target.files?.[0] ?? null)} />
+                  </div>
                   <DialogFooter><Button type="submit" disabled={versionMutations.create.isPending}>Submit</Button></DialogFooter>
                 </form>
               </DialogContent>
@@ -206,7 +229,15 @@ export default function ShotDetailPage() {
                 </button>
                 {v.notes && <p className="text-xs text-muted-foreground">{v.notes}</p>}
                 {expandedVersionId === v.id && (
-                  <div className="space-y-2 border-t border-border pt-3">
+                  <div className="space-y-3 border-t border-border pt-3">
+                    <FrameReviewPlayer
+                      storagePath={v.file_path}
+                      fps={project?.fps ?? 24}
+                      frameOffset={shot.frame_start}
+                      notes={versionNotes ?? []}
+                      canAnnotate={hasPermission(PERMISSIONS.PRODUCTION_NOTES_CREATE)}
+                      onCreateNote={handleCreateFrameNote}
+                    />
                     {(reviews ?? []).map((r) => (
                       <div key={r.id} className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{r.reviewer_type === "EMPLOYEE" ? employeeMap.get(r.reviewer_employee_id ?? "") ?? "—" : r.reviewer_name ?? "Client"}</span>

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import type { ProductionVersion, ProductionReview, ProductionNote } from "@/types/database";
+import type { ProductionVersion, ProductionReview, ProductionNote, AnnotationStroke } from "@/types/database";
 
 // ---------------------------------------------------------------------
 // Versions
@@ -24,12 +24,24 @@ export async function createVersion(input: {
   companyId: string; projectId: string; shotId?: string | null; assetId?: string | null; taskId?: string | null;
   name?: string | null; description?: string | null; filePath?: string | null; thumbnailPath?: string | null;
   frameStart?: number | null; frameEnd?: number | null; submittedBy: string; notes?: string | null;
+  file?: File | null;
 }): Promise<ProductionVersion> {
+  // production_versions has no UPDATE policy -- it's append-only history,
+  // same as every version-controlled table in this app -- so the media
+  // file must be uploaded to a path keyed by a fresh id *before* the row
+  // is inserted, rather than uploading after and patching file_path in.
+  let filePath = input.filePath ?? null;
+  if (input.file) {
+    filePath = `${input.companyId}/VERSION/${crypto.randomUUID()}/${input.file.name}`;
+    const { error: uploadError } = await supabase.storage.from("production-files").upload(filePath, input.file);
+    if (uploadError) throw uploadError;
+  }
+
   const { data, error } = await supabase
     .from("production_versions")
     .insert({
       company_id: input.companyId, project_id: input.projectId, shot_id: input.shotId ?? null, asset_id: input.assetId ?? null,
-      task_id: input.taskId ?? null, name: input.name ?? null, description: input.description ?? null, file_path: input.filePath ?? null,
+      task_id: input.taskId ?? null, name: input.name ?? null, description: input.description ?? null, file_path: filePath,
       thumbnail_path: input.thumbnailPath ?? null, frame_start: input.frameStart ?? null, frame_end: input.frameEnd ?? null,
       submitted_by: input.submittedBy, notes: input.notes ?? null,
     })
@@ -37,6 +49,12 @@ export async function createVersion(input: {
     .single();
   if (error) throw error;
   return data as ProductionVersion;
+}
+
+export async function getVersionMediaUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase.storage.from("production-files").createSignedUrl(storagePath, 60 * 60);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 export async function setVersionClientVisible(id: string, clientVisible: boolean): Promise<void> {
@@ -82,12 +100,17 @@ export async function listNotes(resourceType: string, resourceId: string): Promi
   return data as ProductionNote[];
 }
 
-export async function createNote(input: { companyId: string; resourceType: string; resourceId: string; authorId: string; content: string; parentNoteId?: string | null; frameNumber?: number | null }): Promise<ProductionNote> {
+export async function createNote(input: {
+  companyId: string; resourceType: string; resourceId: string; authorId: string; content: string;
+  parentNoteId?: string | null; frameNumber?: number | null;
+  annotationData?: AnnotationStroke[] | null; annotationWidth?: number | null; annotationHeight?: number | null;
+}): Promise<ProductionNote> {
   const { data, error } = await supabase
     .from("production_notes")
     .insert({
       company_id: input.companyId, resource_type: input.resourceType, resource_id: input.resourceId, author_id: input.authorId,
       content: input.content, parent_note_id: input.parentNoteId ?? null, frame_number: input.frameNumber ?? null,
+      annotation_data: input.annotationData ?? null, annotation_width: input.annotationWidth ?? null, annotation_height: input.annotationHeight ?? null,
     })
     .select("*")
     .single();
