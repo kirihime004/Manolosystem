@@ -119,6 +119,16 @@ export async function createShow(input: { companyId: string; projectId: string; 
   return data as ProductionShow;
 }
 
+export async function updateShow(id: string, patch: Partial<{ name: string; description: string | null }>): Promise<void> {
+  const { error } = await supabase.from("production_shows").update({ name: patch.name, description: patch.description }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteShow(id: string): Promise<void> {
+  const { error } = await supabase.from("production_shows").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function listEpisodes(projectId: string): Promise<ProductionEpisode[]> {
   const { data, error } = await supabase.from("production_episodes").select("*").eq("project_id", projectId).order("episode_number");
   if (error) throw error;
@@ -137,6 +147,11 @@ export async function createEpisode(input: { companyId: string; projectId: strin
 
 export async function updateEpisode(id: string, patch: Partial<{ name: string | null; status: string; airDate: string | null }>): Promise<void> {
   const { error } = await supabase.from("production_episodes").update({ name: patch.name, status: patch.status, air_date: patch.airDate }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEpisode(id: string): Promise<void> {
+  const { error } = await supabase.from("production_episodes").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -160,6 +175,11 @@ export async function createSequence(input: { companyId: string; projectId: stri
 
 export async function updateSequence(id: string, patch: Partial<{ name: string | null; description: string | null; status: string }>): Promise<void> {
   const { error } = await supabase.from("production_sequences").update({ name: patch.name, description: patch.description, status: patch.status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteSequence(id: string): Promise<void> {
+  const { error } = await supabase.from("production_sequences").delete().eq("id", id);
   if (error) throw error;
 }
 

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Shapes } from "lucide-react";
+import { Shapes, MoreHorizontal } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useProjects, useAssets, useAssetMutations } from "@/features/production/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,11 +10,17 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { ProductionAsset } from "@/types/database";
 
 const CATEGORIES = ["CHARACTER", "PROP", "ENVIRONMENT", "VEHICLE", "RIG", "EFFECT", "OTHER"];
 
@@ -25,7 +31,8 @@ export default function AssetsPage() {
   const activeProjectId = projectId || projects?.[0]?.id;
 
   const { data: assets, isLoading } = useAssets(activeProjectId);
-  const { create } = useAssetMutations(activeProjectId);
+  const { create, remove } = useAssetMutations(activeProjectId);
+  const [deleteTarget, setDeleteTarget] = useState<ProductionAsset | null>(null);
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -39,6 +46,15 @@ export default function AssetsPage() {
       toast.success("Asset created");
       setOpen(false); setName("");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create asset"); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await remove.mutateAsync(deleteTarget.id);
+      toast.success("Asset deleted");
+      setDeleteTarget(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete asset"); }
   };
 
   return (
@@ -83,7 +99,7 @@ export default function AssetsPage() {
           <EmptyState icon={Shapes} title="No assets yet" description="Add an asset to start tracking its build pipeline." />
         ) : (
           <Table>
-            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {assets.map((a) => (
                 <TableRow key={a.id}>
@@ -91,12 +107,38 @@ export default function AssetsPage() {
                   <TableCell className="font-medium"><Link to={a.id} className="hover:underline">{a.name}</Link></TableCell>
                   <TableCell className="text-muted-foreground">{a.asset_category}</TableCell>
                   <TableCell><ProductionStatusBadge status={a.status} /></TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.PRODUCTION_ASSETS_DELETE}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild><Link to={a.id}>Open</Link></DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(a)}>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Its tasks and versions will also be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

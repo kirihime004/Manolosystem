@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Film } from "lucide-react";
+import { Film, MoreHorizontal } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useProjects, useSequences, useShots, useShotMutations } from "@/features/production/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,11 +10,17 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ProductionStatusBadge, ProductionRiskBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { ProductionShot } from "@/types/database";
 
 export default function ShotsPage() {
   const { company } = useCompany();
@@ -25,7 +31,8 @@ export default function ShotsPage() {
   const { data: sequences } = useSequences(activeProjectId);
   const [sequenceId, setSequenceId] = useState<string>("");
   const { data: shots, isLoading } = useShots(activeProjectId, sequenceId || undefined);
-  const { create } = useShotMutations(activeProjectId);
+  const { create, remove } = useShotMutations(activeProjectId);
+  const [deleteTarget, setDeleteTarget] = useState<ProductionShot | null>(null);
 
   const [open, setOpen] = useState(false);
   const [shotNumber, setShotNumber] = useState("10");
@@ -39,6 +46,15 @@ export default function ShotsPage() {
       toast.success("Shot created");
       setOpen(false); setShotNumber("10");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create shot"); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await remove.mutateAsync(deleteTarget.id);
+      toast.success("Shot deleted");
+      setDeleteTarget(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete shot"); }
   };
 
   return (
@@ -92,7 +108,7 @@ export default function ShotsPage() {
           <EmptyState icon={Film} title="No shots yet" description="Add a shot to start tracking its tasks and versions." />
         ) : (
           <Table>
-            <TableHeader><TableRow><TableHead>Shot</TableHead><TableHead>Description</TableHead><TableHead>Frames</TableHead><TableHead>Status</TableHead><TableHead>Risk</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Shot</TableHead><TableHead>Description</TableHead><TableHead>Frames</TableHead><TableHead>Status</TableHead><TableHead>Risk</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {shots.map((s) => (
                 <TableRow key={s.id}>
@@ -101,12 +117,38 @@ export default function ShotsPage() {
                   <TableCell className="text-muted-foreground">{s.frame_start}{s.frame_end ? `–${s.frame_end}` : ""}</TableCell>
                   <TableCell><ProductionStatusBadge status={s.status} /></TableCell>
                   <TableCell><ProductionRiskBadge risk={s.risk_status} /></TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.PRODUCTION_SHOTS_DELETE}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild><Link to={s.id}>Open</Link></DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(s)}>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.shot_code}?</AlertDialogTitle>
+            <AlertDialogDescription>Its tasks and versions will also be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useMyEmployeeRecord, useEmployees } from "@/features/hr/hooks";
@@ -16,24 +17,30 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
-import type { AnnotationStroke } from "@/types/database";
+import type { AnnotationStroke, ProductionTask, ProductionVersion } from "@/types/database";
 
 const TASK_STATUSES = ["NOT_STARTED", "READY", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"];
 
 export default function AssetDetailPage() {
   const { assetId } = useParams<{ assetId: string }>();
+  const navigate = useNavigate();
   const { company, hasPermission } = useCompany();
   const { user } = useAuth();
   const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
   const { data: employees } = useEmployees(company?.id);
   const { data: asset, isLoading } = useAsset(assetId);
-  const { update } = useAssetMutations(asset?.project_id);
+  const { update, remove: removeAsset } = useAssetMutations(asset?.project_id);
   const { data: project } = useProject(asset?.project_id);
 
   const { data: taskTypes } = useTaskTypes(company?.id);
@@ -57,6 +64,18 @@ export default function AssetDetailPage() {
   const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
   const [versionFile, setVersionFile] = useState<File | null>(null);
+
+  const [editAssetOpen, setEditAssetOpen] = useState(false);
+  const [assetName, setAssetName] = useState("");
+  const [assetDescription, setAssetDescription] = useState("");
+  const [deleteAssetOpen, setDeleteAssetOpen] = useState(false);
+
+  const [editingTask, setEditingTask] = useState<ProductionTask | null>(null);
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<ProductionTask | null>(null);
+  const [editTaskName, setEditTaskName] = useState("");
+  const [editTaskAssignee, setEditTaskAssignee] = useState("");
+
+  const [deleteVersionTarget, setDeleteVersionTarget] = useState<ProductionVersion | null>(null);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!asset) return <ErrorScreen title="Asset not found" description="This asset does not exist or you do not have access." />;
@@ -103,6 +122,60 @@ export default function AssetDetailPage() {
     });
   };
 
+  const openEditAsset = () => {
+    setAssetName(asset.name);
+    setAssetDescription(asset.description ?? "");
+    setEditAssetOpen(true);
+  };
+  const handleSaveAsset = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await update.mutateAsync({ id: asset.id, patch: { name: assetName, description: assetDescription || null } });
+      toast.success("Asset updated");
+      setEditAssetOpen(false);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update asset"); }
+  };
+  const handleDeleteAsset = async () => {
+    try {
+      await removeAsset.mutateAsync(asset.id);
+      toast.success("Asset deleted");
+      navigate("..");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete asset"); }
+  };
+
+  const openEditTask = (t: ProductionTask) => {
+    setEditingTask(t);
+    setEditTaskName(t.name);
+    setEditTaskAssignee(t.assigned_to ?? "");
+  };
+  const handleSaveTask = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    try {
+      await taskMutations.update.mutateAsync({ id: editingTask.id, patch: { name: editTaskName, assignedTo: editTaskAssignee || null } });
+      toast.success("Task updated");
+      setEditingTask(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update task"); }
+  };
+  const handleDeleteTask = async () => {
+    if (!deleteTaskTarget) return;
+    try {
+      await taskMutations.remove.mutateAsync(deleteTaskTarget.id);
+      toast.success("Task deleted");
+      setDeleteTaskTarget(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete task"); }
+  };
+
+  const handleDeleteVersion = async () => {
+    if (!deleteVersionTarget) return;
+    try {
+      await versionMutations.remove.mutateAsync(deleteVersionTarget.id);
+      toast.success("Version deleted");
+      setDeleteVersionTarget(null);
+      if (expandedVersionId === deleteVersionTarget.id) setExpandedVersionId(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete version"); }
+  };
+
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-start justify-between">
@@ -111,7 +184,22 @@ export default function AssetDetailPage() {
           <h1 className="text-xl font-semibold text-foreground">{asset.name}</h1>
           <p className="text-sm text-muted-foreground">{asset.asset_category}</p>
         </div>
-        <ProductionStatusBadge status={asset.status} />
+        <div className="flex items-start gap-2">
+          <ProductionStatusBadge status={asset.status} />
+          <Can permission={PERMISSIONS.PRODUCTION_ASSETS_UPDATE}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEditAsset}>Edit</DropdownMenuItem>
+                <Can permission={PERMISSIONS.PRODUCTION_ASSETS_DELETE}>
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteAssetOpen(true)}>Delete</DropdownMenuItem>
+                </Can>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Can>
+        </div>
       </div>
 
       {asset.description && <p className="text-sm text-foreground">{asset.description}</p>}
@@ -151,7 +239,7 @@ export default function AssetDetailPage() {
         </div>
         <div className="rounded-lg border border-border bg-card">
           <Table>
-            <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Assignee</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Assignee</TableHead><TableHead>Status</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {(tasks ?? []).map((t) => (
                 <TableRow key={t.id}>
@@ -165,10 +253,25 @@ export default function AssetDetailPage() {
                       </Select>
                     </Can>
                   </TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.PRODUCTION_TASKS_UPDATE}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditTask(t)}>Edit</DropdownMenuItem>
+                          <Can permission={PERMISSIONS.PRODUCTION_TASKS_DELETE}>
+                            <DropdownMenuItem variant="destructive" onClick={() => setDeleteTaskTarget(t)}>Delete</DropdownMenuItem>
+                          </Can>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
                 </TableRow>
               ))}
               {(!tasks || tasks.length === 0) && (
-                <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">No tasks yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">No tasks yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -200,10 +303,17 @@ export default function AssetDetailPage() {
           {(versions ?? []).map((v) => (
             <Card key={v.id}>
               <CardContent className="pt-4 space-y-2">
-                <button className="flex w-full items-center justify-between text-left" onClick={() => setExpandedVersionId(expandedVersionId === v.id ? null : v.id)}>
-                  <span className="text-sm font-medium text-foreground">v{v.version_number} {v.name ? `— ${v.name}` : ""}</span>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <button className="flex flex-1 items-center justify-between text-left" onClick={() => setExpandedVersionId(expandedVersionId === v.id ? null : v.id)}>
+                    <span className="text-sm font-medium text-foreground">v{v.version_number} {v.name ? `— ${v.name}` : ""}</span>
+                  </button>
                   <ProductionStatusBadge status={v.status} />
-                </button>
+                  <Can permission={PERMISSIONS.PRODUCTION_VERSIONS_DELETE}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDeleteVersionTarget(v)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </Can>
+                </div>
                 {v.notes && <p className="text-xs text-muted-foreground">{v.notes}</p>}
                 {expandedVersionId === v.id && (
                   <div className="space-y-3 border-t border-border pt-3">
@@ -246,6 +356,76 @@ export default function AssetDetailPage() {
           {(!versions || versions.length === 0) && <p className="text-sm text-muted-foreground">No versions submitted yet.</p>}
         </div>
       </div>
+
+      <Dialog open={editAssetOpen} onOpenChange={setEditAssetOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit asset</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveAsset} className="space-y-3">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={assetName} onChange={(e) => setAssetName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={assetDescription} onChange={(e) => setAssetDescription(e.target.value)} /></div>
+            <DialogFooter><Button type="submit" disabled={update.isPending}>Save changes</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit task</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveTask} className="space-y-3">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editTaskName} onChange={(e) => setEditTaskName(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Assignee</Label>
+              <Select value={editTaskAssignee || "__none__"} onValueChange={(v) => setEditTaskAssignee(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter><Button type="submit" disabled={taskMutations.update.isPending}>Save changes</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteAssetOpen} onOpenChange={setDeleteAssetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{asset.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Its tasks and versions will also be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAsset}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTaskTarget} onOpenChange={(open) => !open && setDeleteTaskTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTaskTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteVersionTarget} onOpenChange={(open) => !open && setDeleteVersionTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete v{deleteVersionTarget?.version_number}?</AlertDialogTitle>
+            <AlertDialogDescription>Its reviews will also be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteVersion}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

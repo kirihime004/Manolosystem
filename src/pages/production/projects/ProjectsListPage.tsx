@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, MoreHorizontal } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useProjects, useProjectMutations } from "@/features/production/hooks";
 import { useEmployees } from "@/features/hr/hooks";
@@ -13,11 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { ProductionProject } from "@/types/database";
 
 const PROJECT_TYPES = ["FEATURE_FILM", "SERIES", "SHORT", "COMMERCIAL", "GAME_CINEMATIC", "OTHER"];
 
@@ -26,7 +32,8 @@ export default function ProjectsListPage() {
   const { data: projects, isLoading } = useProjects(company?.id);
   const { data: employees } = useEmployees(company?.id);
   const { data: customers } = useCustomers(company?.id);
-  const { create } = useProjectMutations(company?.id);
+  const { create, remove } = useProjectMutations(company?.id);
+  const [deleteTarget, setDeleteTarget] = useState<ProductionProject | null>(null);
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -50,6 +57,17 @@ export default function ProjectsListPage() {
       setOpen(false); setName(""); setDescription(""); setClientId(""); setDirectorId(""); setProducerId("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create project");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await remove.mutateAsync(deleteTarget.id);
+      toast.success("Project deleted");
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete project");
     }
   };
 
@@ -112,7 +130,7 @@ export default function ProjectsListPage() {
           <EmptyState icon={FolderKanban} title="No projects yet" description="Create a project to start building out its pipeline." />
         ) : (
           <Table>
-            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Client</TableHead><TableHead>Director</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Client</TableHead><TableHead>Director</TableHead><TableHead>Status</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {projects.map((p) => (
                 <TableRow key={p.id} className="cursor-pointer">
@@ -122,12 +140,40 @@ export default function ProjectsListPage() {
                   <TableCell className="text-muted-foreground">{p.client_id ? customerMap.get(p.client_id) ?? "—" : "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{p.director_id ? employeeMap.get(p.director_id) ?? "—" : "—"}</TableCell>
                   <TableCell><ProductionStatusBadge status={p.status} /></TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.PRODUCTION_PROJECTS_MANAGE}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild><Link to={p.id}>Open</Link></DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(p)}>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the project and everything under it — shows, episodes, sequences, shots, assets, tasks, versions, milestones, and deliverables. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

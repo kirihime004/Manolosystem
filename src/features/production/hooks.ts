@@ -83,9 +83,31 @@ export function useHierarchyMutations(projectId: string | undefined) {
     queryClient.invalidateQueries({ queryKey: ["production-sequences", projectId] });
   };
   const createShow = useMutation({ mutationFn: projectsApi.createShow, onSuccess: invalidate });
+  const updateShow = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof projectsApi.updateShow>[1] }) => projectsApi.updateShow(input.id, input.patch),
+    onSuccess: invalidate,
+  });
+  const deleteShow = useMutation({ mutationFn: projectsApi.deleteShow, onSuccess: invalidate });
+
   const createEpisode = useMutation({ mutationFn: projectsApi.createEpisode, onSuccess: invalidate });
+  const updateEpisode = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof projectsApi.updateEpisode>[1] }) => projectsApi.updateEpisode(input.id, input.patch),
+    onSuccess: invalidate,
+  });
+  const deleteEpisode = useMutation({ mutationFn: projectsApi.deleteEpisode, onSuccess: invalidate });
+
   const createSequence = useMutation({ mutationFn: projectsApi.createSequence, onSuccess: invalidate });
-  return { createShow, createEpisode, createSequence };
+  const updateSequence = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof projectsApi.updateSequence>[1] }) => projectsApi.updateSequence(input.id, input.patch),
+    onSuccess: invalidate,
+  });
+  const deleteSequence = useMutation({ mutationFn: projectsApi.deleteSequence, onSuccess: invalidate });
+
+  return {
+    createShow, updateShow, deleteShow,
+    createEpisode, updateEpisode, deleteEpisode,
+    createSequence, updateSequence, deleteSequence,
+  };
 }
 
 export function useProjectTemplates(companyId: string | undefined) {

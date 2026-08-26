@@ -33,10 +33,10 @@ export async function createDeliverable(input: {
   return data as ProductionDeliverable;
 }
 
-export async function updateDeliverable(id: string, patch: Partial<{ status: string; deliveredDate: string | null; notes: string | null; dueDate: string | null }>): Promise<void> {
+export async function updateDeliverable(id: string, patch: Partial<{ name: string; status: string; deliveredDate: string | null; notes: string | null; dueDate: string | null }>): Promise<void> {
   const { error } = await supabase
     .from("production_deliverables")
-    .update({ status: patch.status, delivered_date: patch.deliveredDate, notes: patch.notes, due_date: patch.dueDate })
+    .update({ name: patch.name, status: patch.status, delivered_date: patch.deliveredDate, notes: patch.notes, due_date: patch.dueDate })
     .eq("id", id);
   if (error) throw error;
 }

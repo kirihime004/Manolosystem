@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useMyEmployeeRecord, useEmployees } from "@/features/hr/hooks";
@@ -17,25 +18,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { ProductionStatusBadge, ProductionRiskBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
-import type { AnnotationStroke } from "@/types/database";
+import type { AnnotationStroke, ProductionTask, ProductionVersion } from "@/types/database";
 
 const TASK_STATUSES = ["NOT_STARTED", "READY", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"];
 
 export default function ShotDetailPage() {
   const { shotId } = useParams<{ shotId: string }>();
+  const navigate = useNavigate();
   const { company, hasPermission } = useCompany();
   const { user } = useAuth();
   const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
   const { data: employees } = useEmployees(company?.id);
   const { data: shot, isLoading } = useShot(shotId);
   const { data: fullCode } = useShotFullCode(shotId);
-  const { update: updateShot } = useShotMutations(shot?.project_id);
+  const { update: updateShot, remove: removeShot } = useShotMutations(shot?.project_id);
   const { data: project } = useProject(shot?.project_id);
 
   const { data: taskTypes } = useTaskTypes(company?.id);
@@ -44,6 +51,18 @@ export default function ShotDetailPage() {
 
   const { data: versions } = useVersions({ shotId });
   const versionMutations = useVersionMutations(shotId);
+
+  const [editShotOpen, setEditShotOpen] = useState(false);
+  const [shotDescription, setShotDescription] = useState("");
+  const [shotFrameEnd, setShotFrameEnd] = useState("");
+  const [deleteShotOpen, setDeleteShotOpen] = useState(false);
+
+  const [editingTask, setEditingTask] = useState<ProductionTask | null>(null);
+  const [deleteTaskTarget, setDeleteTaskTarget] = useState<ProductionTask | null>(null);
+  const [editTaskName, setEditTaskName] = useState("");
+  const [editTaskAssignee, setEditTaskAssignee] = useState("");
+
+  const [deleteVersionTarget, setDeleteVersionTarget] = useState<ProductionVersion | null>(null);
 
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
   const { data: reviews } = useReviews(expandedVersionId ?? undefined);
@@ -120,6 +139,60 @@ export default function ShotDetailPage() {
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to add note"); }
   };
 
+  const openEditShot = () => {
+    setShotDescription(shot.description ?? "");
+    setShotFrameEnd(shot.frame_end != null ? String(shot.frame_end) : "");
+    setEditShotOpen(true);
+  };
+  const handleSaveShot = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateShot.mutateAsync({ id: shot.id, patch: { description: shotDescription || null, frameEnd: shotFrameEnd ? Number(shotFrameEnd) : null } });
+      toast.success("Shot updated");
+      setEditShotOpen(false);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update shot"); }
+  };
+  const handleDeleteShot = async () => {
+    try {
+      await removeShot.mutateAsync(shot.id);
+      toast.success("Shot deleted");
+      navigate("..");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete shot"); }
+  };
+
+  const openEditTask = (t: ProductionTask) => {
+    setEditingTask(t);
+    setEditTaskName(t.name);
+    setEditTaskAssignee(t.assigned_to ?? "");
+  };
+  const handleSaveTask = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    try {
+      await taskMutations.update.mutateAsync({ id: editingTask.id, patch: { name: editTaskName, assignedTo: editTaskAssignee || null } });
+      toast.success("Task updated");
+      setEditingTask(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update task"); }
+  };
+  const handleDeleteTask = async () => {
+    if (!deleteTaskTarget) return;
+    try {
+      await taskMutations.remove.mutateAsync(deleteTaskTarget.id);
+      toast.success("Task deleted");
+      setDeleteTaskTarget(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete task"); }
+  };
+
+  const handleDeleteVersion = async () => {
+    if (!deleteVersionTarget) return;
+    try {
+      await versionMutations.remove.mutateAsync(deleteVersionTarget.id);
+      toast.success("Version deleted");
+      setDeleteVersionTarget(null);
+      if (expandedVersionId === deleteVersionTarget.id) setExpandedVersionId(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete version"); }
+  };
+
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-start justify-between">
@@ -128,9 +201,24 @@ export default function ShotDetailPage() {
           <h1 className="text-xl font-semibold text-foreground">{shot.description ?? shot.shot_code}</h1>
           <p className="text-sm text-muted-foreground">Frames {shot.frame_start}{shot.frame_end ? `–${shot.frame_end}` : ""}</p>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <ProductionStatusBadge status={shot.status} />
-          <ProductionRiskBadge risk={shot.risk_status} />
+        <div className="flex items-start gap-2">
+          <div className="flex flex-col items-end gap-1.5">
+            <ProductionStatusBadge status={shot.status} />
+            <ProductionRiskBadge risk={shot.risk_status} />
+          </div>
+          <Can permission={PERMISSIONS.PRODUCTION_SHOTS_UPDATE}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={openEditShot}>Edit</DropdownMenuItem>
+                <Can permission={PERMISSIONS.PRODUCTION_SHOTS_DELETE}>
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteShotOpen(true)}>Delete</DropdownMenuItem>
+                </Can>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Can>
         </div>
       </div>
 
@@ -173,7 +261,7 @@ export default function ShotDetailPage() {
         </div>
         <div className="rounded-lg border border-border bg-card">
           <Table>
-            <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Assignee</TableHead><TableHead>Status</TableHead><TableHead>Risk</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Assignee</TableHead><TableHead>Status</TableHead><TableHead>Risk</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {(tasks ?? []).map((t) => (
                 <TableRow key={t.id}>
@@ -188,10 +276,25 @@ export default function ShotDetailPage() {
                     </Can>
                   </TableCell>
                   <TableCell><ProductionRiskBadge risk={t.risk_status} /></TableCell>
+                  <TableCell>
+                    <Can permission={PERMISSIONS.PRODUCTION_TASKS_UPDATE}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditTask(t)}>Edit</DropdownMenuItem>
+                          <Can permission={PERMISSIONS.PRODUCTION_TASKS_DELETE}>
+                            <DropdownMenuItem variant="destructive" onClick={() => setDeleteTaskTarget(t)}>Delete</DropdownMenuItem>
+                          </Can>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  </TableCell>
                 </TableRow>
               ))}
               {(!tasks || tasks.length === 0) && (
-                <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">No tasks yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">No tasks yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -223,10 +326,17 @@ export default function ShotDetailPage() {
           {(versions ?? []).map((v) => (
             <Card key={v.id}>
               <CardContent className="pt-4 space-y-2">
-                <button className="flex w-full items-center justify-between text-left" onClick={() => setExpandedVersionId(expandedVersionId === v.id ? null : v.id)}>
-                  <span className="text-sm font-medium text-foreground">v{v.version_number} {v.name ? `— ${v.name}` : ""}</span>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <button className="flex flex-1 items-center justify-between text-left" onClick={() => setExpandedVersionId(expandedVersionId === v.id ? null : v.id)}>
+                    <span className="text-sm font-medium text-foreground">v{v.version_number} {v.name ? `— ${v.name}` : ""}</span>
+                  </button>
                   <ProductionStatusBadge status={v.status} />
-                </button>
+                  <Can permission={PERMISSIONS.PRODUCTION_VERSIONS_DELETE}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setDeleteVersionTarget(v)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </Can>
+                </div>
                 {v.notes && <p className="text-xs text-muted-foreground">{v.notes}</p>}
                 {expandedVersionId === v.id && (
                   <div className="space-y-3 border-t border-border pt-3">
@@ -286,6 +396,76 @@ export default function ShotDetailPage() {
           <Button type="submit" disabled={noteMutations.create.isPending}>Post</Button>
         </form>
       </div>
+
+      <Dialog open={editShotOpen} onOpenChange={setEditShotOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit shot</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveShot} className="space-y-3">
+            <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={shotDescription} onChange={(e) => setShotDescription(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Frame end</Label><Input type="number" value={shotFrameEnd} onChange={(e) => setShotFrameEnd(e.target.value)} /></div>
+            <DialogFooter><Button type="submit" disabled={updateShot.isPending}>Save changes</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit task</DialogTitle></DialogHeader>
+          <form onSubmit={handleSaveTask} className="space-y-3">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editTaskName} onChange={(e) => setEditTaskName(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Assignee</Label>
+              <Select value={editTaskAssignee || "__none__"} onValueChange={(v) => setEditTaskAssignee(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter><Button type="submit" disabled={taskMutations.update.isPending}>Save changes</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteShotOpen} onOpenChange={setDeleteShotOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {shot.shot_code}?</AlertDialogTitle>
+            <AlertDialogDescription>Its tasks and versions will also be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteShot}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTaskTarget} onOpenChange={(open) => !open && setDeleteTaskTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTaskTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteVersionTarget} onOpenChange={(open) => !open && setDeleteVersionTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete v{deleteVersionTarget?.version_number}?</AlertDialogTitle>
+            <AlertDialogDescription>Its reviews will also be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteVersion}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
