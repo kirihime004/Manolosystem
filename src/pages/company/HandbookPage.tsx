@@ -310,14 +310,31 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={Boxes} kicker="IT — Inventory" title="Hardware, software & assets" />
+            <SectionHeader icon={Boxes} kicker="IT — Inventory" title="Adding a hardware or software asset" />
             <CardDescription>Tracks every asset the company owns, from purchase to disposal.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Step n={1} title="Go to Inventory → All Items, Hardware, or Software, then click New asset.">
+                Opens a full page for the new asset, not a popup.
+              </Step>
+              <Step n={2} title="Choose the Hardware or Software tab.">
+                Each shows a different set of fields below it.
+              </Step>
+              <Step n={3} title="Hardware: fill in Name, Category, Lifecycle, Brand, Model, Serial number, Asset tag, Hostname, IP address, MAC address, and Warranty end.">
+                Software: fill in Name, Vendor, Version, License key, and Number of licenses — then, if it's a
+                Subscription rather than a one-time purchase, also Renewal date, Billing cycle, Subscription cost,
+                and Seats.
+              </Step>
+              <Step n={4} title="Fill in Purchase date, Purchase price, Currency, Supplier, Assigned to, Location, and Notes.">
+                All optional, but assigning it to a location or employee is what makes it show up on their asset
+                list.
+              </Step>
+              <Step n={5} title="Click Create asset.">
+                It gets its own asset code automatically and appears in the register immediately.
+              </Step>
+            </div>
             <ul className="space-y-3">
-              <Item title="All Items / Hardware / Software">
-                Browse the asset register — each item has its own auto-generated asset code, assignment, and status.
-              </Item>
               <Item title="Subscriptions">
                 Recurring software licenses and their renewal dates — the dashboard flags anything nearing expiry.
               </Item>
@@ -334,14 +351,25 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={ShoppingCart} kicker="IT — Budget & Procurement" title="Purchasing pipeline" />
+            <SectionHeader icon={ShoppingCart} kicker="IT — Budget & Procurement" title="Creating a purchase request" />
+            <CardDescription>Purchase Requests move through review and approval, become Quotations, then Purchase Orders, tracked through Deliveries against named Suppliers.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              A full purchase pipeline: Purchase Requests move through review and approval, become Quotations,
-              then Purchase Orders, tracked through Deliveries against named Suppliers, with a History log and
-              Reports for the whole pipeline.
-            </p>
+          <CardContent className="space-y-4">
+            <div className="space-y-4">
+              <Step n={1} title="Go to Procurement → Purchase Requests, then click New request.">
+                Opens a full page, not a popup.
+              </Step>
+              <Step n={2} title="Fill in Budget, Budget category, Department, Priority, Required date, Reason, Description, and Currency.">
+                The budget and category determine which spending pool this request draws from.
+              </Step>
+              <Step n={3} title="Click Add item for each line item.">
+                Each line needs its own Description, Type (Hardware / Software / Other), Qty, and Unit Price.
+              </Step>
+              <Step n={4} title="Click Save as draft, or Create & submit to send it straight into the approval workflow.">
+                A draft can still be edited; once submitted, it moves through the review/approval chain toward
+                becoming a Quotation and then a Purchase Order.
+              </Step>
+            </div>
             <Callout>
               Reports → IT Reports gives a company-wide export/print view across tickets, inventory, and
               procurement for anyone holding the Reports permission.
@@ -361,15 +389,27 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={UserSquare2} kicker="HR — Employees" title="The employee master record" />
+            <SectionHeader icon={UserSquare2} kicker="HR — Employees" title="Adding an employee" />
             <CardDescription>The single identity every other module — IT, Finance, Admin, Production — references.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Step n={1} title="Go to Employees, then click + New employee.">
+                Opens a full page, not a popup.
+              </Step>
+              <Step n={2} title="Optionally link a User account, then fill in First name, Last name, Company email, Personal email, and Phone.">
+                Linking a user account is what lets this person actually sign in — an employee can exist purely as
+                an HR record with no system login at all.
+              </Step>
+              <Step n={3} title="Fill in Hire date, Department, Position, Employment type, and Employment status.">
+                These drive the org chart and everywhere else the employee shows up (assignee lists, task board,
+                and so on).
+              </Step>
+              <Step n={4} title="Click Create employee.">
+                They get an employee number automatically.
+              </Step>
+            </div>
             <ul className="space-y-3">
-              <Item title="Employee profile">
-                Personal details, department, position, manager/supervisor, employment type and status, hire date,
-                and documents. An employee can exist purely as an HR record with no system login at all.
-              </Item>
               <Item title="Org Chart">A visual reporting-line view built from each employee's manager assignment.</Item>
               <Item title="Employee Requests">
                 A self-service inbox for things like ID reissues or record corrections, routed to HR for action.
@@ -381,16 +421,27 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={CalendarClock} kicker="HR — Attendance & Leave" title="Attendance, leave, overtime & timesheets" />
+            <SectionHeader icon={CalendarClock} kicker="HR — Attendance & Leave" title="Requesting leave" />
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Step n={1} title="Go to Leave, then click + Request leave.">
+                Opens a dialog.
+              </Step>
+              <Step n={2} title="Fill in Leave type, Start date, End date, and Reason.">
+                The date range determines how many days are deducted once approved.
+              </Step>
+              <Step n={3} title="Click Submit.">
+                The request appears in your own list, and in your manager's approvals queue with{" "}
+                <span className="font-medium text-foreground">Approve</span>/<span className="font-medium text-foreground">Reject</span> buttons.
+                Only an <span className="font-medium text-foreground">Approved</span> request counts as confirmed
+                time off. A <span className="font-medium text-foreground">Cancel</span> button is available on your
+                own request while it's still Draft or Submitted.
+              </Step>
+            </div>
             <ul className="space-y-3">
               <Item title="Attendance">Clock-in/out records, with statuses like Present, Late, Remote, On Leave, and Holiday.</Item>
-              <Item title="Leave">
-                Leave requests move through a submit → approve workflow; only an <span className="font-medium text-foreground">Approved</span> request
-                counts as confirmed time off.
-              </Item>
-              <Item title="Overtime">Requested and approved the same way, feeding into payroll calculations.</Item>
+              <Item title="Overtime">Requested and approved the same way as leave, feeding into payroll calculations.</Item>
               <Item title="Timesheets">A per-period summary of worked hours for approval.</Item>
             </ul>
           </CardContent>
@@ -454,6 +505,38 @@ export default function HandbookPage() {
         </Card>
 
         <Card>
+          <CardHeader>
+            <SectionHeader icon={Wallet} kicker="Finance — Expenses" title="Submitting an expense claim" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to Expenses, then click New claim.">
+              Opens a dialog.
+            </Step>
+            <Step n={2} title="Fill in Category, Date, Description, and Amount.">
+              Amount is entered in whichever currency the claim was actually incurred in.
+            </Step>
+            <Step n={3} title="Click Create claim.">
+              It enters the approval queue; approving it is a separate action from the claim itself.
+            </Step>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={BookOpenCheck} kicker="Finance — Accounting" title="Creating a journal entry" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to Accounting → Journal Entries, then click New journal entry.">
+              Opens a dialog.
+            </Step>
+            <Step n={2} title="Fill in Date and Description, then click Create draft.">
+              This creates the entry as a draft — open it afterward to add its debit/credit lines against the
+              Chart of Accounts before posting it to the General Ledger.
+            </Step>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardContent className="space-y-3 pt-6">
             <p className="text-sm font-medium text-foreground">How money moves through the system</p>
             <p className="text-sm text-muted-foreground">
@@ -481,27 +564,40 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={ClipboardList} kicker="Admin — Requests" title="General service requests" />
+            <SectionHeader icon={ClipboardList} kicker="Admin — Requests" title="Submitting a general request" />
+            <CardDescription>For anything that doesn't fit a more specific module — a 12-step workflow from submission through review, approval, assignment, work, and closure.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              A general-purpose administrative request queue — a 12-step workflow from submission through review,
-              approval, assignment, work, and closure — for anything that doesn't fit a more specific module.
-            </p>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to Requests, then click + New request.">
+              Opens a dialog.
+            </Step>
+            <Step n={2} title="Fill in Category, Subject, Description, and Priority.">
+              The category determines who it's routed to.
+            </Step>
+            <Step n={3} title="Click Submit.">
+              It enters the review queue; staff with the right permissions can then review, approve, assign, work,
+              and close it.
+            </Step>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={MapPin} kicker="Admin — Facilities" title="Locations, rooms & workspaces" />
+            <SectionHeader icon={MapPin} kicker="Admin — Facilities" title="Booking a room" />
           </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              <Item title="Locations, Buildings, Floors">The physical hierarchy of company sites.</Item>
-              <Item title="Rooms & Room Bookings">
-                Meeting rooms with server-enforced overlap prevention — two people can never double-book the same
-                room and time.
-              </Item>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to Facilities → Room Bookings, then click + Book a room.">
+              Opens a dialog.
+            </Step>
+            <Step n={2} title="Fill in Room, Date, Start time, End time, and Purpose.">
+              Purpose shows up on the room's calendar for anyone else browsing bookings.
+            </Step>
+            <Step n={3} title="Click Book room.">
+              If the room is already booked for an overlapping time, the server rejects it outright — two people
+              can never double-book the same room and time.
+            </Step>
+            <ul className="space-y-3 pt-2">
+              <Item title="Locations, Buildings, Floors">The physical hierarchy of company sites, managed separately.</Item>
               <Item title="Workspaces">Desk/seat assignment and release, tracked with full history.</Item>
             </ul>
           </CardContent>
@@ -591,27 +687,104 @@ export default function HandbookPage() {
           </p>
         </div>
 
+        <Callout>
+          Almost every list in Production — Projects, Shots, Assets, Sequences, Episodes, Shows, Milestones,
+          Deliverables — shows a small <span className="font-medium text-foreground">⋯</span> menu button at the
+          right edge of each row. That's always where Edit and Delete live, and Delete always asks you to confirm
+          before anything is actually removed.
+        </Callout>
+
         <Card>
           <CardHeader>
-            <SectionHeader icon={FolderKanban} kicker="Production — Projects" title="Projects, shows, episodes & sequences" />
+            <SectionHeader icon={FolderKanban} kicker="Production — Projects" title="Creating a project" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Step n={1} title="Go to Production → Projects, then click + New project.">
+                Opens a dialog.
+              </Step>
+              <Step n={2} title="Fill in Name and Type (Feature Film, Series, Short, Commercial, Game Cinematic, or Other).">
+                Then optionally Description, Client (pulled from Finance's existing Customers), Director, and
+                Producer.
+              </Step>
+              <Step n={3} title="Click Create.">
+                The project gets its own project code (e.g. PRJ-000006) automatically and opens to its Overview
+                tab.
+              </Step>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Editing or deleting a project</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                From the Projects list, click a project's own <span className="font-medium text-foreground">⋯</span> menu
+                and choose <span className="font-medium text-foreground">Delete</span>. To edit its name or
+                description, open the project and click the <span className="font-medium text-foreground">⋯</span> menu
+                next to its status badge, then <span className="font-medium text-foreground">Edit</span>. Deleting a
+                project also deletes everything under it — shows, episodes, sequences, shots, assets, tasks,
+                versions, milestones, and deliverables — so it always asks for confirmation first.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Overview tab</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Change <span className="font-medium text-foreground">Status</span> (Planning, In Progress, On
+                Hold, Completed, Cancelled, Archived) from a dropdown right on the page — no dialog needed. The{" "}
+                <span className="font-medium text-foreground">Client portal access</span> toggle only turns on once
+                a client is assigned; switching it on lets that client see whatever shots and versions get marked
+                client-visible.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={FolderKanban} kicker="Production — Projects" title="Adding shows, episodes & sequences" />
+            <CardDescription>All three live on a project's own Episodes & Sequences tab, each in its own table.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Show (optional — only needed if the project spans multiple shows): click + Show, fill in Name and Description, click Create.">
+              Edit or delete it later from its row's <span className="font-medium text-foreground">⋯</span> menu.
+            </Step>
+            <Step n={2} title="Episode: click + Episode, fill in the Episode number, click Create.">
+              It's given a code automatically (e.g. EP01). Open its <span className="font-medium text-foreground">⋯</span> menu
+              → Edit to set a Name or change its Status (Planning, In Progress, Completed, Delivered, On Hold)
+              afterward.
+            </Step>
+            <Step n={3} title="Sequence: click + Sequence, optionally pick an Episode, fill in the Sequence number, click Create.">
+              It's given a code automatically (e.g. SQ010). Open its{" "}
+              <span className="font-medium text-foreground">⋯</span> menu → Edit to set a Name or change its Status
+              afterward, or → Delete to remove it — this is exactly where you'd fix an accidentally-created
+              sequence.
+            </Step>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Users} kicker="Production — Projects" title="Members, Milestones & Deliverables tabs" />
+          </CardHeader>
+          <CardContent className="space-y-4">
             <ul className="space-y-3">
-              <Item title="Shows, Episodes, Sequences">
-                The optional hierarchy above individual shots, each with its own auto-generated code (e.g. EP01,
-                SQ010).
-              </Item>
               <Item title="Members">
-                Who's staffed on the project and in what role — Director, Producer, Supervisor, Artist,
-                Coordinator, or Client Liaison.
+                Click <span className="font-medium text-foreground">+ Add member</span>, choose an Employee and a
+                Role (Director, Producer, Supervisor, Artist, Coordinator, or Client Liaison), then{" "}
+                <span className="font-medium text-foreground">Add</span>. Each row has its own{" "}
+                <span className="font-medium text-foreground">Remove</span> button.
               </Item>
-              <Item title="Milestones, Deliverables & Budget">
-                Each shown as its own tab on the project, with the Budget tab pulling live totals from the
-                company's Budget module.
+              <Item title="Milestones">
+                Click <span className="font-medium text-foreground">+ Milestone</span>, fill in Name and Due date,
+                then <span className="font-medium text-foreground">Create</span>. Edit or delete from the row's{" "}
+                <span className="font-medium text-foreground">⋯</span> menu.
               </Item>
-              <Item title="Client portal access">
-                A per-project toggle that lets a linked client see shots and versions explicitly marked
-                client-visible — nothing is shared by default.
+              <Item title="Deliverables">
+                Click <span className="font-medium text-foreground">+ Deliverable</span>, fill in Name and an
+                optional Due date, then <span className="font-medium text-foreground">Create</span>. Status
+                (Pending, In Progress, Ready, Delivered, Rejected) is a dropdown right on the row; edit or delete
+                from its <span className="font-medium text-foreground">⋯</span> menu.
+              </Item>
+              <Item title="Budget">
+                Read-only here — shows Total, Allocated, Spent, and Remaining once a budget from Finance is linked
+                to the project.
               </Item>
             </ul>
           </CardContent>
@@ -619,96 +792,126 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={Film} kicker="Production — Shots" title="The shot grid" />
+            <SectionHeader icon={Film} kicker="Production — Shots" title="Adding a shot" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to Production → Shots, pick a Project and optionally a sequence filter, then click + New shot.">
+              Opens a dialog.
+            </Step>
+            <Step n={2} title="Pick the Sequence it belongs to and its Shot number, then click Create.">
+              Its code (e.g. SH010) and full display code — computed from a per-company configurable naming
+              format, default <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{"{episode}_{sequence}_{shot}"}</code>,
+              e.g. EP01_SQ010_SH010 — are both generated automatically.
+            </Step>
             <p className="text-sm text-muted-foreground">
-              A shot's full code is computed from a per-company configurable naming format (default{" "}
-              <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{"{episode}_{sequence}_{shot}"}</code>,
-              e.g. EP01_SQ010_SH010) — not hard-coded to one studio's convention.
+              Click a shot's code to open it. From there, its own{" "}
+              <span className="font-medium text-foreground">⋯</span> menu (next to the status/risk badges) has{" "}
+              <span className="font-medium text-foreground">Edit</span> (description, frame end) and{" "}
+              <span className="font-medium text-foreground">Delete</span>. The{" "}
+              <span className="font-medium text-foreground">Visible to client portal</span> toggle controls
+              whether a linked client can see this specific shot.
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={Shapes} kicker="Production — Assets" title="Characters, props, environments & rigs" />
+            <SectionHeader icon={Shapes} kicker="Production — Assets" title="Adding an asset" />
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to Production → Assets, pick a Project, then click + New asset.">
+              Opens a dialog.
+            </Step>
+            <Step n={2} title="Fill in Name and Category (Character, Prop, Environment, Vehicle, Rig, Effect, or Other), then click Create.">
               Production Assets are tracked separately from IT and Administrative assets, since they follow a
-              creative build pipeline instead of a physical inventory one.
-            </p>
+              creative build pipeline instead of a physical inventory one. Its own detail page works the same way
+              as a shot's — Tasks, Versions, and an <span className="font-medium text-foreground">⋯</span> menu for
+              Edit/Delete.
+            </Step>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={ListChecks} kicker="Production — Tasks" title="Task board & dependencies" />
+            <SectionHeader icon={ListChecks} kicker="Production — Tasks" title="Tasks, the board, and dependencies" />
           </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              <Item title="Task Board">
-                A Kanban board — drag a card between Not Started, In Progress, Pending Review, Changes Requested,
-                Approved, and Completed.
-              </Item>
-              <Item title="Dependencies">
-                A Finish-to-Start dependency actually blocks the dependent task from starting until its
-                predecessor is completed or approved — not just a visual hint.
-              </Item>
-              <Item title="Task Types">
-                A per-company configurable pipeline step list (Modeling, Rigging, Layout, Animation, FX, Lighting,
-                Compositing by default).
-              </Item>
-            </ul>
+          <CardContent className="space-y-4">
+            <Step n={1} title="From a shot or asset's own page, click + Task.">
+              Fill in Name, a Task type (Modeling, Rigging, Layout, Animation, FX, Lighting, Compositing — the list
+              is configurable per company), and an optional Assignee, then click{" "}
+              <span className="font-medium text-foreground">Create</span>.
+            </Step>
+            <Step n={2} title="Change its status from the dropdown right on the row, or open its ⋯ menu to Edit the name/assignee or Delete it.">
+              Statuses run Not Started → Ready → In Progress → Pending Review → Changes Requested/Approved →
+              Completed, plus On Hold.
+            </Step>
+            <Step n={3} title="On the Task Board (Production → Tasks), drag a card between columns to change its status.">
+              A small trash icon on each card deletes it directly, with a confirmation. A Finish-to-Start
+              dependency actually blocks a card from moving into an active status until its predecessor task is
+              Completed or Approved — dragging it too early shows an error toast instead of moving it.
+            </Step>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={GitBranch} kicker="Production — Reviews" title="Frame-by-frame video review" />
-            <CardDescription>Submitting a version accepts an actual video or image file. The review player then works like a dedicated frame-accurate media tool.</CardDescription>
+            <SectionHeader icon={GitBranch} kicker="Production — Reviews" title="Submitting a version and reviewing it frame-by-frame" />
+            <CardDescription>Works like a dedicated frame-accurate media review tool, right inside the shot or asset page.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-4">
-              <Step n={1} title="Scrub frame-by-frame.">
+              <Step n={1} title="On a shot or asset's page, click + Submit version.">
+                Fill in an optional Name and Notes, then attach the actual video or image file under Media, and
+                click <span className="font-medium text-foreground">Submit</span>.
+              </Step>
+              <Step n={2} title="Click the version to expand it, then scrub frame-by-frame.">
                 Play/pause, step one frame at a time, or drag the scrubber — the frame counter reflects the shot's
                 own frame numbering (e.g. 1001 / 1051), not just the raw file.
               </Step>
-              <Step n={2} title="Draw directly on the current frame.">
-                A pen tool with color choices lets a reviewer mark up exactly what needs to change, right on top
-                of the paused frame.
+              <Step n={3} title="Click Draw to mark up the current frame.">
+                Pick a pen color, draw directly on the paused frame, write a comment below it, then click{" "}
+                <span className="font-medium text-foreground">Save</span>. The drawing and comment are saved
+                together, pinned to that exact frame number, and listed under Frame Notes — click any note there
+                to jump playback back to that frame and redraw the markup on top of it.
               </Step>
-              <Step n={3} title="Save it as a frame note.">
-                The drawing and a written comment are saved together, pinned to that exact frame number.
-              </Step>
-              <Step n={4} title="Jump back to any annotated frame.">
-                The Frame Notes list jumps playback to that frame and redraws the saved markup on top of it.
+              <Step n={4} title="Request a review: pick a person from Request review from…, then click Request.">
+                They'll see <span className="font-medium text-foreground">Approve</span> and{" "}
+                <span className="font-medium text-foreground">Request changes</span> buttons on that review —
+                deciding it automatically updates the version's and the shot's own status.
               </Step>
             </div>
             <p className="text-sm text-muted-foreground">
-              Reviews themselves are a request-and-decide flow: request a review from a specific person, who then
-              approves or requests changes — a decision that automatically updates the version's and the shot's
-              own status.
+              A trash icon next to each version's status removes it (with confirmation) — useful for a version
+              submitted by mistake.
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <SectionHeader icon={SendToBack} kicker="Production" title="Schedule, Deliverables & Resources" />
+            <SectionHeader icon={SendToBack} kicker="Production" title="Schedule, Reviews queue, Deliverables & Resources" />
+            <CardDescription>Company-wide views across every project, reached from the sidebar rather than one project's own tabs.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
-              <Item title="Schedule">Milestones across every active project in one place.</Item>
+              <Item title="Schedule">
+                Every milestone across every active project in one table, with its Status editable inline and a{" "}
+                <span className="font-medium text-foreground">⋯</span> menu to delete it (editing details stays on
+                the project's own Milestones tab).
+              </Item>
+              <Item title="Reviews">
+                Every version still awaiting a decision, company-wide — click{" "}
+                <span className="font-medium text-foreground">Open shot</span>/<span className="font-medium text-foreground">Open asset</span> to
+                jump straight to it and decide.
+              </Item>
               <Item title="Deliverables">
-                What's owed to the client, with due dates and delivery status, optionally linked to a specific
-                approved version.
+                Every deliverable across every project, with Status editable inline and a{" "}
+                <span className="font-medium text-foreground">⋯</span> menu for Edit/Delete right there.
               </Item>
               <Item title="Resources">
-                <span className="inline-flex items-center gap-1"><Gauge className="h-3.5 w-3.5" /></span> Team
-                workload — open task counts and estimated hours per person — cross-referenced against real HR
-                leave and attendance to show who's actually available on a given day.
+                <span className="inline-flex items-center gap-1"><Gauge className="h-3.5 w-3.5" /></span> Read-only
+                team workload — open task counts and estimated hours per person — cross-referenced against real HR
+                leave and attendance to show who's actually available today.
               </Item>
             </ul>
           </CardContent>
@@ -718,12 +921,24 @@ export default function HandbookPage() {
           <CardHeader>
             <SectionHeader icon={Clapperboard} kicker="Production" title="The Client Portal" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
               A client contact signs in at a separate portal address with their own account — this is never the
               same login path or permission model staff use, so a client can never see HR, Finance, IT, or Admin
               data, or any internal note. They see only the projects, shots, versions, and deliverables a producer
               has explicitly marked visible, and can approve or request changes on their own review.
+            </p>
+            <Step n={1} title="Go to Production → Settings → Client Access, then click + Link client account.">
+              The client must already have a Mindburst account of their own (they sign up the normal way first).
+            </Step>
+            <Step n={2} title="Fill in the Customer ID it belongs to, plus the contact's Name and Email, then click Link.">
+              Toggle a linked contact's access on or off anytime from the switch on their row.
+            </Step>
+            <p className="text-sm text-muted-foreground">
+              Then turn on <span className="font-medium text-foreground">Client portal access</span> on the
+              project itself, and mark specific shots/versions{" "}
+              <span className="font-medium text-foreground">Visible to client portal</span> — nothing reaches the
+              client until both are done.
             </p>
           </CardContent>
         </Card>
