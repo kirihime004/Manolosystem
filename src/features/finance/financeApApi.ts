@@ -66,6 +66,17 @@ export async function createSupplierBill(input: {
   return data as SupplierBill;
 }
 
+// Bridges IT Procurement into AP: pre-populates a DRAFT bill (and its line
+// items) from whatever's been received-but-not-yet-billed on a purchase
+// order, so a real supplier invoice never has to be keyed in twice.
+export async function createSupplierBillFromPurchaseOrder(input: { companyId: string; purchaseOrderId: string; billDate: string; dueDate: string }): Promise<string> {
+  const { data, error } = await supabase.rpc("create_supplier_bill_from_po", {
+    p_company_id: input.companyId, p_purchase_order_id: input.purchaseOrderId, p_bill_date: input.billDate, p_due_date: input.dueDate,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
 export async function updateSupplierBill(id: string, patch: Partial<{ dueDate: string; notes: string | null }>): Promise<void> {
   const fields: Record<string, unknown> = {};
   if (patch.dueDate !== undefined) fields.due_date = patch.dueDate;

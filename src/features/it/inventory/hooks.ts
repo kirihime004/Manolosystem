@@ -101,7 +101,11 @@ export function useDisposalMutations() {
     queryClient.invalidateQueries({ queryKey: ["inventory-dashboard-stats"] });
   };
   const create = useMutation({ mutationFn: api.createDisposal, onSuccess: invalidate });
-  return { create };
+  const postAccountingEntry = useMutation({
+    mutationFn: (input: { companyId: string; disposalId: string }) => api.postDisposalAccountingEntry(input.companyId, input.disposalId),
+    onSuccess: invalidate,
+  });
+  return { create, postAccountingEntry };
 }
 
 export function useAssetHistory(companyId: string | undefined) {

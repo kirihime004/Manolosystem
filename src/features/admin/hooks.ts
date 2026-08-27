@@ -244,6 +244,10 @@ export function useAdminAssetMutations(companyId: string | undefined, assetId?: 
       mutationFn: (input: { assetId: string; status: "DISPOSED" | "RETIRED" | "LOST" | "DAMAGED"; reason?: string }) => assetsApi.disposeAdminAsset(input.assetId, input.status, input.reason),
       onSuccess: invalidate,
     }),
+    postAccountingEntry: useMutation({
+      mutationFn: (input: { companyId: string; assetId: string }) => assetsApi.postAdminAssetDisposalEntry(input.companyId, input.assetId),
+      onSuccess: invalidate,
+    }),
   };
 }
 

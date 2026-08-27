@@ -223,6 +223,7 @@ export function useSupplierBillMutations(companyId: string | undefined) {
     invalidateList();
   };
   const create = useMutation({ mutationFn: apApi.createSupplierBill, onSuccess: invalidateList });
+  const createFromPurchaseOrder = useMutation({ mutationFn: apApi.createSupplierBillFromPurchaseOrder, onSuccess: invalidateList });
   const update = useMutation({
     mutationFn: (input: { id: string; patch: Parameters<typeof apApi.updateSupplierBill>[1] }) => apApi.updateSupplierBill(input.id, input.patch),
     onSuccess: (_d, vars) => invalidateOne(vars.id),
@@ -246,7 +247,7 @@ export function useSupplierBillMutations(companyId: string | undefined) {
     mutationFn: apApi.recordSupplierPayment,
     onSuccess: (_d, vars) => invalidateOne(vars.supplierBillId),
   });
-  return { create, update, addItem, deleteItem, submit, decideApproval, voidBill, recordPayment };
+  return { create, createFromPurchaseOrder, update, addItem, deleteItem, submit, decideApproval, voidBill, recordPayment };
 }
 
 // ---------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Armchair, MoreHorizontal } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -18,11 +19,24 @@ import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
 import type { AdminAsset } from "@/types/database";
 
+const DISPOSED_STATUSES = ["DISPOSED", "RETIRED", "LOST", "DAMAGED"];
+
 export default function AdminAssetsPage() {
+  const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
   const { data: assets, isLoading } = useAdminAssets(company?.id);
   const { data: employees } = useEmployees(company?.id);
-  const { create, reassign, dispose } = useAdminAssetMutations(company?.id);
+  const { create, reassign, dispose, postAccountingEntry } = useAdminAssetMutations(company?.id);
+
+  const handlePostEntry = async (asset: AdminAsset) => {
+    if (!company) return;
+    try {
+      await postAccountingEntry.mutateAsync({ companyId: company.id, assetId: asset.id });
+      toast.success("Accounting entry posted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to post accounting entry");
+    }
+  };
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -96,7 +110,7 @@ export default function AdminAssetsPage() {
           <EmptyState icon={Armchair} title="No assets yet" description="Register your first administrative asset." />
         ) : (
           <Table>
-            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead>Assigned to</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead>Assigned to</TableHead><TableHead>Accounting</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {assets.map((a) => (
                 <TableRow key={a.id}>
@@ -105,6 +119,21 @@ export default function AdminAssetsPage() {
                   <TableCell className="text-muted-foreground">{a.category ?? "—"}</TableCell>
                   <TableCell><AdminStatusBadge status={a.status} /></TableCell>
                   <TableCell>{a.assigned_to ? employeeMap.get(a.assigned_to) ?? "—" : "—"}</TableCell>
+                  <TableCell>
+                    {!DISPOSED_STATUSES.includes(a.status) ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : a.disposal_journal_entry_id ? (
+                      <Link to={`/c/${companySlug}/finance/accounting/journals/${a.disposal_journal_entry_id}`} className="text-xs text-foreground underline underline-offset-2">
+                        View entry
+                      </Link>
+                    ) : (
+                      <Can permission={PERMISSIONS.FINANCE_JOURNALS_POST}>
+                        <Button size="sm" variant="outline" onClick={() => handlePostEntry(a)} disabled={postAccountingEntry.isPending}>
+                          Post entry
+                        </Button>
+                      </Can>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Can permission={[PERMISSIONS.ADMIN_ASSETS_ASSIGN, PERMISSIONS.ADMIN_ASSETS_DISPOSE]}>
                       <DropdownMenu>

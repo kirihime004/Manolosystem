@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Send, PackageCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Send, PackageCheck, Receipt } from "lucide-react";
 import { usePurchaseOrder, usePurchaseOrderMutations } from "@/features/it/procurement/hooks";
+import { useSupplierBillMutations } from "@/features/finance/hooks";
+import { useCompany } from "@/lib/tenant/useCompany";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,8 +32,11 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 export default function PurchaseOrderDetailPage() {
   const { companySlug, poId } = useParams<{ companySlug: string; poId: string }>();
+  const navigate = useNavigate();
+  const { company } = useCompany();
   const { data: po, isLoading } = usePurchaseOrder(poId);
   const { decideApproval, updateStatus, receiveDelivery } = usePurchaseOrderMutations(poId);
+  const { createFromPurchaseOrder } = useSupplierBillMutations(company?.id);
 
   const [decisionOpen, setDecisionOpen] = useState<{ approvalId: string; decision: "APPROVED" | "REJECTED" } | null>(null);
   const [comments, setComments] = useState("");
@@ -40,6 +45,10 @@ export default function PurchaseOrderDetailPage() {
   const [tracking, setTracking] = useState("");
   const [receiveNotes, setReceiveNotes] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
+
+  const [billOpen, setBillOpen] = useState(false);
+  const [billDate, setBillDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(() => new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10));
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /></div>;
   if (!po) return <ErrorScreen title="Purchase order not found" description="This purchase order does not exist or you do not have access to it." />;
@@ -65,6 +74,19 @@ export default function PurchaseOrderDetailPage() {
       toast.success("Sent to supplier");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update status");
+    }
+  };
+
+  const handleCreateBill = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!company || !po) return;
+    try {
+      const billId = await createFromPurchaseOrder.mutateAsync({ companyId: company.id, purchaseOrderId: po.id, billDate, dueDate });
+      toast.success("Draft bill created from received quantities — review before submitting for approval");
+      setBillOpen(false);
+      navigate(`/c/${companySlug}/finance/ap/bills/${billId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create bill");
     }
   };
 
@@ -117,6 +139,11 @@ export default function PurchaseOrderDetailPage() {
           {openItems.length > 0 && ["SENT_TO_SUPPLIER", "ACKNOWLEDGED", "PARTIALLY_RECEIVED"].includes(po.status) && (
             <Can permission={PERMISSIONS.IT_PROCUREMENT_RECEIVE}>
               <Button onClick={() => setReceiveOpen(true)}><PackageCheck className="h-3.5 w-3.5" />Receive delivery</Button>
+            </Can>
+          )}
+          {["RECEIVED", "PARTIALLY_RECEIVED"].includes(po.status) && (
+            <Can permission={PERMISSIONS.FINANCE_AP_CREATE}>
+              <Button variant="outline" onClick={() => setBillOpen(true)}><Receipt className="h-3.5 w-3.5" />Create bill from PO</Button>
             </Can>
           )}
         </div>
@@ -257,6 +284,20 @@ export default function PurchaseOrderDetailPage() {
             <div className="space-y-1.5"><Label>Tracking number</Label><Input value={tracking} onChange={(e) => setTracking(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={receiveNotes} onChange={(e) => setReceiveNotes(e.target.value)} /></div>
             <DialogFooter><Button type="submit" disabled={receiveDelivery.isPending}>{receiveDelivery.isPending ? "Saving…" : "Confirm receipt"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={billOpen} onOpenChange={setBillOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create bill from purchase order</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreateBill} className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Creates a draft bill pre-filled with whatever's been received but not already billed on this PO. Review it against the supplier's real invoice before submitting for approval.
+            </p>
+            <div className="space-y-1.5"><Label>Bill date</Label><Input type="date" required value={billDate} onChange={(e) => setBillDate(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Due date</Label><Input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+            <DialogFooter><Button type="submit" disabled={createFromPurchaseOrder.isPending}>{createFromPurchaseOrder.isPending ? "Creating…" : "Create draft bill"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

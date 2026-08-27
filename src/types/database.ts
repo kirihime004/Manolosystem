@@ -267,6 +267,7 @@ export interface Disposal {
   currency: string;
   notes: string | null;
   attachment_path: string | null;
+  journal_entry_id: string | null;
   created_at: string;
 }
 
@@ -2186,6 +2187,7 @@ export interface AdminAsset {
   department_id: string | null;
   notes: string | null;
   created_by: string | null;
+  disposal_journal_entry_id: string | null;
   created_at: string;
   updated_at: string;
 }

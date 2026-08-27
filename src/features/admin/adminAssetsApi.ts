@@ -13,6 +13,15 @@ export async function getAdminAsset(id: string): Promise<AdminAsset> {
   return data as AdminAsset;
 }
 
+// Posts the write-off journal entry (debit Loss on Disposal, credit Fixed
+// Assets for the full purchase price) -- a separate, Finance-permission-
+// gated step from disposing the asset itself.
+export async function postAdminAssetDisposalEntry(companyId: string, assetId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("post_admin_asset_disposal_entry", { p_company_id: companyId, p_asset_id: assetId });
+  if (error) throw error;
+  return data as string;
+}
+
 export async function createAdminAsset(input: {
   companyId: string; name: string; category?: string | null; brand?: string | null; model?: string | null; serialNumber?: string | null;
   condition?: string | null; purchaseDate?: string | null; purchasePrice?: number | null; currencyId?: string | null; supplierId?: string | null;

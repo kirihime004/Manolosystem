@@ -547,6 +547,16 @@ export async function listDisposals(companyId: string): Promise<(Disposal & { as
   return data as (Disposal & { asset: Pick<Asset, "asset_code" | "name"> | null })[];
 }
 
+// Posts the double-entry write-off for a disposal (debit Loss/Gain on
+// Disposal + Cash if there were proceeds, credit Fixed Assets for the
+// original cost) -- a separate, Finance-permission-gated step from the
+// disposal action itself, never bundled into it.
+export async function postDisposalAccountingEntry(companyId: string, disposalId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("post_it_asset_disposal_entry", { p_company_id: companyId, p_disposal_id: disposalId });
+  if (error) throw error;
+  return data as string;
+}
+
 // ---------------------------------------------------------------------
 // Asset history (company-wide feed)
 // ---------------------------------------------------------------------
