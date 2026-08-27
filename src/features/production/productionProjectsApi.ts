@@ -57,7 +57,7 @@ export async function createProject(input: {
 export async function updateProject(id: string, patch: Partial<{
   name: string; description: string | null; status: string; directorId: string | null; producerId: string | null;
   startDate: string | null; targetEndDate: string | null; actualEndDate: string | null; notes: string | null;
-  budgetId: string | null; clientPortalEnabled: boolean;
+  budgetId: string | null; clientPortalEnabled: boolean; taskWorkflowTemplateId: string | null;
 }>): Promise<void> {
   const { error } = await supabase
     .from("production_projects")
@@ -65,7 +65,7 @@ export async function updateProject(id: string, patch: Partial<{
       name: patch.name, description: patch.description, status: patch.status, director_id: patch.directorId,
       producer_id: patch.producerId, start_date: patch.startDate, target_end_date: patch.targetEndDate,
       actual_end_date: patch.actualEndDate, notes: patch.notes, budget_id: patch.budgetId,
-      client_portal_enabled: patch.clientPortalEnabled,
+      client_portal_enabled: patch.clientPortalEnabled, task_workflow_template_id: patch.taskWorkflowTemplateId,
     })
     .eq("id", id);
   if (error) throw error;

@@ -6,8 +6,11 @@ import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useProject, useProjectMutations, useShows, useEpisodes, useSequences, useHierarchyMutations,
   useProjectMembers, useProjectMemberMutations, useMilestones, useMilestoneMutations,
-  useDeliverables, useDeliverableMutations, useProductionBudgetSummary,
+  useDeliverables, useDeliverableMutations, useProductionBudgetSummary, useWorkflowTemplates,
+  useProjectInsights,
 } from "@/features/production/hooks";
+import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
+import { DonutChart, StackedBarChart, HorizontalBarChart, statusChartColor } from "@/components/production/charts/ProductionCharts";
 import { useEmployees } from "@/features/hr/hooks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,11 +82,15 @@ export default function ProjectDetailPage() {
   const deliverableMutations = useDeliverableMutations(projectId);
 
   const { data: budgetSummary } = useProductionBudgetSummary(projectId);
+  const { data: insights } = useProjectInsights(projectId);
+  const { data: workflowTemplates } = useWorkflowTemplates(company?.id);
+  const taskWorkflowTemplates = (workflowTemplates ?? []).filter((w) => w.entity_type === "TASK");
 
   // Overview: edit + delete project
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
+  const [projectTaskWorkflowId, setProjectTaskWorkflowId] = useState("");
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
 
   // Shows
@@ -136,12 +143,16 @@ export default function ProjectDetailPage() {
   const openEditProject = () => {
     setProjectName(project.name);
     setProjectDescription(project.description ?? "");
+    setProjectTaskWorkflowId(project.task_workflow_template_id ?? "");
     setEditProjectOpen(true);
   };
   const handleSaveProject = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await update.mutateAsync({ id: project.id, patch: { name: projectName, description: projectDescription || null } });
+      await update.mutateAsync({
+        id: project.id,
+        patch: { name: projectName, description: projectDescription || null, taskWorkflowTemplateId: projectTaskWorkflowId || null },
+      });
       toast.success("Project updated");
       setEditProjectOpen(false);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update project"); }
@@ -306,6 +317,7 @@ export default function ProjectDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="hierarchy">Episodes & Sequences</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
@@ -337,6 +349,52 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
               </Can>
+            </CardContent>
+          </Card>
+
+          <CustomFieldsSection companyId={company?.id} entityType="PROJECT" entityId={project.id} />
+        </TabsContent>
+
+        <TabsContent value="insights" className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-2">
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="mb-4 text-sm font-semibold text-foreground">Task Status</h3>
+              <DonutChart
+                data={(insights?.task_status_counts ?? []).map((s) => ({ label: s.status, value: s.count, color: statusChartColor(s.status) }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="mb-4 text-sm font-semibold text-foreground">Version Status</h3>
+              <DonutChart
+                data={(insights?.version_status_counts ?? []).map((s) => ({ label: s.status, value: s.count, color: statusChartColor(s.status) }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardContent className="pt-6">
+              <h3 className="mb-4 text-sm font-semibold text-foreground">Tasks Per Task Type</h3>
+              {(() => {
+                const rows = insights?.tasks_per_type ?? [];
+                const statuses = [...new Set(rows.map((r) => r.status))];
+                const types = [...new Set(rows.map((r) => r.task_type))];
+                const series = statuses.map((s) => ({ key: s, label: s.replace(/_/g, " "), color: statusChartColor(s) }));
+                const categories = types.map((t) => ({
+                  label: t,
+                  segments: statuses.map((s) => ({ key: s, value: rows.find((r) => r.task_type === t && r.status === s)?.count ?? 0, color: statusChartColor(s) })),
+                }));
+                return <StackedBarChart categories={categories} series={series} />;
+              })()}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardContent className="pt-6">
+              <h3 className="mb-4 text-sm font-semibold text-foreground">Versions Per Shot</h3>
+              <HorizontalBarChart data={(insights?.versions_per_shot ?? []).map((s) => ({ label: s.shot_code, value: s.count }))} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -592,6 +650,17 @@ export default function ProjectDetailPage() {
           <form onSubmit={handleSaveProject} className="space-y-3">
             <div className="space-y-1.5"><Label>Name</Label><Input required value={projectName} onChange={(e) => setProjectName(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={projectDescription} onChange={(e) => setProjectDescription(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Task workflow</Label>
+              <Select value={projectTaskWorkflowId || "__default__"} onValueChange={(v) => setProjectTaskWorkflowId(v === "__default__" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">Default (all statuses)</SelectItem>
+                  {taskWorkflowTemplates.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Controls the status options on this project's Task Board and task rows. Defined under Production &gt; Settings &gt; Workflows.</p>
+            </div>
             <DialogFooter><Button type="submit" disabled={update.isPending}>Save changes</Button></DialogFooter>
           </form>
         </DialogContent>

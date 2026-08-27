@@ -44,7 +44,8 @@ export async function listCustomFieldValues(entityType: string, entityId: string
 
 export async function setCustomFieldValue(input: {
   companyId: string; customFieldId: string; entityType: string; entityId: string; updatedBy: string;
-  valueText?: string | null; valueNumber?: number | null; valueBoolean?: boolean | null; valueDate?: string | null; valueUuid?: string | null;
+  valueText?: string | null; valueNumber?: number | null; valueBoolean?: boolean | null; valueDate?: string | null;
+  valueTimestamp?: string | null; valueUuid?: string | null; valueJson?: unknown;
 }): Promise<void> {
   const { error } = await supabase
     .from("production_custom_field_values")
@@ -52,7 +53,8 @@ export async function setCustomFieldValue(input: {
       {
         company_id: input.companyId, custom_field_id: input.customFieldId, entity_type: input.entityType, entity_id: input.entityId,
         updated_by: input.updatedBy, value_text: input.valueText ?? null, value_number: input.valueNumber ?? null,
-        value_boolean: input.valueBoolean ?? null, value_date: input.valueDate ?? null, value_uuid: input.valueUuid ?? null,
+        value_boolean: input.valueBoolean ?? null, value_date: input.valueDate ?? null, value_timestamp: input.valueTimestamp ?? null,
+        value_uuid: input.valueUuid ?? null, value_json: input.valueJson ?? null,
       },
       { onConflict: "custom_field_id,entity_id" },
     );
@@ -92,6 +94,11 @@ export async function addWorkflowStage(input: { companyId: string; workflowTempl
     .single();
   if (error) throw error;
   return data as ProductionWorkflowStage;
+}
+
+export async function deleteWorkflowStage(id: string): Promise<void> {
+  const { error } = await supabase.from("production_workflow_stages").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ---------------------------------------------------------------------

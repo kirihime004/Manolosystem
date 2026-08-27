@@ -2561,6 +2561,7 @@ export interface ProductionProject {
   budget_id: string | null;
   client_portal_enabled: boolean;
   fps: number;
+  task_workflow_template_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -2856,6 +2857,7 @@ export interface ProductionCustomFieldValue {
   value_number: number | null;
   value_boolean: boolean | null;
   value_date: string | null;
+  value_timestamp: string | null;
   value_uuid: string | null;
   value_json: unknown;
   updated_by: string | null;
@@ -2918,6 +2920,13 @@ export interface ProductionDashboardSummary {
   overdue_milestones: number;
   pending_deliverables: number;
   overdue_deliverables: number;
+}
+
+export interface ProductionProjectInsights {
+  task_status_counts: { status: string; count: number }[];
+  version_status_counts: { status: string; count: number }[];
+  tasks_per_type: { task_type: string; status: string; count: number }[];
+  versions_per_shot: { shot_code: string; count: number }[];
 }
 
 export interface ProductionWorkloadRow {

@@ -1,10 +1,16 @@
 import { supabase } from "@/lib/supabase/client";
-import type { ProductionDashboardSummary, ProductionHistoryEntry } from "@/types/database";
+import type { ProductionDashboardSummary, ProductionHistoryEntry, ProductionProjectInsights } from "@/types/database";
 
 export async function getProductionDashboardSummary(companyId: string): Promise<ProductionDashboardSummary> {
   const { data, error } = await supabase.rpc("get_production_dashboard_summary", { p_company_id: companyId });
   if (error) throw error;
   return data?.[0] as ProductionDashboardSummary;
+}
+
+export async function getProjectInsights(projectId: string): Promise<ProductionProjectInsights> {
+  const { data, error } = await supabase.rpc("get_production_project_insights", { p_project_id: projectId });
+  if (error) throw error;
+  return data as ProductionProjectInsights;
 }
 
 export async function listHistory(resourceType: string, resourceId: string): Promise<ProductionHistoryEntry[]> {

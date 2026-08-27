@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useProductionSettings, useTaskTypes, useTaskTypeMutations, useCustomFields, useCustomFieldMutations,
-  useWorkflowTemplates, useWorkflowMutations, useClientUsers, useClientUserMutations,
+  useWorkflowTemplates, useWorkflowStages, useWorkflowMutations, useClientUsers, useClientUserMutations,
 } from "@/features/production/hooks";
 import { updateProductionSettings } from "@/features/production/productionProjectsApi";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,13 +14,25 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import { cn } from "@/lib/utils";
+import type { ProductionWorkflowStage } from "@/types/database";
 
 const FIELD_TYPES = ["TEXT", "TEXTAREA", "NUMBER", "BOOLEAN", "DATE", "DATETIME", "DROPDOWN", "MULTI_SELECT", "EMPLOYEE", "PROJECT", "SHOT", "TASK", "CURRENCY"];
 const ENTITY_TYPES = ["PROJECT", "SHOT", "ASSET", "TASK"];
+
+const STATUS_OPTIONS_BY_ENTITY: Record<string, string[]> = {
+  TASK: ["NOT_STARTED", "READY", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"],
+  SHOT: ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD", "OMITTED"],
+  ASSET: ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"],
+};
 
 export default function ProductionSettingsPage() {
   const { company } = useCompany();
@@ -38,12 +51,20 @@ export default function ProductionSettingsPage() {
   const [fieldLabel, setFieldLabel] = useState("");
   const [fieldEntityType, setFieldEntityType] = useState("SHOT");
   const [fieldType, setFieldType] = useState("TEXT");
+  const [fieldOptionsText, setFieldOptionsText] = useState("");
 
   const { data: workflowTemplates } = useWorkflowTemplates(company?.id);
   const workflowMutations = useWorkflowMutations(company?.id);
   const [workflowOpen, setWorkflowOpen] = useState(false);
   const [workflowName, setWorkflowName] = useState("");
   const [workflowEntityType, setWorkflowEntityType] = useState("TASK");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const selectedTemplate = (workflowTemplates ?? []).find((w) => w.id === selectedTemplateId) ?? null;
+  const { data: workflowStages } = useWorkflowStages(selectedTemplateId ?? undefined);
+  const [stageOpen, setStageOpen] = useState(false);
+  const [stageName, setStageName] = useState("");
+  const [stageStatus, setStageStatus] = useState("NOT_STARTED");
+  const [stageDeleteTarget, setStageDeleteTarget] = useState<ProductionWorkflowStage | null>(null);
 
   const { data: clientUsers } = useClientUsers(company?.id);
   const clientUserMutations = useClientUserMutations(company?.id);
@@ -71,13 +92,18 @@ export default function ProductionSettingsPage() {
 
   const handleCreateField = async (e: FormEvent) => {
     e.preventDefault();
+    const options = fieldOptionsText
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+      .map((o) => ({ value: o, label: o }));
     try {
       await customFieldMutations.create.mutateAsync({
         companyId: company!.id, entityType: fieldEntityType, fieldKey: fieldLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-        label: fieldLabel, fieldType, sortOrder: (customFields?.length ?? 0) + 1,
+        label: fieldLabel, fieldType, sortOrder: (customFields?.length ?? 0) + 1, options,
       });
       toast.success("Custom field created");
-      setFieldOpen(false); setFieldLabel("");
+      setFieldOpen(false); setFieldLabel(""); setFieldOptionsText("");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create custom field"); }
   };
 
@@ -88,6 +114,28 @@ export default function ProductionSettingsPage() {
       toast.success("Workflow template created");
       setWorkflowOpen(false); setWorkflowName("");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create workflow template"); }
+  };
+
+  const handleCreateStage = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedTemplate) return;
+    try {
+      await workflowMutations.addStage.mutateAsync({
+        companyId: company!.id, workflowTemplateId: selectedTemplate.id, name: stageName,
+        sortOrder: (workflowStages?.length ?? 0) + 1, mapsToStatus: stageStatus,
+      });
+      toast.success("Stage added");
+      setStageOpen(false); setStageName("");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to add stage"); }
+  };
+
+  const handleDeleteStage = async () => {
+    if (!stageDeleteTarget) return;
+    try {
+      await workflowMutations.deleteStage.mutateAsync({ id: stageDeleteTarget.id, workflowTemplateId: stageDeleteTarget.workflow_template_id });
+      toast.success("Stage deleted");
+      setStageDeleteTarget(null);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete stage"); }
   };
 
   const handleLinkClient = async (e: FormEvent) => {
@@ -196,6 +244,12 @@ export default function ProductionSettingsPage() {
                         <SelectContent>{FIELD_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
+                    {(fieldType === "DROPDOWN" || fieldType === "MULTI_SELECT") && (
+                      <div className="space-y-1.5">
+                        <Label>Options</Label>
+                        <Input placeholder="Comma-separated, e.g. Low, Medium, High" value={fieldOptionsText} onChange={(e) => setFieldOptionsText(e.target.value)} />
+                      </div>
+                    )}
                     <DialogFooter><Button type="submit" disabled={customFieldMutations.create.isPending}>Create</Button></DialogFooter>
                   </form>
                 </DialogContent>
@@ -210,7 +264,7 @@ export default function ProductionSettingsPage() {
                   <TableRow key={f.id}>
                     <TableCell className="font-medium">{f.label}</TableCell>
                     <TableCell className="text-muted-foreground">{f.entity_type}</TableCell>
-                    <TableCell className="text-muted-foreground">{f.field_type}</TableCell>
+                    <TableCell className="text-muted-foreground">{f.field_type}{f.options.length > 0 ? ` (${f.options.map((o) => o.label).join(", ")})` : ""}</TableCell>
                   </TableRow>
                 ))}
                 {(!customFields || customFields.length === 0) && (
@@ -248,7 +302,14 @@ export default function ProductionSettingsPage() {
               <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Entity</TableHead></TableRow></TableHeader>
               <TableBody>
                 {(workflowTemplates ?? []).map((w) => (
-                  <TableRow key={w.id}>
+                  <TableRow
+                    key={w.id}
+                    onClick={() => {
+                      setSelectedTemplateId(w.id);
+                      setStageStatus(STATUS_OPTIONS_BY_ENTITY[w.entity_type]?.[0] ?? "NOT_STARTED");
+                    }}
+                    className={cn("cursor-pointer", selectedTemplateId === w.id && "bg-accent")}
+                  >
                     <TableCell className="font-medium">{w.name}</TableCell>
                     <TableCell className="text-muted-foreground">{w.entity_type}</TableCell>
                   </TableRow>
@@ -259,6 +320,76 @@ export default function ProductionSettingsPage() {
               </TableBody>
             </Table>
           </div>
+
+          {selectedTemplate && (
+            <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Stages — {selectedTemplate.name}</h3>
+                  <p className="text-xs text-muted-foreground">The ordered steps this workflow moves through, each tied to a status.</p>
+                </div>
+                <Can permission={PERMISSIONS.PRODUCTION_WORKFLOWS_MANAGE}>
+                  <Dialog open={stageOpen} onOpenChange={setStageOpen}>
+                    <DialogTrigger asChild><Button size="sm">+ Stage</Button></DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>New stage</DialogTitle></DialogHeader>
+                      <form onSubmit={handleCreateStage} className="space-y-3">
+                        <div className="space-y-1.5"><Label>Name</Label><Input required value={stageName} onChange={(e) => setStageName(e.target.value)} /></div>
+                        <div className="space-y-1.5">
+                          <Label>Maps to status</Label>
+                          <Select value={stageStatus} onValueChange={setStageStatus}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {(STATUS_OPTIONS_BY_ENTITY[selectedTemplate.entity_type] ?? []).map((s) => (
+                                <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <DialogFooter><Button type="submit" disabled={workflowMutations.addStage.isPending}>Add stage</Button></DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </Can>
+              </div>
+
+              <Table>
+                <TableHeader><TableRow><TableHead className="w-10">#</TableHead><TableHead>Stage</TableHead><TableHead>Maps to status</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+                <TableBody>
+                  {(workflowStages ?? []).map((s, i) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{s.maps_to_status.replace(/_/g, " ")}</TableCell>
+                      <TableCell>
+                        <Can permission={PERMISSIONS.PRODUCTION_WORKFLOWS_MANAGE}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStageDeleteTarget(s)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </Can>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(!workflowStages || workflowStages.length === 0) && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">No stages yet — add the first one above.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <AlertDialog open={!!stageDeleteTarget} onOpenChange={(open) => !open && setStageDeleteTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete stage "{stageDeleteTarget?.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteStage}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         <TabsContent value="client-access" className="space-y-4 pt-4">

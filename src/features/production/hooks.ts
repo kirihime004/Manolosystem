@@ -21,6 +21,10 @@ export function useProductionHistory(resourceType: string, resourceId: string | 
   return useQuery({ queryKey: ["production-history", resourceType, resourceId], queryFn: () => dashboardApi.listHistory(resourceType, resourceId!), enabled: !!resourceId });
 }
 
+export function useProjectInsights(projectId: string | undefined) {
+  return useQuery({ queryKey: ["production-project-insights", projectId], queryFn: () => dashboardApi.getProjectInsights(projectId!), enabled: !!projectId });
+}
+
 // ---------------------------------------------------------------------
 // Settings + Projects
 // ---------------------------------------------------------------------
@@ -398,7 +402,34 @@ export function useWorkflowMutations(companyId: string | undefined) {
     mutationFn: settingsApi.addWorkflowStage,
     onSuccess: (_d, vars) => queryClient.invalidateQueries({ queryKey: ["production-workflow-stages", vars.workflowTemplateId] }),
   });
-  return { createTemplate, addStage };
+  const deleteStage = useMutation({
+    mutationFn: (vars: { id: string; workflowTemplateId: string }) => settingsApi.deleteWorkflowStage(vars.id),
+    onSuccess: (_d, vars) => queryClient.invalidateQueries({ queryKey: ["production-workflow-stages", vars.workflowTemplateId] }),
+  });
+  return { createTemplate, addStage, deleteStage };
+}
+
+// A project's task status options come from its chosen TASK workflow
+// template's stages when one is set (each stage becomes one option,
+// labeled by the stage's own name but writing its mapped status), or from
+// `fallback` otherwise -- this is how a project can adopt a custom pipeline
+// without changing what an unconfigured project sees.
+export function useProjectTaskStatusOptions(
+  project: { task_workflow_template_id: string | null } | undefined,
+  fallback: { status: string; label: string }[],
+): { status: string; label: string }[] {
+  const templateId = project?.task_workflow_template_id ?? undefined;
+  const { data: stages } = useWorkflowStages(templateId);
+  if (!templateId) return fallback;
+  if (!stages) return fallback;
+  const seen = new Set<string>();
+  const options: { status: string; label: string }[] = [];
+  for (const s of [...stages].sort((a, b) => a.sort_order - b.sort_order)) {
+    if (seen.has(s.maps_to_status)) continue;
+    seen.add(s.maps_to_status);
+    options.push({ status: s.maps_to_status, label: s.name });
+  }
+  return options.length > 0 ? options : fallback;
 }
 
 export function useClientUsers(companyId: string | undefined, customerId?: string) {

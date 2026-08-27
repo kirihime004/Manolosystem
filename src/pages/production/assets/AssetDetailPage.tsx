@@ -8,8 +8,10 @@ import { useMyEmployeeRecord, useEmployees } from "@/features/hr/hooks";
 import {
   useProject, useAsset, useAssetMutations, useTasks, useTaskMutations, useTaskTypes,
   useVersions, useVersionMutations, useReviews, useReviewMutations, useNotes, useNoteMutations,
+  useProjectTaskStatusOptions,
 } from "@/features/production/hooks";
 import { FrameReviewPlayer } from "@/components/production/FrameReviewPlayer";
+import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,6 +33,7 @@ import { PERMISSIONS } from "@/lib/permissions/keys";
 import type { AnnotationStroke, ProductionTask, ProductionVersion } from "@/types/database";
 
 const TASK_STATUSES = ["NOT_STARTED", "READY", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"];
+const DEFAULT_TASK_STATUS_OPTIONS = TASK_STATUSES.map((s) => ({ status: s, label: s.replace(/_/g, " ") }));
 
 export default function AssetDetailPage() {
   const { assetId } = useParams<{ assetId: string }>();
@@ -74,8 +77,14 @@ export default function AssetDetailPage() {
   const [deleteTaskTarget, setDeleteTaskTarget] = useState<ProductionTask | null>(null);
   const [editTaskName, setEditTaskName] = useState("");
   const [editTaskAssignee, setEditTaskAssignee] = useState("");
+  const [editTaskStartDate, setEditTaskStartDate] = useState("");
+  const [editTaskDueDate, setEditTaskDueDate] = useState("");
+  const [editTaskEstimatedHours, setEditTaskEstimatedHours] = useState("");
+  const [editTaskActualHours, setEditTaskActualHours] = useState("");
 
   const [deleteVersionTarget, setDeleteVersionTarget] = useState<ProductionVersion | null>(null);
+
+  const taskStatusOptions = useProjectTaskStatusOptions(project, DEFAULT_TASK_STATUS_OPTIONS);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!asset) return <ErrorScreen title="Asset not found" description="This asset does not exist or you do not have access." />;
@@ -147,12 +156,24 @@ export default function AssetDetailPage() {
     setEditingTask(t);
     setEditTaskName(t.name);
     setEditTaskAssignee(t.assigned_to ?? "");
+    setEditTaskStartDate(t.start_date ?? "");
+    setEditTaskDueDate(t.due_date ?? "");
+    setEditTaskEstimatedHours(t.estimated_hours != null ? String(t.estimated_hours) : "");
+    setEditTaskActualHours(t.actual_hours != null ? String(t.actual_hours) : "");
   };
   const handleSaveTask = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingTask) return;
     try {
-      await taskMutations.update.mutateAsync({ id: editingTask.id, patch: { name: editTaskName, assignedTo: editTaskAssignee || null } });
+      await taskMutations.update.mutateAsync({
+        id: editingTask.id,
+        patch: {
+          name: editTaskName, assignedTo: editTaskAssignee || null,
+          startDate: editTaskStartDate || null, dueDate: editTaskDueDate || null,
+          estimatedHours: editTaskEstimatedHours ? Number(editTaskEstimatedHours) : null,
+          actualHours: editTaskActualHours ? Number(editTaskActualHours) : null,
+        },
+      });
       toast.success("Task updated");
       setEditingTask(null);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update task"); }
@@ -214,6 +235,8 @@ export default function AssetDetailPage() {
         </div>
       </Can>
 
+      <CustomFieldsSection companyId={company?.id} entityType="ASSET" entityId={asset.id} projectId={asset.project_id} />
+
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Tasks</h3>
@@ -249,7 +272,12 @@ export default function AssetDetailPage() {
                     <Can permission={PERMISSIONS.PRODUCTION_TASKS_UPDATE} fallback={<ProductionStatusBadge status={t.status} />}>
                       <Select value={t.status} onValueChange={(v) => taskMutations.updateStatus.mutate({ id: t.id, status: v })}>
                         <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>{TASK_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                          {taskStatusOptions.some((o) => o.status === t.status)
+                            ? null
+                            : <SelectItem value={t.status}>{t.status.replace(/_/g, " ")}</SelectItem>}
+                          {taskStatusOptions.map((o) => <SelectItem key={o.status} value={o.status}>{o.label}</SelectItem>)}
+                        </SelectContent>
                       </Select>
                     </Can>
                   </TableCell>
@@ -383,8 +411,17 @@ export default function AssetDetailPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>Start date</Label><Input type="date" value={editTaskStartDate} onChange={(e) => setEditTaskStartDate(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Due date</Label><Input type="date" value={editTaskDueDate} onChange={(e) => setEditTaskDueDate(e.target.value)} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>Bid (hours)</Label><Input type="number" min="0" step="0.5" value={editTaskEstimatedHours} onChange={(e) => setEditTaskEstimatedHours(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Time logged (hours)</Label><Input type="number" min="0" step="0.5" value={editTaskActualHours} onChange={(e) => setEditTaskActualHours(e.target.value)} /></div>
+            </div>
             <DialogFooter><Button type="submit" disabled={taskMutations.update.isPending}>Save changes</Button></DialogFooter>
           </form>
+          {editingTask && <CustomFieldsSection companyId={company?.id} entityType="TASK" entityId={editingTask.id} projectId={asset.project_id} />}
         </DialogContent>
       </Dialog>
 
