@@ -12,7 +12,8 @@ export type ModuleKey =
   | "ADMIN" | "ADMIN_REQUESTS" | "ADMIN_FACILITIES" | "ADMIN_SUPPLIES" | "ADMIN_ASSETS"
   | "ADMIN_VEHICLES" | "ADMIN_TRAVEL" | "ADMIN_VISITORS" | "ADMIN_EVENTS" | "ADMIN_CONTRACTS" | "ADMIN_COMMS"
   | "PRODUCTION" | "PRODUCTION_PROJECTS" | "PRODUCTION_SHOTS" | "PRODUCTION_ASSETS" | "PRODUCTION_TASKS"
-  | "PRODUCTION_SCHEDULE" | "PRODUCTION_VERSIONS" | "PRODUCTION_DELIVERABLES" | "PRODUCTION_RESOURCES";
+  | "PRODUCTION_SCHEDULE" | "PRODUCTION_VERSIONS" | "PRODUCTION_DELIVERABLES" | "PRODUCTION_RESOURCES"
+  | "AI";
 export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type TicketStatus =
   | "OPEN"
@@ -2945,4 +2946,135 @@ export interface ProductionBudgetSummary {
   spent: number;
   remaining: number;
   currency_code: string;
+}
+
+// ---------------------------------------------------------------------
+// Phase 8: AI + Analytics + Cross-Department Intelligence
+// ---------------------------------------------------------------------
+export type AiMessageRole = "USER" | "ASSISTANT" | "SYSTEM" | "TOOL";
+export type AiRequestStatus = "SUCCESS" | "ERROR" | "RATE_LIMITED" | "LIMIT_EXCEEDED";
+export type AiHealthStatus = "GREEN" | "YELLOW" | "RED";
+
+export interface AiConversation {
+  id: string;
+  company_id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiToolCallRecord {
+  tool: string;
+  arguments: Record<string, unknown>;
+  result: unknown;
+}
+
+export interface AiMessage {
+  id: string;
+  conversation_id: string;
+  company_id: string;
+  role: AiMessageRole;
+  content: string;
+  tool_calls: AiToolCallRecord[] | null;
+  created_at: string;
+}
+
+export interface AiRequestRecord {
+  id: string;
+  company_id: string;
+  user_id: string;
+  conversation_id: string | null;
+  request_type: "CHAT" | "SUMMARY" | "ANALYSIS";
+  provider: string;
+  model: string | null;
+  requested_model: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  latency_ms: number | null;
+  status: AiRequestStatus;
+  error_type: string | null;
+  created_at: string;
+}
+
+export interface AiCompanySettings {
+  company_id: string;
+  enabled: boolean;
+  default_model: string | null;
+  monthly_token_limit: number | null;
+  monthly_request_limit: number | null;
+  retention_days: number;
+  updated_at: string;
+}
+
+export interface AiModuleHealth {
+  status: AiHealthStatus;
+  [metric: string]: number | string;
+}
+
+export interface CompanyAiContext {
+  generated_at: string;
+  overall_status: AiHealthStatus;
+  modules: {
+    it: AiModuleHealth;
+    hr: AiModuleHealth;
+    finance: AiModuleHealth;
+    admin: AiModuleHealth;
+    production: AiModuleHealth;
+  };
+}
+
+export type AiAlertModule = "IT" | "HR" | "FINANCE" | "ADMIN" | "PRODUCTION";
+export type AiAlertSeverity = "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type AiAlertStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+
+export interface AiAlert {
+  id: string;
+  company_id: string;
+  module: AiAlertModule;
+  severity: AiAlertSeverity;
+  title: string;
+  description: string;
+  evidence: Record<string, unknown>;
+  status: AiAlertStatus;
+  created_at: string;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  resolved_by: string | null;
+  resolved_at: string | null;
+}
+
+export interface AiUsageSummaryRow {
+  model: string;
+  request_count: number;
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export type ForecastMethod = "NONE" | "LINEAR_TREND";
+export type ForecastConfidence = "NONE" | "LOW" | "MEDIUM" | "HIGH";
+export type ForecastTrendDirection = "INCREASING" | "DECREASING" | "STABLE" | null;
+
+export interface MetricForecast {
+  module: AiAlertModule;
+  metric: string;
+  historical_period?: { from: string; to: string };
+  forecast_period?: string;
+  method: ForecastMethod;
+  data_points: number;
+  last_value?: number;
+  prediction: number | null;
+  trend_direction: ForecastTrendDirection;
+  confidence: ForecastConfidence;
+  data_quality: string;
+}
+
+export interface AnalyticsSnapshot {
+  id: string;
+  company_id: string;
+  snapshot_date: string;
+  module: AiAlertModule;
+  status: AiHealthStatus;
+  metrics: Record<string, unknown>;
+  created_at: string;
 }
