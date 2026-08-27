@@ -39,6 +39,11 @@ import {
   Coins,
   Palette,
   Info,
+  Calculator,
+  Banknote,
+  MessageCircle,
+  TrendingUp,
+  Settings2,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -101,10 +106,12 @@ function SectionHeader({ icon: Icon, kicker, title }: { icon: LucideIcon; kicker
 const CHAPTERS = [
   { id: "getting-started", label: "Getting Started" },
   { id: "it", label: "IT" },
+  { id: "budget", label: "Budget & Procurement" },
   { id: "hr", label: "HR" },
   { id: "finance", label: "Finance" },
   { id: "admin", label: "Administration" },
   { id: "production", label: "Production" },
+  { id: "ai", label: "AI" },
   { id: "company", label: "Company Settings" },
   { id: "roles", label: "Roles & Permissions" },
 ];
@@ -187,6 +194,14 @@ export default function HandbookPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-md border border-border p-3.5">
+              <p className="text-sm font-medium text-foreground">Company health banner</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                When the AI module is on, a bar at the very top shows one overall status — All clear, Needs
+                attention, or Action needed — plus a small colored dot per department (IT, HR, Finance,
+                Administration, Production). Click it to open the full AI dashboard.
+              </p>
+            </div>
+            <div className="rounded-md border border-border p-3.5">
               <p className="text-sm font-medium text-foreground">Company Admins</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 A Team panel shows Total users, Active, Invited, and Disabled counts, with a shortcut to manage
@@ -194,17 +209,19 @@ export default function HandbookPage() {
               </p>
             </div>
             <div className="rounded-md border border-border p-3.5">
-              <p className="text-sm font-medium text-foreground">Module staff</p>
+              <p className="text-sm font-medium text-foreground">Departments</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Live counters for whichever modules they work in — open tickets, pending approvals, tasks at risk,
-                and so on — with a shortcut into that module's own dashboard.
+                One card per module the viewer can see — Inventory, Procurement, HR, Finance, Administration,
+                Production — each with a handful of headline numbers (open items, pending approvals, cash
+                balance, and so on). Clicking a card opens that department's own full dashboard.
               </p>
             </div>
             <div className="rounded-md border border-border p-3.5">
-              <p className="text-sm font-medium text-foreground">Everyone else</p>
+              <p className="text-sm font-medium text-foreground">Ticketing</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Counts and recent activity for things they personally submitted, across whichever modules are
-                enabled for the company.
+                Staff who can see every ticket get live counts (Open, Critical, In Progress, Resolved); everyone
+                else sees their own ticket counts plus a personal activity feed of comments and status changes on
+                tickets they filed.
               </p>
             </div>
           </CardContent>
@@ -372,8 +389,124 @@ export default function HandbookPage() {
             </div>
             <Callout>
               Reports → IT Reports gives a company-wide export/print view across tickets, inventory, and
-              procurement for anyone holding the Reports permission.
+              procurement for anyone holding the Reports permission. The Budget a purchase request draws from
+              isn't an IT-only thing anymore — see the <a href="#budget" className="font-medium underline underline-offset-2">Budget & Procurement</a> chapter
+              below for how the whole shared system works.
             </Callout>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ================================================================ */}
+      {/* BUDGET & PROCUREMENT (shared engine) */}
+      {/* ================================================================ */}
+      <div id="budget" className="scroll-mt-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Budget & Procurement</h2>
+          <p className="text-sm text-muted-foreground">
+            One shared, Finance-approved budgeting engine used by every department — IT, HR, Finance,
+            Administration, and Production each prepare their own budgets in it, and Finance reviews and approves
+            all of them from one place. It's reached from each department's own{" "}
+            <span className="font-medium text-foreground">Budget</span> sidebar item, not a separate module.
+          </p>
+        </div>
+
+        <Callout>
+          A budget always belongs to exactly one department (its <span className="font-medium">module</span>), but
+          the underlying tables, statuses, and workflow are identical everywhere — learn it once here and it works
+          the same in IT → Budget, HR → Budget, Finance → Budget, Admin → Budget, and Production → Budget.
+        </Callout>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Wallet} kicker="Budget" title="Preparing a department budget" />
+            <CardDescription>Every department's Budget dashboard, budgets list, and budget detail page work identically.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Step n={1} title="Go to <Department> → Budget → Budgets, then click + New budget.">
+                Fill in Budget name, Fiscal year, Start date, End date, Currency, and optionally a Department,
+                Cost center, or linked Project, then click <span className="font-medium text-foreground">Create</span>.
+                It starts as a <span className="font-medium text-foreground">Draft</span> with no lines and no
+                money committed yet.
+              </Step>
+              <Step n={2} title="Add lines and allocate by category.">
+                On the budget's own page: <span className="font-medium text-foreground">Add line</span> for each
+                planned expense (Description, Category, Quantity, Unit cost, and the Requested amount it works
+                out to), and <span className="font-medium text-foreground">Allocate category</span> to set a cap
+                per spending category. Categories themselves come from{" "}
+                <span className="font-medium text-foreground">Budget → Categories</span> — a small shared list
+                (Hardware, Software, Travel, and so on) each department can extend.
+              </Step>
+              <Step n={3} title="Click Submit to Finance.">
+                Requires at least one line. This locks the budget from further line edits and sends it into
+                Finance's review queue.
+              </Step>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">What happens next</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A Finance reviewer clicks <span className="font-medium text-foreground">Start review</span> (moving
+                it to <span className="font-medium text-foreground">Finance Review</span>), then either:
+              </p>
+              <ul className="mt-2 space-y-2">
+                <Item title="Approve"><span className="font-medium text-foreground">Approved</span> — Finance can approve each line at a different amount than requested (a partial approval); both the requested and approved figures stay on record side by side, permanently.</Item>
+                <Item title="Return for revision">Sends it back to <span className="font-medium text-foreground">Returned for Revision</span> with a required reason — the requesting department edits and resubmits.</Item>
+                <Item title="Reject">Sends it to <span className="font-medium text-foreground">Rejected</span> with a required reason — final, no resubmission.</Item>
+              </ul>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Activating and spending against it</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Once <span className="font-medium text-foreground">Approved</span>, the department clicks{" "}
+                <span className="font-medium text-foreground">Activate</span> to make it{" "}
+                <span className="font-medium text-foreground">Active</span> and actually spendable — this is the
+                status a purchase request, expense, or payroll run checks against for available budget. From
+                there: <span className="font-medium text-foreground">Record adjustment</span> logs a manual
+                correction (with a signed amount and a reason), and{" "}
+                <span className="font-medium text-foreground">Request increase</span> starts a{" "}
+                <span className="font-medium text-foreground">Revision</span> — its own small approve/reject
+                decision on Finance's side that, once approved, raises the budget's total without touching the
+                original approved lines. A budget can be <span className="font-medium text-foreground">Cancel</span>ed
+                while still a draft, or closed out entirely once its period ends.
+              </p>
+            </div>
+            <Callout>
+              Every transaction — a commitment when a purchase order is raised, an expense when it's actually
+              spent, a release if a commitment falls through — posts automatically to the budget's{" "}
+              <span className="font-medium text-foreground">Transactions</span> ledger. Nobody edits that ledger by
+              hand; it's what Allocated / Committed / Spent / Available on the budget's own summary are computed
+              from.
+            </Callout>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={ShoppingCart} kicker="Procurement" title="Purchase Requests → Quotations → Purchase Orders → Deliveries" />
+            <CardDescription>IT's own procurement pipeline draws its money from an IT-department budget through this same shared engine.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="space-y-3">
+              <Item title="Purchase Requests">Created against a specific Budget + Category (see the IT chapter above); submitting checks that budget actually has enough Available before it's allowed through.</Item>
+              <Item title="Quotations">One or more supplier quotes attached to an approved request; selecting one records why it was chosen over the others.</Item>
+              <Item title="Purchase Orders">Generated from a selected quotation; approving a PO is what actually posts a Commitment against the budget.</Item>
+              <Item title="Deliveries">Receiving items against a PO — partial receipts are tracked line by line, and a full receipt converts the commitment into real Spent.</Item>
+              <Item title="Suppliers">The vendor directory quotations and purchase orders are raised against, each with its own order history.</Item>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={ShieldCheck} kicker="Finance-only" title="Budget Approvals & Company Budget Overview" />
+            <CardDescription>Two screens that only Finance sees, reached from Finance → Budget Approvals and Finance → Company Budget Overview.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="space-y-3">
+              <Item title="Budget Approvals">One queue of every department's budgets currently sitting in Submitted or Finance Review — Finance never has to go department by department to find what's waiting on them.</Item>
+              <Item title="Company Budget Overview">A read-only, company-wide roll-up of every department's budgets side by side — total requested, approved, committed, spent, and available, for a full picture of company spending at a glance.</Item>
+            </ul>
           </CardContent>
         </Card>
       </div>
@@ -499,8 +632,24 @@ export default function HandbookPage() {
             </div>
             <div className="space-y-1.5 rounded-md border border-border p-3.5">
               <div className="flex items-center gap-2"><PiggyBank className="h-4 w-4 text-primary" /><p className="text-sm font-medium text-foreground">Payroll</p></div>
-              <p className="text-xs text-muted-foreground">Payroll runs and payslips (mirrors HR Payroll).</p>
+              <p className="text-xs text-muted-foreground">Payroll runs and payslips (mirrors HR Payroll). Also where approved Production earnings get pulled in and paid — see Production → Rate Cards & Approved Work.</p>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-foreground">Finance also owns two shared, company-wide screens</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Budget</span>,{" "}
+              <span className="font-medium text-foreground">Budget Approvals</span>, and{" "}
+              <span className="font-medium text-foreground">Company Budget Overview</span> — Finance's own budgets
+              plus the review queue and roll-up for every OTHER department's budgets too — are covered fully in the{" "}
+              <a href="#budget" className="font-medium underline underline-offset-2">Budget & Procurement</a> chapter.
+              <span className="font-medium text-foreground"> Production Earnings</span> — approved Production work
+              waiting to be sent to Finance and pulled into a payroll run — is covered in{" "}
+              <a href="#production" className="font-medium underline underline-offset-2">Production</a>.
+            </p>
           </CardContent>
         </Card>
 
@@ -855,6 +1004,106 @@ export default function HandbookPage() {
 
         <Card>
           <CardHeader>
+            <SectionHeader icon={Calculator} kicker="Production — Rate Cards" title="Setting up how work gets priced" />
+            <CardDescription>Production → Settings → Rate Cards and → Production Units — configure these before anyone can price or submit work.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <p className="text-sm font-medium text-foreground">Production Units</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                The thing work actually gets counted in — Second, Frame, Shot, Background, Rig, Character, and
+                about fifteen others come pre-loaded; add a custom one (e.g. "Per Facial Shot") from{" "}
+                <span className="font-medium text-foreground">+ Unit</span> anytime.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Rate Cards</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A rate card says "this Task type, priced per this Unit, costs this much" — scoped as narrowly or as
+                broadly as needed. Click <span className="font-medium text-foreground">+ Rate card</span>, pick a
+                Task type and Unit, optionally narrow it to a Department, Project, or Position, set a Currency and
+                Rate, and Create. When several cards could apply to the same task, the most specific one wins, in
+                this order:
+              </p>
+              <ol className="mt-2 space-y-1 pl-4 text-sm text-muted-foreground" style={{ listStyleType: "decimal" }}>
+                <li>A rate set for that one specific employee</li>
+                <li>A rate set for that specific project</li>
+                <li>A rate set for that position (e.g. Senior Animator)</li>
+                <li>A rate set for that department</li>
+                <li>The company-wide default for that task type + unit</li>
+              </ol>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">A rate is never overwritten</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Rates change over time, but past work always keeps the price it was actually approved at.{" "}
+                <span className="font-medium text-foreground">Deactivate</span> retires a card without deleting its
+                history; <span className="font-medium text-foreground">New version</span> is how a rate actually
+                changes — it closes out the old card's effective date and starts a new one, so anything already
+                priced or paid under the old rate is completely unaffected.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Banknote} kicker="Production — Approved Work" title="Pricing a task and submitting it for payment" />
+            <CardDescription>Lives right inside a task's own Edit dialog, on a shot or asset's page — there's no separate pricing screen.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <Step n={1} title="Open a task's Edit dialog and scroll to the Pricing section.">
+                Pick its Unit. For Second or Frame, Quantity fills in automatically from the shot's own frame range
+                (e.g. frames 1001–1240 at 24fps becomes 10 seconds) — every other unit needs the quantity typed in.
+              </Step>
+              <Step n={2} title="Click Save & calculate.">
+                This resolves the applicable rate card and shows the resulting Amount right there. Changing a
+                quantity that was already saved requires typing a short reason — that override is kept on record
+                even after the number changes again later.
+              </Step>
+              <Step n={3} title="Click Submit for approval.">
+                Available to the artist assigned to the task (or anyone who can manage tasks) once a quantity and
+                amount exist. This snapshots the rate, unit, currency, and amount exactly as they are right now —
+                nothing about this specific submission changes again even if the rate card it used gets a new
+                version later.
+              </Step>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Deciding submitted work</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Production → Approved Work lists everything waiting on a decision from the signed-in person (this
+                only shows items configured to route through them — approval levels are configurable per company,
+                not fixed to one specific role). <span className="font-medium text-foreground">Approve</span> can
+                approve less than what was requested — a partial approval — with both the requested and approved
+                amounts kept on record. <span className="font-medium text-foreground">Reject</span> and{" "}
+                <span className="font-medium text-foreground">Changes</span> both send it back to the artist with
+                comments, and neither creates anything payable. Nobody can approve their own submitted work.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Getting paid</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A fully approved item becomes <span className="font-medium text-foreground">Payable</span>, visible
+                to the artist under <span className="font-medium text-foreground">Production → My Earnings</span> —
+                a running total of what's pending decision, approved but not yet paid, and already paid.
+                Approval never pays anyone automatically: Finance explicitly selects Payable items on{" "}
+                <span className="font-medium text-foreground">Finance → Production Earnings</span> and sends them
+                to Finance, then pulls them into a specific employee's line on a payroll run from that run's own{" "}
+                <span className="font-medium text-foreground">+ Production earnings</span> action — only then does
+                it move to Paid once that run is actually paid out.
+              </p>
+            </div>
+            <Callout>
+              Artists never see other artists' rate cards — only their own resulting earnings. Payment details on
+              an earning stay visible to Finance and whoever's allowed to approve that level, not to the whole
+              company.
+            </Callout>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <SectionHeader icon={GitBranch} kicker="Production — Reviews" title="Submitting a version and reviewing it frame-by-frame" />
             <CardDescription>Works like a dedicated frame-accurate media review tool, right inside the shot or asset page.</CardDescription>
           </CardHeader>
@@ -940,6 +1189,73 @@ export default function HandbookPage() {
               <span className="font-medium text-foreground">Visible to client portal</span> — nothing reaches the
               client until both are done.
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ================================================================ */}
+      {/* AI */}
+      {/* ================================================================ */}
+      <div id="ai" className="scroll-mt-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">AI</h2>
+          <p className="text-sm text-muted-foreground">
+            A company-wide assistant and analytics layer that reads across every other module — never the other
+            way around; nothing else in the app depends on AI being on.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={MessageCircle} kicker="AI — Assistant" title="Asking the assistant a question" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Step n={1} title="Go to AI → Assistant, then click + New chat (or continue an existing one from the sidebar list).">
+              Conversations are private to the person having them and can be renamed or deleted from their own{" "}
+              <span className="font-medium text-foreground">⋯</span> menu.
+            </Step>
+            <Step n={2} title="Type a question in plain language and send it.">
+              Things like "how many open critical tickets do we have" or "what's our AP aging look like" — the
+              assistant only ever answers using the same live company data and the same permissions the person
+              asking already has; it can't see or say anything they couldn't already look up themselves.
+            </Step>
+            <Step n={3} title="Click Sources under a reply to see exactly what it looked up.">
+              Every answer that pulled real data shows precisely which internal query ran and what it returned —
+              nothing is left unverifiable.
+            </Step>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={TrendingUp} kicker="AI — Company Analytics" title="Health, alerts & forecasts" />
+            <CardDescription>AI → Dashboard — the same overall status and per-department health shown on the company dashboard's banner, with more depth.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-3">
+              <Item title="Module health">A colored status (green/yellow/red) computed for IT, HR, Finance, Admin, and Production from real thresholds — e.g. Finance turns red when monthly expenses exceed revenue, IT turns red at 20+ open tickets.</Item>
+              <Item title="Alerts">
+                <span className="font-medium text-foreground">Scan now</span> checks every module against its rules
+                and opens an alert for anything that crosses a threshold. Each alert can be{" "}
+                <span className="font-medium text-foreground">Acknowledged</span> (seen, being worked) or{" "}
+                <span className="font-medium text-foreground">Resolved</span> (done).
+              </Item>
+              <Item title="Forecasts">A simple statistical trend line (not a language model) for one key metric per module, built from up to 30 days of captured snapshots — confidence is labeled honestly (None/Low/Medium/High) based on how much history actually exists yet.</Item>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Settings2} kicker="AI — Settings" title="Turning AI on & controlling its limits" />
+            <CardDescription>Settings → AI — restricted to whoever holds AI admin settings, separate from using the assistant itself.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="space-y-3">
+              <Item title="Enable / disable">A single switch for the whole company. Off means the Assistant and Company Analytics pages simply don't appear for anyone.</Item>
+              <Item title="Data retention">How long conversation history is kept before automatic deletion — 30 days, 90 days, 1 year, or never.</Item>
+              <Item title="Usage limits">A monthly token limit and request limit, with a usage table showing consumption per day for the last 30 days.</Item>
+            </ul>
           </CardContent>
         </Card>
       </div>
