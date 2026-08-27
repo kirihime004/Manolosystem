@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus, Sparkles, Trash2 } from "lucide-react";
+import { MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useConversations, useConversationMutations, useMessages, useSendMessage } from "@/features/ai/hooks";
