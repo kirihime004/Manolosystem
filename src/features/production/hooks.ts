@@ -9,6 +9,7 @@ import * as deliverablesApi from "@/features/production/productionDeliverablesAp
 import * as settingsApi from "@/features/production/productionSettingsApi";
 import * as dashboardApi from "@/features/production/productionDashboardApi";
 import * as clientPortalApi from "@/features/production/productionClientPortalApi";
+import * as rateCardsApi from "@/features/production/productionRateCardsApi";
 
 // ---------------------------------------------------------------------
 // Dashboard
@@ -468,4 +469,134 @@ export function useMyClientShotVersions(shotId: string | undefined) {
 
 export function useMyClientDeliverables(projectId: string | undefined) {
   return useQuery({ queryKey: ["my-client-deliverables", projectId], queryFn: () => clientPortalApi.listMyDeliverables(projectId!), enabled: !!projectId });
+}
+
+// ---------------------------------------------------------------------
+// Production Rate Card + Approved Work Payment System
+// ---------------------------------------------------------------------
+export function useProductionUnits(companyId: string | undefined) {
+  return useQuery({ queryKey: ["production-units", companyId], queryFn: () => rateCardsApi.listProductionUnits(companyId!), enabled: !!companyId });
+}
+
+export function useProductionUnitMutations(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["production-units", companyId] });
+  const create = useMutation({ mutationFn: rateCardsApi.createProductionUnit, onSuccess: invalidate });
+  const update = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof rateCardsApi.updateProductionUnit>[1] }) => rateCardsApi.updateProductionUnit(input.id, input.patch),
+    onSuccess: invalidate,
+  });
+  return { create, update };
+}
+
+export function useRateCards(companyId: string | undefined) {
+  return useQuery({ queryKey: ["production-rate-cards", companyId], queryFn: () => rateCardsApi.listRateCards(companyId!), enabled: !!companyId });
+}
+
+export function useRateCardMutations(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["production-rate-cards", companyId] });
+  const create = useMutation({ mutationFn: rateCardsApi.createRateCard, onSuccess: invalidate });
+  const setStatus = useMutation({
+    mutationFn: (input: { id: string; status: "DRAFT" | "ACTIVE" | "INACTIVE" }) => rateCardsApi.updateRateCardStatus(input.id, input.status),
+    onSuccess: invalidate,
+  });
+  const duplicateAsNewVersion = useMutation({ mutationFn: rateCardsApi.duplicateRateCardAsNewVersion, onSuccess: invalidate });
+  return { create, setStatus, duplicateAsNewVersion };
+}
+
+// Task pricing lives on production_tasks itself -- useTask/useTaskMutations
+// (above) already cover reads/edits. This adds the two RPC-backed actions.
+export function useTaskPricingMutations(taskId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["production-task", taskId] });
+    queryClient.invalidateQueries({ queryKey: ["production-tasks"] });
+  };
+  const setConfig = useMutation({
+    mutationFn: (input: { productionUnitId: string | null }) => rateCardsApi.setTaskPricingConfig(taskId!, input),
+    onSuccess: invalidate,
+  });
+  const recalculate = useMutation({
+    mutationFn: (input: { manualQuantity?: number | null; overrideReason?: string | null } = {}) =>
+      rateCardsApi.recalculateTaskPricing(taskId!, input.manualQuantity, input.overrideReason),
+    onSuccess: invalidate,
+  });
+  const submit = useMutation({
+    mutationFn: (input: { quantityOverride?: number | null; overrideReason?: string | null } = {}) =>
+      rateCardsApi.submitProductionWork(taskId!, input.quantityOverride, input.overrideReason),
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["production-my-work-earnings"] });
+      queryClient.invalidateQueries({ queryKey: ["production-all-work-earnings"] });
+    },
+  });
+  return { setConfig, recalculate, submit };
+}
+
+export function useMyWorkEarnings(companyId: string | undefined, employeeId: string | undefined) {
+  return useQuery({
+    queryKey: ["production-my-work-earnings", companyId, employeeId],
+    queryFn: () => rateCardsApi.listMyWorkEarnings(companyId!, employeeId!),
+    enabled: !!companyId && !!employeeId,
+  });
+}
+
+export function useAllWorkEarnings(companyId: string | undefined, status?: string | string[]) {
+  return useQuery({
+    queryKey: ["production-all-work-earnings", companyId, status],
+    queryFn: () => rateCardsApi.listAllWorkEarnings(companyId!, status),
+    enabled: !!companyId,
+  });
+}
+
+export function useWorkEarning(id: string | undefined) {
+  return useQuery({ queryKey: ["production-work-earning", id], queryFn: () => rateCardsApi.getWorkEarning(id!), enabled: !!id });
+}
+
+export function usePendingWorkApprovals(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ["production-pending-work-approvals", companyId],
+    queryFn: () => rateCardsApi.listPendingWorkApprovals(companyId!),
+    enabled: !!companyId,
+  });
+}
+
+export function useWorkApprovals(workEarningId: string | undefined) {
+  return useQuery({ queryKey: ["production-work-approvals", workEarningId], queryFn: () => rateCardsApi.listWorkApprovals(workEarningId!), enabled: !!workEarningId });
+}
+
+export function useWorkAdjustments(workEarningId: string | undefined) {
+  return useQuery({ queryKey: ["production-work-adjustments", workEarningId], queryFn: () => rateCardsApi.listWorkAdjustments(workEarningId!), enabled: !!workEarningId });
+}
+
+export function useProductionWorkMutations(_companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["production-my-work-earnings"] });
+    queryClient.invalidateQueries({ queryKey: ["production-all-work-earnings"] });
+    queryClient.invalidateQueries({ queryKey: ["production-pending-work-approvals"] });
+    queryClient.invalidateQueries({ queryKey: ["production-work-approvals"] });
+    queryClient.invalidateQueries({ queryKey: ["production-work-earning"] });
+  };
+  const decide = useMutation({ mutationFn: rateCardsApi.decideProductionWork, onSuccess: invalidateAll });
+  const sendToFinance = useMutation({ mutationFn: rateCardsApi.sendProductionWorkToFinance, onSuccess: invalidateAll });
+  const createAdjustment = useMutation({
+    mutationFn: rateCardsApi.createProductionWorkAdjustment,
+    onSuccess: (_d, vars) => { invalidateAll(); queryClient.invalidateQueries({ queryKey: ["production-work-adjustments", vars.workEarningId] }); },
+  });
+  return { decide, sendToFinance, createAdjustment };
+}
+
+export function useAddProductionEarningsToPayrollItem(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { payrollItemId: string; workEarningIds: string[]; payrollRunId: string }) =>
+      rateCardsApi.addProductionEarningsToPayrollItem(input.payrollItemId, input.workEarningIds),
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["finance-payroll-run", vars.payrollRunId] });
+      queryClient.invalidateQueries({ queryKey: ["finance-payroll-items", vars.payrollRunId] });
+      queryClient.invalidateQueries({ queryKey: ["production-all-work-earnings", companyId] });
+    },
+  });
 }

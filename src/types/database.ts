@@ -1947,6 +1947,7 @@ export interface PayrollItem {
   overtime_hours: number;
   overtime_pay: number;
   bonuses: number;
+  production_earnings: number;
   gross_pay: number;
   sss_employee: number;
   philhealth_employee: number;
@@ -2771,9 +2772,118 @@ export interface ProductionTask {
   currency_id: string | null;
   sort_order: number;
   custom_field_values: Record<string, unknown>;
+  // Rate card pricing (Production Rate Card + Approved Work Payment System).
+  production_unit_id: string | null;
+  pricing_quantity: number | null;
+  pricing_quantity_source: "MANUAL" | "AUTO" | null;
+  original_quantity: number | null;
+  quantity_override_reason: string | null;
+  quantity_changed_by: string | null;
+  quantity_changed_at: string | null;
+  rate_card_id: string | null;
+  pricing_currency_id: string | null;
+  calculated_amount: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ---------------------------------------------------------------------
+// Production Rate Card + Approved Work Payment System
+// ---------------------------------------------------------------------
+export interface ProductionUnit {
+  id: string;
+  company_id: string;
+  code: string;
+  label: string;
+  is_system: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProductionRateCard {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  department_id: string | null;
+  project_id: string | null;
+  task_type_id: string;
+  production_unit_id: string;
+  position_id: string | null;
+  employee_id: string | null;
+  currency_id: string;
+  rate: number;
+  calculation_method: "PER_UNIT";
+  effective_from: string;
+  effective_to: string | null;
+  status: "DRAFT" | "ACTIVE" | "INACTIVE";
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkEarningStatus =
+  | "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "CHANGES_REQUIRED" | "APPROVED" | "REJECTED"
+  | "PAYABLE" | "SENT_TO_FINANCE" | "IN_PAYROLL" | "PAID" | "CANCELLED";
+
+export interface ProductionWorkEarning {
+  id: string;
+  company_id: string;
+  project_id: string;
+  sequence_id: string | null;
+  shot_id: string | null;
+  asset_id: string | null;
+  task_id: string;
+  version_id: string | null;
+  employee_id: string;
+  department_id: string | null;
+  rate_card_id: string | null;
+  rate: number;
+  production_unit_id: string;
+  currency_id: string;
+  exchange_rate: number | null;
+  base_currency_id: string | null;
+  requested_quantity: number;
+  approved_quantity: number | null;
+  requested_amount: number;
+  approved_amount: number | null;
+  base_currency_amount: number | null;
+  status: WorkEarningStatus;
+  submitted_by: string | null;
+  submitted_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  sent_to_finance_at: string | null;
+  payroll_item_id: string | null;
+  payroll_reference: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionWorkApproval {
+  id: string;
+  company_id: string;
+  work_earning_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  approval_level: number;
+  sequence: number;
+  decision: "PENDING" | "APPROVED" | "REJECTED" | "CHANGES_REQUIRED";
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface ProductionWorkAdjustment {
+  id: string;
+  company_id: string;
+  work_earning_id: string;
+  adjustment_amount: number;
+  reason: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface ProductionTaskDependency {

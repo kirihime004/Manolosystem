@@ -5,8 +5,14 @@ import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useProductionSettings, useTaskTypes, useTaskTypeMutations, useCustomFields, useCustomFieldMutations,
   useWorkflowTemplates, useWorkflowStages, useWorkflowMutations, useClientUsers, useClientUserMutations,
+  useProductionUnits, useProductionUnitMutations, useRateCards, useRateCardMutations, useProjects,
 } from "@/features/production/hooks";
 import { updateProductionSettings } from "@/features/production/productionProjectsApi";
+import { useDepartments } from "@/features/company/settings/useDepartments";
+import { usePositions } from "@/features/hr/hooks";
+import { useCurrencies } from "@/features/it/procurement/hooks";
+import { Money } from "@/components/shared/Money";
+import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import { getErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import type { ProductionWorkflowStage } from "@/types/database";
 
@@ -44,6 +51,32 @@ export default function ProductionSettingsPage() {
   const [taskTypeOpen, setTaskTypeOpen] = useState(false);
   const [taskTypeName, setTaskTypeName] = useState("");
   const [taskTypeAppliesTo, setTaskTypeAppliesTo] = useState("SHOT");
+
+  const { data: units } = useProductionUnits(company?.id);
+  const unitMutations = useProductionUnitMutations(company?.id);
+  const [unitOpen, setUnitOpen] = useState(false);
+  const [unitCode, setUnitCode] = useState("");
+  const [unitLabel, setUnitLabel] = useState("");
+
+  const { data: rateCards } = useRateCards(company?.id);
+  const rateCardMutations = useRateCardMutations(company?.id);
+  const { data: departments } = useDepartments(company?.id);
+  const { data: positions } = usePositions(company?.id);
+  const { data: currencies } = useCurrencies();
+  const { data: projects } = useProjects(company?.id);
+  const [rateCardOpen, setRateCardOpen] = useState(false);
+  const [rcName, setRcName] = useState("");
+  const [rcTaskTypeId, setRcTaskTypeId] = useState("");
+  const [rcUnitId, setRcUnitId] = useState("");
+  const [rcDepartmentId, setRcDepartmentId] = useState("");
+  const [rcProjectId, setRcProjectId] = useState("");
+  const [rcPositionId, setRcPositionId] = useState("");
+  const [rcCurrencyId, setRcCurrencyId] = useState("");
+  const [rcRate, setRcRate] = useState("");
+  const [rcEffectiveFrom, setRcEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [versionTarget, setVersionTarget] = useState<{ id: string; rate: number } | null>(null);
+  const [versionRate, setVersionRate] = useState("");
+  const [versionEffectiveFrom, setVersionEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
 
   const { data: customFields } = useCustomFields(company?.id);
   const customFieldMutations = useCustomFieldMutations(company?.id);
@@ -88,6 +121,38 @@ export default function ProductionSettingsPage() {
       toast.success("Task type created");
       setTaskTypeOpen(false); setTaskTypeName("");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create task type"); }
+  };
+
+  const handleCreateUnit = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await unitMutations.create.mutateAsync({ companyId: company!.id, code: unitCode, label: unitLabel, sortOrder: (units?.length ?? 0) + 1 });
+      toast.success("Production unit created");
+      setUnitOpen(false); setUnitCode(""); setUnitLabel("");
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to create unit")); }
+  };
+
+  const handleCreateRateCard = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await rateCardMutations.create.mutateAsync({
+        companyId: company!.id, name: rcName, taskTypeId: rcTaskTypeId, productionUnitId: rcUnitId,
+        departmentId: rcDepartmentId || null, projectId: rcProjectId || null, positionId: rcPositionId || null,
+        currencyId: rcCurrencyId, rate: Number(rcRate), effectiveFrom: rcEffectiveFrom,
+      });
+      toast.success("Rate card created");
+      setRateCardOpen(false);
+      setRcName(""); setRcTaskTypeId(""); setRcUnitId(""); setRcDepartmentId(""); setRcProjectId(""); setRcPositionId(""); setRcCurrencyId(""); setRcRate("");
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to create rate card")); }
+  };
+
+  const handleNewVersion = async () => {
+    if (!versionTarget) return;
+    try {
+      await rateCardMutations.duplicateAsNewVersion.mutateAsync({ sourceId: versionTarget.id, rate: Number(versionRate), effectiveFrom: versionEffectiveFrom });
+      toast.success("New rate version created — the previous rate stays on record for work already priced against it");
+      setVersionTarget(null); setVersionRate("");
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to create new version")); }
   };
 
   const handleCreateField = async (e: FormEvent) => {
@@ -162,6 +227,8 @@ export default function ProductionSettingsPage() {
           <TabsTrigger value="custom-fields">Custom Fields</TabsTrigger>
           <TabsTrigger value="workflows">Workflows</TabsTrigger>
           <TabsTrigger value="client-access">Client Access</TabsTrigger>
+          <Can permission={PERMISSIONS.PRODUCTION_RATES_VIEW}><TabsTrigger value="rate-cards">Rate Cards</TabsTrigger></Can>
+          <TabsTrigger value="production-units">Production Units</TabsTrigger>
         </TabsList>
 
         <TabsContent value="task-types" className="space-y-4 pt-4">
@@ -432,7 +499,172 @@ export default function ProductionSettingsPage() {
             </Table>
           </div>
         </TabsContent>
+
+        <Can permission={PERMISSIONS.PRODUCTION_RATES_VIEW}>
+          <TabsContent value="rate-cards" className="space-y-4 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Priority when several cards match the same task: employee-specific, then project-specific, then position-specific, then department-specific, then company default. A rate is never overwritten once used — editing an active card creates a new version and closes out the old one.
+            </p>
+            <div className="flex justify-end">
+              <Can permission={PERMISSIONS.PRODUCTION_RATES_CREATE}>
+                <Dialog open={rateCardOpen} onOpenChange={setRateCardOpen}>
+                  <DialogTrigger asChild><Button size="sm">+ Rate card</Button></DialogTrigger>
+                  <DialogContent className="max-h-[85vh] overflow-y-auto">
+                    <DialogHeader><DialogTitle>New rate card</DialogTitle></DialogHeader>
+                    <form onSubmit={handleCreateRateCard} className="space-y-3">
+                      <div className="space-y-1.5"><Label>Name</Label><Input required value={rcName} onChange={(e) => setRcName(e.target.value)} placeholder="e.g. Animation — Second, Company default" /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Task type</Label>
+                          <Select value={rcTaskTypeId} onValueChange={setRcTaskTypeId}>
+                            <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                            <SelectContent>{(taskTypes ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Unit</Label>
+                          <Select value={rcUnitId} onValueChange={setRcUnitId}>
+                            <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                            <SelectContent>{(units ?? []).filter((u) => u.is_active).map((u) => <SelectItem key={u.id} value={u.id}>{u.label}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Leave scope fields empty for a company-wide default. Set one or more to narrow it — the most specific match wins.</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Department (optional)</Label>
+                          <Select value={rcDepartmentId || "__none__"} onValueChange={(v) => setRcDepartmentId(v === "__none__" ? "" : v)}>
+                            <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                            <SelectContent><SelectItem value="__none__">Any</SelectItem>{(departments ?? []).map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Project (optional)</Label>
+                          <Select value={rcProjectId || "__none__"} onValueChange={(v) => setRcProjectId(v === "__none__" ? "" : v)}>
+                            <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                            <SelectContent><SelectItem value="__none__">Any</SelectItem>{(projects ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Position (optional — e.g. Senior Animator)</Label>
+                        <Select value={rcPositionId || "__none__"} onValueChange={(v) => setRcPositionId(v === "__none__" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
+                          <SelectContent><SelectItem value="__none__">Any</SelectItem>{(positions ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>Currency</Label>
+                          <Select value={rcCurrencyId} onValueChange={setRcCurrencyId}>
+                            <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                            <SelectContent>{(currencies ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5"><Label>Rate per unit</Label><Input required type="number" min="0" step="0.01" value={rcRate} onChange={(e) => setRcRate(e.target.value)} /></div>
+                      </div>
+                      <div className="space-y-1.5"><Label>Effective from</Label><Input required type="date" value={rcEffectiveFrom} onChange={(e) => setRcEffectiveFrom(e.target.value)} /></div>
+                      <DialogFooter><Button type="submit" disabled={rateCardMutations.create.isPending || !rcTaskTypeId || !rcUnitId || !rcCurrencyId}>Create</Button></DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </Can>
+            </div>
+            <div className="rounded-lg border border-border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead><TableHead>Task type</TableHead><TableHead>Unit</TableHead>
+                    <TableHead>Scope</TableHead><TableHead>Rate</TableHead><TableHead>Effective</TableHead><TableHead>Status</TableHead><TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(rateCards ?? []).map((rc) => {
+                    const taskType = (taskTypes ?? []).find((t) => t.id === rc.task_type_id);
+                    const unit = (units ?? []).find((u) => u.id === rc.production_unit_id);
+                    const scope = rc.employee_id ? "Employee" : rc.project_id ? "Project" : rc.position_id ? "Position" : rc.department_id ? "Department" : "Company default";
+                    return (
+                      <TableRow key={rc.id}>
+                        <TableCell className="font-medium">{rc.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{taskType?.name ?? "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{unit?.label ?? "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{scope}</TableCell>
+                        <TableCell><Money amount={rc.rate} currencyId={rc.currency_id} /></TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{rc.effective_from}{rc.effective_to ? ` → ${rc.effective_to}` : ""}</TableCell>
+                        <TableCell><ProductionStatusBadge status={rc.status} /></TableCell>
+                        <TableCell>
+                          <Can permission={PERMISSIONS.PRODUCTION_RATES_UPDATE}>
+                            <div className="flex items-center gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => { setVersionTarget({ id: rc.id, rate: rc.rate }); setVersionRate(String(rc.rate)); }}>New version</Button>
+                              <Can permission={PERMISSIONS.PRODUCTION_RATES_DEACTIVATE}>
+                                <Button size="sm" variant="ghost" onClick={() => rateCardMutations.setStatus.mutate({ id: rc.id, status: rc.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" })}>
+                                  {rc.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                                </Button>
+                              </Can>
+                            </div>
+                          </Can>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {(!rateCards || rateCards.length === 0) && (
+                    <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-6">No rate cards yet.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Can>
+
+        <TabsContent value="production-units" className="space-y-4 pt-4">
+          <div className="flex justify-end">
+            <Can permission={PERMISSIONS.PRODUCTION_SETTINGS_MANAGE}>
+              <Dialog open={unitOpen} onOpenChange={setUnitOpen}>
+                <DialogTrigger asChild><Button size="sm">+ Unit</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>New production unit</DialogTitle></DialogHeader>
+                  <form onSubmit={handleCreateUnit} className="space-y-3">
+                    <div className="space-y-1.5"><Label>Label</Label><Input required value={unitLabel} onChange={(e) => setUnitLabel(e.target.value)} placeholder="e.g. Per Facial Shot" /></div>
+                    <div className="space-y-1.5"><Label>Code</Label><Input required value={unitCode} onChange={(e) => setUnitCode(e.target.value)} placeholder="e.g. FACIAL_SHOT" /></div>
+                    <DialogFooter><Button type="submit" disabled={unitMutations.create.isPending}>Create</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </Can>
+          </div>
+          <div className="rounded-lg border border-border bg-card">
+            <Table>
+              <TableHeader><TableRow><TableHead>Label</TableHead><TableHead>Code</TableHead><TableHead>System</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {(units ?? []).map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.label}</TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{u.code}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.is_system ? "Yes" : "No"}</TableCell>
+                    <TableCell>
+                      <Can permission={PERMISSIONS.PRODUCTION_SETTINGS_MANAGE} fallback={<span className="text-muted-foreground">{u.is_active ? "Yes" : "No"}</span>}>
+                        <Switch checked={u.is_active} onCheckedChange={(checked) => unitMutations.update.mutate({ id: u.id, patch: { isActive: checked } })} />
+                      </Can>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      <Dialog open={!!versionTarget} onOpenChange={(open) => !open && setVersionTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New rate version</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">The current rate stays on record — any work already priced or approved against it keeps its snapshot. This only changes what applies going forward.</p>
+            <div className="space-y-1.5"><Label>New rate</Label><Input type="number" min="0" step="0.01" value={versionRate} onChange={(e) => setVersionRate(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Effective from</Label><Input type="date" value={versionEffectiveFrom} onChange={(e) => setVersionEffectiveFrom(e.target.value)} /></div>
+          </div>
+          <DialogFooter><Button onClick={handleNewVersion} disabled={rateCardMutations.duplicateAsNewVersion.isPending}>Create version</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

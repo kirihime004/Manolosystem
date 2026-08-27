@@ -1,0 +1,26 @@
+-- =========================================================================
+-- PRODUCTION RATE CARD + APPROVED WORK PAYMENT SYSTEM -- Part 10: close an
+-- access-control gap found while building the frontend.
+--
+-- Migration 184 granted EXECUTE on resolve_production_rate() to
+-- `authenticated` with no permission check in the function body (it's a
+-- plain `language sql stable` priority-lookup, meant to be called only
+-- from inside other SECURITY DEFINER functions -- recalculate_task_pricing()
+-- and submit_production_work(), both of which already gate on a real
+-- permission before calling it). As granted, ANY authenticated user could
+-- call it directly with an arbitrary employee_id/position_id/department_id
+-- and read back that person's or department's rate -- exactly what the
+-- plan's RLS design for production_rate_cards was built to prevent
+-- ("Artist should NOT automatically see Other Artists' rates... Artists
+-- never see the raw rate card table").
+--
+-- Revoking the direct grant closes this without touching the function
+-- body or its two legitimate callers: a SECURITY DEFINER function runs
+-- with its owner's privileges for the duration of its own execution
+-- (including any function calls it makes internally), so
+-- recalculate_task_pricing() and submit_production_work() keep working
+-- exactly as before -- only a direct PostgREST/RPC call from a client
+-- session is now rejected.
+-- =========================================================================
+revoke execute on function public.resolve_production_rate(uuid, uuid, uuid, uuid, uuid, uuid, uuid, date) from authenticated;
+revoke execute on function public.resolve_production_rate(uuid, uuid, uuid, uuid, uuid, uuid, uuid, date) from public;

@@ -137,6 +137,9 @@ import ReviewQueuePage from "@/pages/production/reviews/ReviewQueuePage";
 import DeliverablesPage from "@/pages/production/deliverables/DeliverablesPage";
 import ResourcesPage from "@/pages/production/resources/ResourcesPage";
 import ProductionSettingsPage from "@/pages/production/ProductionSettingsPage";
+import ApprovedWorkQueuePage from "@/pages/production/work/ApprovedWorkQueuePage";
+import MyEarningsPage from "@/pages/production/work/MyEarningsPage";
+import FinanceProductionEarningsPage from "@/pages/finance/production/FinanceProductionEarningsPage";
 import ClientLoginPage from "@/pages/client/ClientLoginPage";
 import ClientPortalPage from "@/pages/client/ClientPortalPage";
 
@@ -734,6 +737,14 @@ export function AppRouter() {
                   <Route index element={<PayrollRunsPage />} />
                   <Route path=":payrollRunId" element={<PayrollRunDetailPage />} />
                 </Route>
+                <Route
+                  path="production-earnings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.FINANCE_PAYROLL_VIEW}>
+                      <FinanceProductionEarningsPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
 
               {/* Finance's own view onto the shared Budget & Procurement
@@ -1193,6 +1204,32 @@ export function AppRouter() {
                 <Route index element={<BudgetDashboardPage moduleKey="PRODUCTION" />} />
                 <Route path="budgets" element={<BudgetsListPage moduleKey="PRODUCTION" />} />
                 <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              </Route>
+
+              {/* Rate Card + Approved Work Payment System. */}
+              <Route
+                element={
+                  <RequireModule moduleKey="PRODUCTION_TASKS">
+                    <Outlet />
+                  </RequireModule>
+                }
+              >
+                <Route
+                  path="approved-work"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_WORK_APPROVE}>
+                      <ApprovedWorkQueuePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="my-earnings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_WORK_VIEW_OWN}>
+                      <MyEarningsPage />
+                    </RequirePermission>
+                  }
+                />
               </Route>
             </Route>
 

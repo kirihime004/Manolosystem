@@ -12,6 +12,7 @@ import {
 } from "@/features/production/hooks";
 import { FrameReviewPlayer } from "@/components/production/FrameReviewPlayer";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
+import { TaskPricingPanel } from "@/components/production/TaskPricingPanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -437,7 +438,7 @@ export default function ShotDetailPage() {
       </Dialog>
 
       <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit task</DialogTitle></DialogHeader>
           <form onSubmit={handleSaveTask} className="space-y-3">
             <div className="space-y-1.5"><Label>Name</Label><Input required value={editTaskName} onChange={(e) => setEditTaskName(e.target.value)} /></div>
@@ -462,6 +463,7 @@ export default function ShotDetailPage() {
             <DialogFooter><Button type="submit" disabled={taskMutations.update.isPending}>Save changes</Button></DialogFooter>
           </form>
           {editingTask && <CustomFieldsSection companyId={company?.id} entityType="TASK" entityId={editingTask.id} projectId={shot.project_id} />}
+          {editingTask && <TaskPricingPanel task={editingTask} canSubmitWork={editingTask.assigned_to === myEmployee?.id || hasPermission(PERMISSIONS.PRODUCTION_TASKS_UPDATE)} />}
         </DialogContent>
       </Dialog>
 

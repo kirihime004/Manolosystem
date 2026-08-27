@@ -17,6 +17,7 @@ import {
   Coins,
   Users,
   ClipboardCheck,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -906,6 +907,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                         {hasPermission(PERMISSIONS.FINANCE_BUDGET_VIEW) && (
                           <NavLink to={`${base}/finance/budgets/overview`} icon={BarChart3} label="Company Budget Overview" active={location.pathname.startsWith(`${base}/finance/budgets/overview`)} />
                         )}
+                        {hasPermission(PERMISSIONS.FINANCE_PAYROLL_VIEW) && (
+                          <NavLink to={`${base}/finance/production-earnings`} icon={Banknote} label="Production Earnings" active={location.pathname.startsWith(`${base}/finance/production-earnings`)} />
+                        )}
                       </div>
                     )}
                   </>
@@ -1104,6 +1108,12 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       })}
                       {hasPermission(PERMISSIONS.PRODUCTION_BUDGET_VIEW) && (
                         <NavLink to={`${base}/production/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/production/budget`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_WORK_APPROVE) && (
+                        <NavLink to={`${base}/production/approved-work`} icon={ClipboardCheck} label="Approved Work" active={location.pathname.startsWith(`${base}/production/approved-work`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_WORK_VIEW_OWN) && (
+                        <NavLink to={`${base}/production/my-earnings`} icon={Banknote} label="My Earnings" active={location.pathname.startsWith(`${base}/production/my-earnings`)} />
                       )}
                     </div>
                   )}

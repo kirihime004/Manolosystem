@@ -21,6 +21,9 @@ const STATUS_TONE: Record<string, string> = {
   OMITTED: "neutral", PLANNING: "info", CANCELLED: "neutral", ARCHIVED: "neutral",
   UPCOMING: "info", AT_RISK: "warn", LATE: "danger", DELIVERED: "success", REJECTED: "danger",
   PENDING: "warn", DRAFT: "neutral",
+  // Approved Production Work status ladder.
+  SUBMITTED: "info", UNDER_REVIEW: "warn", CHANGES_REQUIRED: "danger",
+  PAYABLE: "success", SENT_TO_FINANCE: "info", IN_PAYROLL: "info", PAID: "success",
 };
 
 export function ProductionStatusBadge({ status }: { status: string }) {
