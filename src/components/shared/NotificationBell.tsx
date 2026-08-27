@@ -8,19 +8,37 @@ import {
   useInventoryNotifications,
   useNotificationMutations,
 } from "@/features/it/inventory/hooks";
-import * as api from "@/features/it/inventory/inventoryApi";
+import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { PERMISSIONS } from "@/lib/permissions/keys";
 
-// Notifications are generated server-side (see generate_inventory_notifications),
-// never on every dashboard render -- the RPC itself is idempotent (unique
-// constraint + ON CONFLICT DO NOTHING), so calling it once per browser
-// session here is a safe, cheap way to keep things current between
-// whatever schedule eventually runs it server-side, without ever creating
-// duplicate rows.
-let generatedThisSession = false;
+const VIEW_PERMISSIONS = [
+  PERMISSIONS.IT_NOTIFICATIONS_VIEW,
+  PERMISSIONS.HR_NOTIFICATIONS_VIEW,
+  PERMISSIONS.FINANCE_NOTIFICATIONS_VIEW,
+  PERMISSIONS.ADMIN_NOTIFICATIONS_VIEW,
+  PERMISSIONS.PRODUCTION_NOTIFICATIONS_VIEW,
+];
+
+// One sweep call per module's notification generator, each gated by its own
+// permission check inside the RPC itself -- a user missing that module's
+// permission just gets a harmless rejected promise here. Every RPC is
+// idempotent (unique constraint + ON CONFLICT DO NOTHING / plain recompute),
+// so firing all of them once per browser session is a safe, cheap way to
+// keep things current in the absence of any server-side cron in this app.
+const SWEEP_RPCS = [
+  "generate_inventory_notifications",
+  "generate_procurement_notifications",
+  "generate_hr_notifications",
+  "generate_finance_notifications",
+  "generate_admin_notifications",
+  "generate_production_notifications",
+  "recalculate_production_risk",
+] as const;
+
+let sweptThisSession = false;
 
 export function NotificationBell() {
   const { companySlug } = useParams<{ companySlug: string }>();
@@ -31,22 +49,21 @@ export function NotificationBell() {
   const { data: notifications } = useInventoryNotifications(company?.id);
   const { markRead, markAllRead } = useNotificationMutations(company?.id);
 
-  useEffect(() => {
-    if (!company?.id || generatedThisSession || !hasPermission(PERMISSIONS.IT_NOTIFICATIONS_MANAGE)) return;
-    generatedThisSession = true;
-    const companyId = company.id;
-    api
-      .generateNotifications(companyId)
-      .then((created) => {
-        if (created > 0) {
-          queryClient.invalidateQueries({ queryKey: ["notifications", companyId] });
-          queryClient.invalidateQueries({ queryKey: ["notifications-unread-count", companyId] });
-        }
-      })
-      .catch(() => {});
-  }, [company?.id, hasPermission, queryClient]);
+  const canView = VIEW_PERMISSIONS.some(hasPermission);
 
-  if (!hasPermission(PERMISSIONS.IT_NOTIFICATIONS_VIEW)) return null;
+  useEffect(() => {
+    if (!company?.id || sweptThisSession || !canView) return;
+    sweptThisSession = true;
+    const companyId = company.id;
+    Promise.allSettled(SWEEP_RPCS.map((fn) => supabase.rpc(fn, { p_company_id: companyId }))).then((results) => {
+      if (results.some((r) => r.status === "fulfilled")) {
+        queryClient.invalidateQueries({ queryKey: ["notifications", companyId] });
+        queryClient.invalidateQueries({ queryKey: ["notifications-unread-count", companyId] });
+      }
+    });
+  }, [company?.id, canView, queryClient]);
+
+  if (!canView) return null;
 
   return (
     <Popover>

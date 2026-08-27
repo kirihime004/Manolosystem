@@ -36,7 +36,7 @@ export const TOOL_REGISTRY: RegisteredTool[] = [
   {
     definition: {
       name: "get_it_summary",
-      description: "Get IT metrics: open/critical tickets, tickets resolved in the last 30 days, assets in repair, hardware approaching replacement age, and software renewals due in the next 30 days.",
+      description: "Get IT metrics: open/critical tickets, tickets resolved in the last 30 days, assets in repair, hardware approaching replacement age, software renewals due in the next 30 days, purchase requests awaiting review, purchase orders awaiting approval, and purchase orders that have received goods not yet billed to the supplier.",
       parameters: { type: "object", properties: {} },
     },
     requiredPermission: "AI.IT_ANALYTICS.VIEW",

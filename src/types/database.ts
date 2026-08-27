@@ -316,6 +316,7 @@ export interface InventoryNotification {
   company_id: string;
   user_id: string | null;
   type: NotificationType;
+  module: ModuleKey;
   title: string;
   message: string;
   resource_type: string;
@@ -1882,6 +1883,8 @@ export interface PayrollItem {
   total_employer_contributions: number;
   net_pay: number;
   notes: string | null;
+  employee_currency_id: string | null;
+  employee_exchange_rate: number | null;
   created_at: string;
   updated_at: string;
 }

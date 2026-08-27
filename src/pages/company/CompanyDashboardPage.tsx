@@ -22,6 +22,7 @@ import { PERMISSIONS } from "@/lib/permissions/keys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 
 function StatCard({
   icon: Icon,
@@ -87,11 +88,14 @@ export default function CompanyDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          Welcome back{profile?.first_name ? `, ${profile.first_name}` : ""}
-        </h1>
-        <p className="text-sm text-muted-foreground">{company?.name}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Welcome back{profile?.first_name ? `, ${profile.first_name}` : ""}
+          </h1>
+          <p className="text-sm text-muted-foreground">{company?.name}</p>
+        </div>
+        <NotificationBell />
       </div>
 
       {!hasAnyContent && (

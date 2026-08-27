@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useInventoryDashboardStats } from "@/features/it/inventory/hooks";
-import { NotificationBell } from "@/features/it/inventory/components/NotificationBell";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";

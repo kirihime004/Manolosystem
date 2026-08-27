@@ -20,7 +20,7 @@ import {
   useCriticalTickets,
 } from "@/features/it/tickets/hooks";
 import { TicketSearchBox } from "@/features/it/tickets/components/TicketSearchBox";
-import { NotificationBell } from "@/features/it/inventory/components/NotificationBell";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketStatusBadge } from "@/components/shared/TicketBadges";
