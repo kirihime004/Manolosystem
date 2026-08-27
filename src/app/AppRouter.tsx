@@ -137,11 +137,15 @@ import ProductionSettingsPage from "@/pages/production/ProductionSettingsPage";
 import ClientLoginPage from "@/pages/client/ClientLoginPage";
 import ClientPortalPage from "@/pages/client/ClientPortalPage";
 
+import AiDashboardPage from "@/pages/ai/AiDashboardPage";
+import AiAssistantPage from "@/pages/ai/AiAssistantPage";
+
 import UsersPage from "@/pages/company/settings/UsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
 import AppearancePage from "@/pages/company/settings/AppearancePage";
 import CurrencySettingsPage from "@/pages/company/settings/CurrencySettingsPage";
+import AiSettingsPage from "@/pages/company/settings/AiSettingsPage";
 import ExchangeRatesPage from "@/pages/company/admin/ExchangeRatesPage";
 
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -1108,12 +1112,48 @@ export function AppRouter() {
               />
             </Route>
 
+            <Route
+              path="ai"
+              element={
+                <RequireModule moduleKey="AI">
+                  <RequirePermission permission={[PERMISSIONS.AI_ASSISTANT_VIEW, PERMISSIONS.AI_COMPANY_ANALYTICS_VIEW]}>
+                    <Outlet />
+                  </RequirePermission>
+                </RequireModule>
+              }
+            >
+              <Route
+                index
+                element={
+                  <RequirePermission permission={PERMISSIONS.AI_COMPANY_ANALYTICS_VIEW}>
+                    <AiDashboardPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="assistant"
+                element={
+                  <RequirePermission permission={PERMISSIONS.AI_ASSISTANT_VIEW}>
+                    <AiAssistantPage />
+                  </RequirePermission>
+                }
+              />
+            </Route>
+
             <Route path="settings">
               <Route
                 path="currency"
                 element={
                   <RequirePermission permission={[PERMISSIONS.IT_CURRENCY_VIEW, PERMISSIONS.IT_CURRENCY_MANAGE]}>
                     <CurrencySettingsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="ai"
+                element={
+                  <RequirePermission permission={PERMISSIONS.AI_ADMIN_SETTINGS}>
+                    <AiSettingsPage />
                   </RequirePermission>
                 }
               />

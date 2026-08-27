@@ -4,6 +4,7 @@ import {
   ReceiptText, PiggyBank, ClipboardList, MapPin, Package, Armchair, Car,
   Plane, UserCheck, PartyPopper, FileSignature, Megaphone, FolderKanban,
   Film, Shapes, ListChecks, CalendarRange, GitBranch, SendToBack, Gauge,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import type { ModuleKey } from "@/types/database";
@@ -54,4 +55,6 @@ export const MODULE_INFO: Record<ModuleKey, { label: string; description: string
   PRODUCTION_VERSIONS: { label: "Reviews", description: "Versions, review decisions, and notes", icon: GitBranch, path: "production/reviews" },
   PRODUCTION_DELIVERABLES: { label: "Deliverables", description: "Client deliverables and production files", icon: SendToBack, path: "production/deliverables" },
   PRODUCTION_RESOURCES: { label: "Resources", description: "Team workload, budgets, and reports", icon: Gauge, path: "production/resources" },
+
+  AI: { label: "AI", description: "AI business intelligence, analytics, and the AI assistant", icon: Sparkles, path: "ai" },
 };

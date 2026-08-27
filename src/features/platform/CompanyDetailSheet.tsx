@@ -101,6 +101,10 @@ const MODULE_GROUPS: { key: ModuleKey; subKeys: { key: ModuleKey; label: string 
       { key: "PRODUCTION_RESOURCES", label: "Production: Resources" },
     ],
   },
+  {
+    key: "AI",
+    subKeys: [],
+  },
 ];
 
 interface CompanyModuleRow {
