@@ -66,8 +66,15 @@ export function ApprovalDecisionBadge({ decision }: { decision: string }) {
 
 const BUDGET_STATUS_TONE: Record<string, string> = {
   DRAFT: "neutral",
+  DEPARTMENT_REVIEW: "neutral",
+  SUBMITTED_TO_FINANCE: "info",
+  FINANCE_REVIEW: "info",
+  RETURNED_FOR_REVISION: "warn",
+  APPROVED: "success",
   ACTIVE: "success",
   CLOSED: "neutral",
+  REJECTED: "danger",
+  CANCELLED: "neutral",
   ARCHIVED: "neutral",
 };
 

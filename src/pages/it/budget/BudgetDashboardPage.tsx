@@ -2,17 +2,20 @@ import { Link, useParams } from "react-router-dom";
 import { Wallet, PiggyBank, Clock, CheckCircle2, TrendingUp, AlertTriangle } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useBudgets, useCompanyCurrencySettings } from "@/features/it/procurement/hooks";
+import { BUDGET_MODULE_CONFIG } from "@/features/it/procurement/budgetModuleConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/shared/Money";
 import { BudgetStatusBadge } from "@/components/shared/ProcurementBadges";
 import { EmptyState } from "@/components/shared/EmptyState";
+import type { BudgetModuleKey } from "@/types/database";
 
-export default function BudgetDashboardPage() {
+export default function BudgetDashboardPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
+  const config = BUDGET_MODULE_CONFIG[moduleKey];
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
-  const { data: budgets, isLoading } = useBudgets(company?.id);
+  const { data: budgets, isLoading } = useBudgets(company?.id, moduleKey);
   const { data: currencySettings } = useCompanyCurrencySettings(company?.id);
 
   const active = budgets?.filter((b) => b.status === "ACTIVE") ?? [];
@@ -31,10 +34,10 @@ export default function BudgetDashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">IT Budget</h1>
-          <p className="text-sm text-muted-foreground">Company-wide IT spending overview for {company?.name}</p>
+          <h1 className="text-2xl font-semibold text-foreground">{config.label} Budget</h1>
+          <p className="text-sm text-muted-foreground">Company-wide {config.label} spending overview for {company?.name}</p>
         </div>
-        <Link to={`/c/${companySlug}/it/budget/budgets`}>
+        <Link to={`/c/${companySlug}/${config.basePath}/budgets`}>
           <Button>Manage budgets</Button>
         </Link>
       </div>
@@ -42,11 +45,11 @@ export default function BudgetDashboardPage() {
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
       ) : active.length === 0 ? (
-        <EmptyState icon={Wallet} title="No active budgets" description="Create a budget to start tracking IT spending." />
+        <EmptyState icon={Wallet} title="No active budgets" description={`Create a budget to start tracking ${config.label} spending.`} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <StatCard icon={Wallet} label="Total IT Budget" amount={totals.total} currencyId={currencySettings?.base_currency_id} />
+            <StatCard icon={Wallet} label={`Total ${config.label} Budget`} amount={totals.total} currencyId={currencySettings?.base_currency_id} />
             <StatCard icon={PiggyBank} label="Allocated" amount={totals.allocated} currencyId={currencySettings?.base_currency_id} />
             <StatCard icon={Clock} label="Committed" amount={totals.committed} currencyId={currencySettings?.base_currency_id} />
             <StatCard icon={TrendingUp} label="Spent" amount={totals.spent} currencyId={currencySettings?.base_currency_id} />
@@ -60,7 +63,7 @@ export default function BudgetDashboardPage() {
               {active.map((b) => {
                 const usedPct = b.total_budget > 0 ? Math.min(100, Math.round(((b.committed + b.spent) / b.total_budget) * 100)) : 0;
                 return (
-                  <Link key={b.id} to={`/c/${companySlug}/it/budget/budgets/${b.id}`}>
+                  <Link key={b.id} to={`/c/${companySlug}/${config.basePath}/budgets/${b.id}`}>
                     <Card className="transition-colors hover:border-primary/40">
                       <CardContent className="pt-6">
                         <div className="mb-2 flex items-center justify-between">

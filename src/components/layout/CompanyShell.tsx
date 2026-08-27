@@ -16,6 +16,7 @@ import {
   BarChart3,
   Coins,
   Users,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -817,6 +818,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                             </>
                           );
                         })()}
+                        {hasPermission(PERMISSIONS.HR_BUDGET_VIEW) && (
+                          <NavLink to={`${base}/hr/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/hr/budget`)} />
+                        )}
                       </div>
                     )}
                   </>
@@ -888,6 +892,20 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                           label: "Payroll",
                           items: FINANCE_PAYROLL_NAV,
                         })}
+                        {/* Shared Budget engine: Finance's own department
+                            budgets, plus the two Finance-only surfaces
+                            (cross-department approval queue and overview).
+                            Not tied to a leaf module -- available whenever
+                            this Finance group renders at all. */}
+                        {hasPermission(PERMISSIONS.FINANCE_BUDGET_VIEW) && (
+                          <NavLink to={`${base}/finance/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/finance/budget`)} />
+                        )}
+                        {hasPermission(PERMISSIONS.BUDGET_FINANCE_APPROVE) && (
+                          <NavLink to={`${base}/finance/budgets/review`} icon={ClipboardCheck} label="Budget Approvals" active={location.pathname.startsWith(`${base}/finance/budgets/review`)} />
+                        )}
+                        {hasPermission(PERMISSIONS.FINANCE_BUDGET_VIEW) && (
+                          <NavLink to={`${base}/finance/budgets/overview`} icon={BarChart3} label="Company Budget Overview" active={location.pathname.startsWith(`${base}/finance/budgets/overview`)} />
+                        )}
                       </div>
                     )}
                   </>
@@ -993,6 +1011,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                         label: "Announcements & Courier",
                         items: ADMIN_COMMS_NAV,
                       })}
+                      {hasPermission(PERMISSIONS.ADMIN_BUDGET_VIEW) && (
+                        <NavLink to={`${base}/admin/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/admin/budget`)} />
+                      )}
                     </div>
                   )}
                 </>
@@ -1081,6 +1102,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                         label: "Resources",
                         items: PRODUCTION_RESOURCES_NAV,
                       })}
+                      {hasPermission(PERMISSIONS.PRODUCTION_BUDGET_VIEW) && (
+                        <NavLink to={`${base}/production/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/production/budget`)} />
+                      )}
                     </div>
                   )}
                 </>

@@ -367,7 +367,15 @@ export interface ExchangeRate {
   created_at: string;
 }
 
-export type BudgetStatus = "DRAFT" | "ACTIVE" | "CLOSED" | "ARCHIVED";
+export type BudgetStatus =
+  | "DRAFT" | "DEPARTMENT_REVIEW" | "SUBMITTED_TO_FINANCE" | "FINANCE_REVIEW" | "RETURNED_FOR_REVISION"
+  | "APPROVED" | "ACTIVE" | "CLOSED" | "REJECTED" | "CANCELLED" | "ARCHIVED";
+
+// The five fixed RBAC/module buckets a shared budget can belong to --
+// distinct from `department_id` (a free-text, company-configurable
+// org-chart tag used for reporting only). RLS and *.BUDGET.* permissions
+// key off this, never off department_id.
+export type BudgetModuleKey = "IT" | "HR" | "FINANCE" | "ADMIN" | "PRODUCTION";
 
 export interface Budget {
   id: string;
@@ -381,8 +389,74 @@ export interface Budget {
   status: BudgetStatus;
   description: string | null;
   created_by: string | null;
+  department_id: string | null;
+  cost_center_id: string | null;
+  project_id: string | null;
+  module_key: BudgetModuleKey;
+  budget_code: string | null;
+  owner_id: string | null;
+  total_requested: number | null;
+  total_approved: number | null;
+  submitted_at: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  rejected_at: string | null;
+  rejected_by: string | null;
+  return_reason: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface BudgetLine {
+  id: string;
+  company_id: string;
+  budget_id: string;
+  category_id: string | null;
+  description: string;
+  department_id: string | null;
+  cost_center_id: string | null;
+  project_id: string | null;
+  module_key: BudgetModuleKey;
+  quantity: number;
+  unit_cost: number;
+  requested_amount: number;
+  approved_amount: number | null;
+  currency_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetHistoryEvent {
+  id: string;
+  company_id: string;
+  budget_id: string;
+  event_type: string;
+  performed_by: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  amount: number | null;
+  metadata: Record<string, unknown>;
+  notes: string | null;
+  created_at: string;
+}
+
+export type BudgetRevisionStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface BudgetRevision {
+  id: string;
+  company_id: string;
+  budget_id: string;
+  version: number;
+  created_by: string | null;
+  created_at: string;
+  reason: string;
+  previous_amount: number;
+  new_amount: number;
+  status: BudgetRevisionStatus;
+  approved_by: string | null;
+  approved_at: string | null;
 }
 
 export interface BudgetSummary extends Budget {
@@ -582,6 +656,9 @@ export interface PurchaseOrder {
   status: PurchaseOrderStatus;
   created_by: string | null;
   approved_by: string | null;
+  department_id: string | null;
+  cost_center_id: string | null;
+  project_id: string | null;
   created_at: string;
   updated_at: string;
 }

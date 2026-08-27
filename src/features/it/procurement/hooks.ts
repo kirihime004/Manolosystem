@@ -3,6 +3,7 @@ import * as currencyApi from "@/features/it/procurement/currencyApi";
 import * as budgetApi from "@/features/it/procurement/budgetApi";
 import * as procurementApi from "@/features/it/procurement/procurementApi";
 import type { PurchaseRequestFilters, PurchaseOrderFilters } from "@/features/it/procurement/procurementApi";
+import type { BudgetModuleKey } from "@/types/database";
 
 // ---------------------------------------------------------------------
 // Currency
@@ -46,8 +47,32 @@ export function useExchangeRateMutations() {
 // ---------------------------------------------------------------------
 // Budgets
 // ---------------------------------------------------------------------
-export function useBudgets(companyId: string | undefined) {
-  return useQuery({ queryKey: ["budgets", companyId], queryFn: () => budgetApi.listBudgets(companyId!), enabled: !!companyId });
+export function useBudgets(companyId: string | undefined, moduleKey?: BudgetModuleKey) {
+  return useQuery({
+    queryKey: ["budgets", companyId, moduleKey],
+    queryFn: () => budgetApi.listBudgets(companyId!, moduleKey),
+    enabled: !!companyId,
+  });
+}
+
+export function useBudgetsPendingFinance(companyId: string | undefined) {
+  return useQuery({
+    queryKey: ["budgets-pending-finance", companyId],
+    queryFn: () => budgetApi.listBudgetsPendingFinance(companyId!),
+    enabled: !!companyId,
+  });
+}
+
+export function useBudgetLines(budgetId: string | undefined) {
+  return useQuery({ queryKey: ["budget-lines", budgetId], queryFn: () => budgetApi.listBudgetLines(budgetId!), enabled: !!budgetId });
+}
+
+export function useBudgetHistory(budgetId: string | undefined) {
+  return useQuery({ queryKey: ["budget-history", budgetId], queryFn: () => budgetApi.listBudgetHistory(budgetId!), enabled: !!budgetId });
+}
+
+export function useBudgetRevisions(budgetId: string | undefined) {
+  return useQuery({ queryKey: ["budget-revisions", budgetId], queryFn: () => budgetApi.listBudgetRevisions(budgetId!), enabled: !!budgetId });
 }
 
 export function useBudget(budgetId: string | undefined) {
@@ -78,11 +103,15 @@ export function useBudgetMutations(budgetId?: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["budgets"] });
+    queryClient.invalidateQueries({ queryKey: ["budgets-pending-finance"] });
     queryClient.invalidateQueries({ queryKey: ["budget-categories"] });
     if (budgetId) {
       queryClient.invalidateQueries({ queryKey: ["budget", budgetId] });
       queryClient.invalidateQueries({ queryKey: ["budget-category-summaries", budgetId] });
       queryClient.invalidateQueries({ queryKey: ["budget-transactions", budgetId] });
+      queryClient.invalidateQueries({ queryKey: ["budget-lines", budgetId] });
+      queryClient.invalidateQueries({ queryKey: ["budget-history", budgetId] });
+      queryClient.invalidateQueries({ queryKey: ["budget-revisions", budgetId] });
     }
   };
   const create = useMutation({ mutationFn: budgetApi.createBudget, onSuccess: invalidate });
@@ -96,7 +125,55 @@ export function useBudgetMutations(budgetId?: string) {
   });
   const setAllocation = useMutation({ mutationFn: budgetApi.upsertBudgetAllocation, onSuccess: invalidate });
   const createAdjustment = useMutation({ mutationFn: budgetApi.createBudgetAdjustment, onSuccess: invalidate });
-  return { create, update, createCategory, setAllocation, createAdjustment };
+
+  const createLine = useMutation({ mutationFn: budgetApi.createBudgetLine, onSuccess: invalidate });
+  const updateLine = useMutation({
+    mutationFn: (input: { id: string; patch: Parameters<typeof budgetApi.updateBudgetLine>[1] }) => budgetApi.updateBudgetLine(input.id, input.patch),
+    onSuccess: invalidate,
+  });
+  const deleteLine = useMutation({ mutationFn: budgetApi.deleteBudgetLine, onSuccess: invalidate });
+
+  const submitToFinance = useMutation({
+    mutationFn: (input: { budgetId: string; comments?: string | null }) => budgetApi.submitBudgetToFinance(input.budgetId, input.comments),
+    onSuccess: invalidate,
+  });
+  const beginReview = useMutation({ mutationFn: budgetApi.beginBudgetFinanceReview, onSuccess: invalidate });
+  const returnForRevision = useMutation({
+    mutationFn: (input: { budgetId: string; reason: string }) => budgetApi.returnBudgetForRevision(input.budgetId, input.reason),
+    onSuccess: invalidate,
+  });
+  const reject = useMutation({
+    mutationFn: (input: { budgetId: string; reason: string }) => budgetApi.rejectBudget(input.budgetId, input.reason),
+    onSuccess: invalidate,
+  });
+  const approve = useMutation({
+    mutationFn: (input: { budgetId: string; lineApprovals?: { budgetLineId: string; approvedAmount: number }[]; comments?: string | null }) =>
+      budgetApi.approveBudget(input.budgetId, input.lineApprovals, input.comments),
+    onSuccess: invalidate,
+  });
+  const activate = useMutation({ mutationFn: budgetApi.activateBudget, onSuccess: invalidate });
+  const close = useMutation({ mutationFn: budgetApi.closeBudget, onSuccess: invalidate });
+  const cancel = useMutation({
+    mutationFn: (input: { budgetId: string; reason?: string | null }) => budgetApi.cancelBudget(input.budgetId, input.reason),
+    onSuccess: invalidate,
+  });
+  const requestIncrease = useMutation({
+    mutationFn: (input: { budgetId: string; additionalAmount: number; reason: string }) =>
+      budgetApi.requestBudgetIncrease(input.budgetId, input.additionalAmount, input.reason),
+    onSuccess: invalidate,
+  });
+  const decideRevision = useMutation({
+    mutationFn: (input: { revisionId: string; decision: "APPROVED" | "REJECTED"; comments?: string | null }) =>
+      budgetApi.decideBudgetRevision(input.revisionId, input.decision, input.comments),
+    onSuccess: invalidate,
+  });
+
+  return {
+    create, update, createCategory, setAllocation, createAdjustment,
+    createLine, updateLine, deleteLine,
+    submitToFinance, beginReview, returnForRevision, reject, approve, activate, close, cancel,
+    requestIncrease, decideRevision,
+  };
 }
 
 // ---------------------------------------------------------------------

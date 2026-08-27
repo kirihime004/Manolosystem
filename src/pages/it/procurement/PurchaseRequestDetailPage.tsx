@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useSuppliers } from "@/features/it/inventory/hooks";
-import { usePurchaseRequest, usePurchaseRequestMutations, useQuotationMutations, usePurchaseOrderMutations, useCurrencies } from "@/features/it/procurement/hooks";
+import { usePurchaseRequest, usePurchaseRequestMutations, useQuotationMutations, usePurchaseOrderMutations, useCurrencies, useBudget } from "@/features/it/procurement/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -36,6 +36,7 @@ export default function PurchaseRequestDetailPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: pr, isLoading } = usePurchaseRequest(requestId);
+  const { data: linkedBudget } = useBudget(pr?.budget_id ?? undefined);
   const { data: suppliers } = useSuppliers(pr?.company_id);
   const { data: currencies } = useCurrencies();
   const { submit, decideApproval } = usePurchaseRequestMutations(requestId);
@@ -174,6 +175,15 @@ export default function PurchaseRequestDetailPage() {
           )}
         </div>
       </div>
+
+      {nextApproval && linkedBudget && !["APPROVED", "ACTIVE"].includes(linkedBudget.status) && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm">
+          <p className="font-medium text-amber-700 dark:text-amber-400">Linked budget isn't approved yet</p>
+          <p className="mt-1 text-muted-foreground">
+            "{linkedBudget.budget_name}" is currently <span className="font-medium">{linkedBudget.status.replace(/_/g, " ")}</span> — this request cannot be fully approved until Finance approves that budget.
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="overview">
         <TabsList>

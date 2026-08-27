@@ -40,6 +40,9 @@ import BudgetsListPage from "@/pages/it/budget/BudgetsListPage";
 import BudgetDetailPage from "@/pages/it/budget/BudgetDetailPage";
 import BudgetCategoriesPage from "@/pages/it/budget/BudgetCategoriesPage";
 import BudgetTransactionsPage from "@/pages/it/budget/BudgetTransactionsPage";
+import FinanceBudgetReviewListPage from "@/pages/finance/budgets/FinanceBudgetReviewListPage";
+import FinanceBudgetReviewDetailPage from "@/pages/finance/budgets/FinanceBudgetReviewDetailPage";
+import CompanyBudgetOverviewPage from "@/pages/finance/budgets/CompanyBudgetOverviewPage";
 
 import ProcurementDashboardPage from "@/pages/it/procurement/ProcurementDashboardPage";
 import PurchaseRequestsListPage from "@/pages/it/procurement/PurchaseRequestsListPage";
@@ -511,6 +514,22 @@ export function AppRouter() {
                   }
                 />
               </Route>
+
+              {/* HR's own view onto the shared Budget & Procurement engine
+                  (see the IT "budget" block below for the canonical
+                  version -- same components, filtered to moduleKey="HR"). */}
+              <Route
+                path="budget"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_BUDGET_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<BudgetDashboardPage moduleKey="HR" />} />
+                <Route path="budgets" element={<BudgetsListPage moduleKey="HR" />} />
+                <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              </Route>
             </Route>
 
             <Route
@@ -716,6 +735,41 @@ export function AppRouter() {
                   <Route path=":payrollRunId" element={<PayrollRunDetailPage />} />
                 </Route>
               </Route>
+
+              {/* Finance's own view onto the shared Budget & Procurement
+                  engine, plus the two Finance-only surfaces: the cross-
+                  department approval queue and the company-wide overview. */}
+              <Route
+                path="budget"
+                element={
+                  <RequirePermission permission={PERMISSIONS.FINANCE_BUDGET_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<BudgetDashboardPage moduleKey="FINANCE" />} />
+                <Route path="budgets" element={<BudgetsListPage moduleKey="FINANCE" />} />
+                <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              </Route>
+              <Route
+                path="budgets/review"
+                element={
+                  <RequirePermission permission={PERMISSIONS.BUDGET_FINANCE_APPROVE}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<FinanceBudgetReviewListPage />} />
+                <Route path=":budgetId" element={<FinanceBudgetReviewDetailPage />} />
+              </Route>
+              <Route
+                path="budgets/overview"
+                element={
+                  <RequirePermission permission={PERMISSIONS.FINANCE_BUDGET_VIEW}>
+                    <CompanyBudgetOverviewPage />
+                  </RequirePermission>
+                }
+              />
             </Route>
 
             <Route
@@ -969,6 +1023,21 @@ export function AppRouter() {
                   }
                 />
               </Route>
+
+              {/* Administration's own view onto the shared Budget &
+                  Procurement engine. */}
+              <Route
+                path="budget"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_BUDGET_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<BudgetDashboardPage moduleKey="ADMIN" />} />
+                <Route path="budgets" element={<BudgetsListPage moduleKey="ADMIN" />} />
+                <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              </Route>
             </Route>
 
             <Route
@@ -1110,6 +1179,21 @@ export function AppRouter() {
                   </RequireModule>
                 }
               />
+
+              {/* Production's own view onto the shared Budget &
+                  Procurement engine. */}
+              <Route
+                path="budget"
+                element={
+                  <RequirePermission permission={PERMISSIONS.PRODUCTION_BUDGET_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<BudgetDashboardPage moduleKey="PRODUCTION" />} />
+                <Route path="budgets" element={<BudgetsListPage moduleKey="PRODUCTION" />} />
+                <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              </Route>
             </Route>
 
             <Route

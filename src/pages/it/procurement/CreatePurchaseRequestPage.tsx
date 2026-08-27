@@ -126,7 +126,9 @@ export default function CreatePurchaseRequestPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No budget</SelectItem>
-                    {budgets?.filter((b) => b.status === "ACTIVE").map((b) => <SelectItem key={b.id} value={b.id}>{b.budget_name}</SelectItem>)}
+                    {budgets?.filter((b) => b.status === "ACTIVE").map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.budget_name} ({b.module_key})</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
