@@ -44,11 +44,14 @@ import {
   MessageCircle,
   TrendingUp,
   Settings2,
+  Network,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { TicketPriorityBadge, TicketStatusBadge } from "@/components/shared/TicketBadges";
 import type { TicketPriority, TicketStatus } from "@/types/database";
 
@@ -103,8 +106,66 @@ function SectionHeader({ icon: Icon, kicker, title }: { icon: LucideIcon; kicker
   );
 }
 
+// Reference table — for field lists, status legends, and permission
+// summaries. First column reads as the "key" (bold, foreground); the rest
+// read as detail (muted).
+function RefTable({ caption, head, rows }: { caption?: string; head: string[]; rows: React.ReactNode[][] }) {
+  return (
+    <div className="space-y-1.5">
+      {caption && <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{caption}</p>}
+      <div className="overflow-x-auto rounded-md border border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {head.map((h) => <TableHead key={h} className="whitespace-nowrap text-[11px] uppercase tracking-wide">{h}</TableHead>)}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r, i) => (
+              <TableRow key={i}>
+                {r.map((c, j) => (
+                  <TableCell key={j} className={j === 0 ? "font-medium text-foreground align-top" : "align-top text-muted-foreground"}>
+                    {c}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// Process-flow stepper — a numbered chain of cards joined by arrows, for
+// showing the order money/work actually moves through the system. Wraps
+// to a vertical chain on narrow screens.
+function Flow({ steps }: { steps: { label: string; title: string; body: React.ReactNode; who?: string }[] }) {
+  return (
+    <div className="flex flex-col flex-wrap gap-2 sm:flex-row sm:items-stretch sm:gap-0">
+      {steps.map((s, i) => (
+        <div key={i} className="flex flex-col items-stretch sm:flex-row">
+          <div className="flex w-full flex-col gap-1.5 rounded-md border border-border bg-card p-3 sm:w-[172px]">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-primary">{s.label}</span>
+            <p className="text-xs font-medium leading-snug text-foreground">{s.title}</p>
+            <p className="text-xs leading-snug text-muted-foreground">{s.body}</p>
+            {s.who && <p className="mt-auto border-t border-border pt-1.5 font-mono text-[10px] text-muted-foreground">{s.who}</p>}
+          </div>
+          {i < steps.length - 1 && (
+            <div className="flex h-6 items-center justify-center text-muted-foreground sm:h-auto sm:w-6">
+              <span className="sm:hidden">↓</span>
+              <span className="hidden sm:inline">→</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const CHAPTERS = [
   { id: "getting-started", label: "Getting Started" },
+  { id: "flow", label: "How It All Connects" },
   { id: "it", label: "IT" },
   { id: "budget", label: "Budget & Procurement" },
   { id: "hr", label: "HR" },
@@ -229,6 +290,137 @@ export default function HandbookPage() {
       </div>
 
       {/* ================================================================ */}
+      {/* PROCESS FLOW */}
+      {/* ================================================================ */}
+      <div id="flow" className="scroll-mt-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">How it all connects</h2>
+          <p className="text-sm text-muted-foreground">
+            IT, HR, Finance, Administration, and Production each run their own day-to-day work, but two things cut
+            across all five: every department prepares its own <span className="font-medium text-foreground">Budget</span>,
+            and every department spends it through the same <span className="font-medium text-foreground">Procurement</span> pipeline.
+            Finance sits above both, approving budgets and paying the bills. This chapter is the map — the module
+            chapters that follow go deep on each screen.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Network} kicker="The big picture" title="One system, five departments, two shared engines" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {["IT", "HR", "Finance", "Administration", "Production"].map((d) => (
+                <div key={d} className="rounded-md border border-border bg-muted/40 px-2 py-2.5 text-center text-xs font-semibold text-foreground">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-primary/25 bg-primary/5 p-3.5">
+                <p className="text-sm font-medium text-foreground">Budget</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Each department drafts a budget → Finance approves it → it activates and becomes spendable,
+                  tracked live as Committed / Spent / Available.
+                </p>
+              </div>
+              <div className="rounded-md border border-primary/25 bg-primary/5 p-3.5">
+                <p className="text-sm font-medium text-foreground">Procurement</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Each department raises its own Purchase Requests against its own budget → quoted → ordered →
+                  received. Suppliers are shared company-wide.
+                </p>
+              </div>
+            </div>
+            <Callout>
+              Budget approval and Procurement approval work the same way everywhere: a request is submitted, and
+              whoever holds the right permission for that department decides it — never one hardcoded person.
+              That's what makes the identical pipeline work for IT, HR, Finance, Administration, and Production
+              alike.
+            </Callout>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={UserPlus} kicker="Foundation" title="Getting a person into the system" />
+          </CardHeader>
+          <CardContent className="space-y-3 overflow-x-auto">
+            <Flow
+              steps={[
+                { label: "01", title: "Create the account", body: "Settings → Users → Invite, or Import from Excel to do a whole batch at once.", who: "ADMIN.USERS.MANAGE" },
+                { label: "02", title: "Link the HR record", body: "HR → Employees → New employee, picking the account just created.", who: "HR.EMPLOYEES.CREATE" },
+                { label: "03", title: "Assign roles", body: "A role is a bundle of permissions — assigning one turns on what a person can actually do.", who: "ADMIN.USERS.MANAGE" },
+              ]}
+            />
+            <p className="text-xs text-muted-foreground">
+              One account can exist without an employee record (a contractor who only needs system access); an
+              employee record always needs an account behind it. Onboarding many people at once — a new season's
+              crew — the Excel import does the first two steps together, per row.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Wallet} kicker="Shared spine" title="Budget pipeline" />
+            <CardDescription>Identical in every department — IT, HR, Finance, Administration, and Production each run their own instance of this.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Flow
+              steps={[
+                { label: "01", title: "Draft", body: "Department adds line items with requested amounts, by category.", who: "Dept lead" },
+                { label: "02", title: "Submit to Finance", body: "Lines lock. Lands in Finance's cross-department queue.", who: "Dept lead" },
+                { label: "03", title: "Finance reviews", body: "Approves each line at full or a reduced amount, or returns for revision.", who: "FINANCE.BUDGET.APPROVE" },
+                { label: "04", title: "Activate", body: "Department flips it live — an available balance now exists to spend.", who: "Dept lead" },
+                { label: "05", title: "Spend it", body: "Procurement, Approved Work, or bills post Committed → Spent, live.", who: "Ongoing" },
+              ]}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={ShoppingCart} kicker="Shared spine" title="Procurement pipeline" />
+            <CardDescription>How an active budget actually gets spent on something real.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Flow
+              steps={[
+                { label: "01", title: "Purchase Request", body: "Raised against one of the department's own active budgets.", who: "e.g. IT.PROCUREMENT.CREATE" },
+                { label: "02", title: "Approve the PR", body: "Checks the budget has enough available, then commits that amount.", who: "e.g. IT.PROCUREMENT.APPROVE" },
+                { label: "03", title: "Quote & select", body: "One or more supplier quotes attached; the best one is selected.", who: "Buyer" },
+                { label: "04", title: "Purchase Order", body: "Built from the selected quote, approved the same way as the PR.", who: "e.g. IT.PROCUREMENT.APPROVE_PO" },
+                { label: "05", title: "Delivery", body: "Marking items received flips Committed into actual Spent.", who: "Receiver" },
+              ]}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <SectionHeader icon={Banknote} kicker="Production" title="From finished work to a paycheck" />
+            <CardDescription>The full path a priced Production task takes to become real money in an artist's pocket.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 overflow-x-auto">
+            <Flow
+              steps={[
+                { label: "01", title: "Submit for approval", body: "Artist submits their priced, completed task.", who: "PRODUCTION.WORK.SUBMIT" },
+                { label: "02", title: "Approved Work queue", body: "Approve in full, approve a partial quantity, or send back.", who: "PRODUCTION.WORK.APPROVE" },
+                { label: "03", title: "Send to Finance", body: "Approved earnings move into Finance's Production Earnings queue.", who: "Production lead" },
+                { label: "04", title: "Add to a payroll run", body: "Pulled onto the artist's line in an open payroll run.", who: "FINANCE.PAYROLL.PROCESS" },
+                { label: "05", title: "Approve the run", body: "Every employee's net pay for the period is locked in.", who: "FINANCE.PAYROLL.APPROVE" },
+                { label: "06", title: "Pay", body: "Paid from a real cash/bank account — the balance actually debits.", who: "FINANCE.PAYROLL.PROCESS" },
+              ]}
+            />
+            <Callout>
+              Whoever submits a piece of work can never be the one who approves it — even a Company Admin. In
+              practice this is invisible: the artist submits their own work, and a different person approves it,
+              exactly as it should be.
+            </Callout>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ================================================================ */}
       {/* IT */}
       {/* ================================================================ */}
       <div id="it" className="scroll-mt-6 space-y-6">
@@ -254,6 +446,18 @@ export default function HandbookPage() {
                 reference.
               </Step>
             </div>
+
+            <RefTable
+              caption="New ticket — fields"
+              head={["Field", "Required", "Notes"]}
+              rows={[
+                ["Subject", "Yes", "Short summary — shown everywhere the ticket is listed."],
+                ["Category / Subcategory", "Yes", "Drives who it's routed to; managed under Manage categories."],
+                ["Priority", "Yes", "Low, Medium, High, or Critical."],
+                ["Description", "Yes", "The actual problem or request, in full."],
+                ["Attachments", "No", "Screenshots, logs, or any other supporting file."],
+              ]}
+            />
 
             <div>
               <p className="text-sm font-medium text-foreground">Tracking a ticket</p>
@@ -281,6 +485,33 @@ export default function HandbookPage() {
                 </div>
               </div>
             </div>
+
+            <RefTable
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Open", "Filed, not yet picked up."],
+                ["Assigned", "A technician is on it, hasn't started work."],
+                ["In Progress", "Actively being worked."],
+                ["Waiting for User", "Blocked on the person who filed it — needs their reply."],
+                ["Waiting for Vendor", "Blocked on an outside vendor or supplier."],
+                ["Resolved", "Fix applied — awaiting confirmation."],
+                ["Closed", "Confirmed done."],
+                ["Cancelled", "Withdrawn before completion."],
+              ]}
+            />
+
+            <RefTable
+              caption="Permissions"
+              head={["Permission", "Lets you"]}
+              rows={[
+                ["IT.TICKETS.CREATE", "File a new ticket."],
+                ["IT.TICKETS.VIEW", "See every ticket, not just your own."],
+                ["IT.TICKETS.ASSIGN", "Assign a ticket to a technician."],
+                ["IT.TICKETS.UPDATE", "Change priority, status, or details."],
+                ["IT.TICKETS.RESOLVE / CLOSE", "Mark a ticket Resolved or Closed."],
+                ["IT.TICKETS.COMMENT", "Post a comment on a ticket."],
+              ]}
+            />
 
             <Callout>
               Filing tickets needs the <span className="font-medium">Create</span> permission; commenting needs{" "}
@@ -351,6 +582,19 @@ export default function HandbookPage() {
                 It gets its own asset code automatically and appears in the register immediately.
               </Step>
             </div>
+
+            <RefTable
+              caption="Hardware vs. software fields"
+              head={["Hardware", "Software"]}
+              rows={[
+                ["Category, Lifecycle, Brand, Model", "Vendor, Version, License key"],
+                ["Serial number, Asset tag", "Number of licenses"],
+                ["Hostname, IP address, MAC address", "If Subscription: Renewal date, Billing cycle, Cost, Seats"],
+                ["Warranty end", "—"],
+                ["Both: Purchase date, Purchase price, Currency, Supplier, Assigned to, Location, Notes", ""],
+              ]}
+            />
+
             <ul className="space-y-3">
               <Item title="Subscriptions">
                 Recurring software licenses and their renewal dates — the dashboard flags anything nearing expiry.
@@ -471,6 +715,22 @@ export default function HandbookPage() {
                 while still a draft, or closed out entirely once its period ends.
               </p>
             </div>
+            <RefTable
+              caption="Budget status"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Draft", "Being prepared by the department; lines fully editable."],
+                ["Submitted to Finance", "Locked, waiting for Finance to start review."],
+                ["Finance Review", "A Finance reviewer has it open and is deciding line by line."],
+                ["Approved", "Decided — department can now Activate it."],
+                ["Returned for Revision", "Sent back with a reason; department edits and resubmits."],
+                ["Rejected", "Declined, final — no resubmission."],
+                ["Active", "Live and spendable — the status everything else checks against."],
+                ["Closed", "Period ended; no further activity."],
+                ["Cancelled", "Withdrawn while still a Draft."],
+              ]}
+            />
+
             <Callout>
               Every transaction — a commitment when a purchase order is raised, an expense when it's actually
               spent, a release if a commitment falls through — posts automatically to the budget's{" "}
@@ -484,16 +744,30 @@ export default function HandbookPage() {
         <Card>
           <CardHeader>
             <SectionHeader icon={ShoppingCart} kicker="Procurement" title="Purchase Requests → Quotations → Purchase Orders → Deliveries" />
-            <CardDescription>IT's own procurement pipeline draws its money from an IT-department budget through this same shared engine.</CardDescription>
+            <CardDescription>Every department's own procurement pipeline draws its money from that department's own budget through this same shared engine.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <ul className="space-y-3">
-              <Item title="Purchase Requests">Created against a specific Budget + Category (see the IT chapter above); submitting checks that budget actually has enough Available before it's allowed through.</Item>
+              <Item title="Purchase Requests">Created against a specific Budget + Category; submitting checks that budget actually has enough Available before it's allowed through.</Item>
               <Item title="Quotations">One or more supplier quotes attached to an approved request; selecting one records why it was chosen over the others.</Item>
               <Item title="Purchase Orders">Generated from a selected quotation; approving a PO is what actually posts a Commitment against the budget.</Item>
               <Item title="Deliveries">Receiving items against a PO — partial receipts are tracked line by line, and a full receipt converts the commitment into real Spent.</Item>
-              <Item title="Suppliers">The vendor directory quotations and purchase orders are raised against, each with its own order history.</Item>
+              <Item title="Suppliers">The vendor directory quotations and purchase orders are raised against, each with its own order history — shared company-wide; only IT and Administration can add or edit one.</Item>
             </ul>
+
+            <RefTable
+              caption="Permission pattern (shown for IT — the same shape repeats per department)"
+              head={["Permission", "Lets you"]}
+              rows={[
+                ["IT.PROCUREMENT.CREATE", "Raise a Purchase Request."],
+                ["IT.PROCUREMENT.APPROVE", "Decide a submitted PR."],
+                ["IT.PROCUREMENT.CREATE_PO", "Build a Purchase Order from a selected quote."],
+                ["IT.PROCUREMENT.APPROVE_PO", "Decide a submitted PO."],
+                ["IT.PROCUREMENT.RECEIVE", "Record a delivery against a PO."],
+                ["IT.SUPPLIERS.VIEW", "Browse the supplier directory (every department gets this)."],
+                ["IT.SUPPLIERS.CREATE / UPDATE", "Add or edit a supplier (IT and Administration only)."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -542,6 +816,22 @@ export default function HandbookPage() {
                 They get an employee number automatically.
               </Step>
             </div>
+
+            <RefTable
+              caption="New employee — fields"
+              head={["Field", "Required", "Notes"]}
+              rows={[
+                ["User account", "No", "Links this record to a login — leave unset for an HR-only record."],
+                ["First / Last name", "Yes", "—"],
+                ["Company email / Personal email", "No", "Company email is what shows up across the app."],
+                ["Phone", "No", "—"],
+                ["Hire date", "No", "Drives tenure and probation calculations."],
+                ["Department, Position", "No", "Drives the org chart and assignee pickers everywhere."],
+                ["Employment type", "No", "Full-Time, Part-Time, Contract, Freelancer, etc."],
+                ["Employment status", "No", "Active, Probation, On Leave, Terminated, etc."],
+              ]}
+            />
+
             <ul className="space-y-3">
               <Item title="Org Chart">A visual reporting-line view built from each employee's manager assignment.</Item>
               <Item title="Employee Requests">
@@ -572,11 +862,33 @@ export default function HandbookPage() {
                 own request while it's still Draft or Submitted.
               </Step>
             </div>
+            <RefTable
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Draft", "Saved but not yet submitted — still fully editable."],
+                ["Submitted", "Sent to the manager's approval queue."],
+                ["Approved", "Confirmed time off; deducted from the balance."],
+                ["Rejected", "Declined by the manager."],
+                ["Cancelled", "Withdrawn by the employee."],
+              ]}
+            />
+
             <ul className="space-y-3">
               <Item title="Attendance">Clock-in/out records, with statuses like Present, Late, Remote, On Leave, and Holiday.</Item>
               <Item title="Overtime">Requested and approved the same way as leave, feeding into payroll calculations.</Item>
               <Item title="Timesheets">A per-period summary of worked hours for approval.</Item>
             </ul>
+
+            <RefTable
+              caption="Permissions"
+              head={["Permission", "Lets you"]}
+              rows={[
+                ["HR.EMPLOYEES.CREATE / UPDATE / DELETE", "Manage employee records."],
+                ["HR.LEAVE.CREATE / APPROVE", "Request leave / decide someone else's leave request."],
+                ["HR.OVERTIME.CREATE / APPROVE", "Request overtime / decide it."],
+                ["HR.PAYROLL.PROCESS / APPROVE", "Run payroll / approve a run before disbursement."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -592,6 +904,15 @@ export default function HandbookPage() {
                 then approved before disbursement.
               </Item>
             </ul>
+            <RefTable
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Draft", "Run generated, still editable — lines can be added or adjusted."],
+                ["Processing", "Being finalized."],
+                ["Approved", "Every employee's net pay is locked in."],
+                ["Paid", "Disbursed from a real cash/bank account — the balance actually debits."],
+              ]}
+            />
           </CardContent>
         </Card>
       </div>
@@ -667,6 +988,16 @@ export default function HandbookPage() {
             <Step n={3} title="Click Create claim.">
               It enters the approval queue; approving it is a separate action from the claim itself.
             </Step>
+            <RefTable
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Draft", "Saved, not yet submitted."],
+                ["Submitted", "Waiting on an approver."],
+                ["Approved", "Confirmed — payable."],
+                ["Rejected", "Declined, with a reason."],
+                ["Paid", "Reimbursed."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -682,6 +1013,15 @@ export default function HandbookPage() {
               This creates the entry as a draft — open it afterward to add its debit/credit lines against the
               Chart of Accounts before posting it to the General Ledger.
             </Step>
+            <RefTable
+              caption="Journal entry status"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Draft", "Lines still being built — total debits and credits don't need to balance yet."],
+                ["Posted", "Locked into the General Ledger. Requires debits to equal credits."],
+                ["Reversed", "A posted entry that's been undone with an offsetting reversal entry — the original stays on record."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -694,6 +1034,19 @@ export default function HandbookPage() {
               the company's base currency. That snapshot is never recalculated later, even if exchange rates or
               currency settings change afterward — it reflects exactly what was true when the record was created.
             </p>
+            <RefTable
+              caption="Permissions"
+              head={["Permission", "Lets you"]}
+              rows={[
+                ["FINANCE.AP.CREATE / APPROVE", "Enter a supplier bill / approve it for payment."],
+                ["FINANCE.AR.CREATE", "Raise a customer invoice."],
+                ["FINANCE.EXPENSES.APPROVE", "Decide a submitted expense claim."],
+                ["FINANCE.ACCOUNTING.POST", "Post a journal entry to the General Ledger."],
+                ["FINANCE.BUDGET.APPROVE", "Decide any department's submitted budget."],
+                ["FINANCE.PAYROLL.PROCESS / APPROVE", "Run payroll / approve and pay a run."],
+                ["FINANCE.REPORTS.VIEW", "Open Finance → Reports."],
+              ]}
+            />
             <Callout>
               Finance → Reports gives company-wide financial reporting, exportable and printable, for anyone
               holding the Reports permission.
@@ -727,6 +1080,18 @@ export default function HandbookPage() {
               It enters the review queue; staff with the right permissions can then review, approve, assign, work,
               and close it.
             </Step>
+            <RefTable
+              caption="Status lifecycle"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Submitted", "Filed, awaiting review."],
+                ["Under Review", "Being looked at."],
+                ["Approved / Rejected", "Decided."],
+                ["Assigned", "Handed to a staff member."],
+                ["In Progress", "Being worked."],
+                ["Closed", "Done."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -815,10 +1180,23 @@ export default function HandbookPage() {
           <CardHeader>
             <SectionHeader icon={Megaphone} kicker="Admin — Comms" title="Announcements & courier" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Company-wide announcements, and a log for tracking incoming/outgoing courier and mail.
             </p>
+            <RefTable
+              caption="Permissions"
+              head={["Permission", "Lets you"]}
+              rows={[
+                ["ADMIN.REQUESTS.CREATE / APPROVE", "File a general request / decide one."],
+                ["ADMIN.FACILITIES.MANAGE", "Manage rooms, locations, and bookings."],
+                ["ADMIN.SUPPLIES.MANAGE", "Adjust consumables stock and issue supplies."],
+                ["ADMIN.ASSETS.MANAGE", "Manage furniture/appliances and maintenance."],
+                ["ADMIN.VEHICLES.MANAGE", "Manage the fleet."],
+                ["ADMIN.EVENTS.MANAGE", "Create and run company events."],
+                ["ADMIN.CONTRACTS.MANAGE", "Manage administrative contracts and compliance records."],
+              ]}
+            />
           </CardContent>
         </Card>
       </div>
@@ -875,13 +1253,25 @@ export default function HandbookPage() {
             <div>
               <p className="text-sm font-medium text-foreground">Overview tab</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Change <span className="font-medium text-foreground">Status</span> (Planning, In Progress, On
-                Hold, Completed, Cancelled, Archived) from a dropdown right on the page — no dialog needed. The{" "}
-                <span className="font-medium text-foreground">Client portal access</span> toggle only turns on once
-                a client is assigned; switching it on lets that client see whatever shots and versions get marked
-                client-visible.
+                Change <span className="font-medium text-foreground">Status</span> from a dropdown right on the
+                page — no dialog needed. The <span className="font-medium text-foreground">Client portal access</span> toggle
+                only turns on once a client is assigned; switching it on lets that client see whatever shots and
+                versions get marked client-visible.
               </p>
             </div>
+
+            <RefTable
+              caption="Project status"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Planning", "Pre-production — pipeline being set up."],
+                ["In Progress", "Active production."],
+                ["On Hold", "Paused, not cancelled."],
+                ["Completed", "Delivered."],
+                ["Cancelled", "Stopped before delivery."],
+                ["Archived", "Completed and put away — read-only going forward."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -960,6 +1350,31 @@ export default function HandbookPage() {
               <span className="font-medium text-foreground">Visible to client portal</span> toggle controls
               whether a linked client can see this specific shot.
             </p>
+
+            <div>
+              <p className="text-sm font-medium text-foreground">Shot status</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Moves two ways: <span className="font-medium text-foreground">directly</span> — a status dropdown
+                sits right next to the shot's code, for anyone who can update shots, useful for On Hold or Omitted —
+                or <span className="font-medium text-foreground">automatically</span>, as the outcome of a review
+                decision (see Reviews, below). Both write to the same status.
+              </p>
+            </div>
+
+            <RefTable
+              caption="Shot status"
+              head={["Status", "Meaning", "Set by"]}
+              rows={[
+                ["Not Started", "No work begun.", "Default"],
+                ["In Progress", "Work underway.", "Direct or task activity"],
+                ["Pending Review", "A version was submitted, awaiting a decision.", "Automatic"],
+                ["Changes Requested", "A reviewer asked for another pass.", "Automatic (review decision)"],
+                ["Approved", "A reviewer signed off.", "Automatic (review decision)"],
+                ["Completed", "Fully done.", "Direct"],
+                ["On Hold", "Paused.", "Direct"],
+                ["Omitted", "Cut from the edit — no longer needed.", "Direct"],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -987,8 +1402,9 @@ export default function HandbookPage() {
           <CardContent className="space-y-4">
             <Step n={1} title="From a shot or asset's own page, click + Task.">
               Fill in Name, a Task type (Modeling, Rigging, Layout, Animation, FX, Lighting, Compositing — the list
-              is configurable per company), and an optional Assignee, then click{" "}
-              <span className="font-medium text-foreground">Create</span>.
+              is configurable per company), an optional Assignee, and optionally a Pricing unit right away if you
+              already know how this task should be priced (see Rate Cards, below) — set together, a price appears
+              on the task immediately.
             </Step>
             <Step n={2} title="Change its status from the dropdown right on the row, or open its ⋯ menu to Edit the name/assignee or Delete it.">
               Statuses run Not Started → Ready → In Progress → Pending Review → Changes Requested/Approved →
@@ -997,8 +1413,30 @@ export default function HandbookPage() {
             <Step n={3} title="On the Task Board (Production → Tasks), drag a card between columns to change its status.">
               A small trash icon on each card deletes it directly, with a confirmation. A Finish-to-Start
               dependency actually blocks a card from moving into an active status until its predecessor task is
-              Completed or Approved — dragging it too early shows an error toast instead of moving it.
+              Completed or Approved — dragging it too early, or picking that status from the dropdown, shows a
+              clear error ("This task has 1 unfinished predecessor task(s)…") instead of the change silently not
+              taking effect.
             </Step>
+
+            <RefTable
+              caption="Task status"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Not Started", "Default on creation."],
+                ["Ready", "Queued — its own predecessors are done."],
+                ["In Progress", "Being worked."],
+                ["Pending Review", "Version submitted, awaiting decision."],
+                ["Changes Requested", "Sent back for another pass."],
+                ["Approved", "Signed off."],
+                ["Completed", "Fully done."],
+                ["On Hold", "Paused."],
+              ]}
+            />
+
+            <Callout>
+              The task's calculated price (once one exists — see Rate Cards below) shows right on its row and on
+              its Task Board card, alongside its status and assignee — not just inside the edit screen.
+            </Callout>
           </CardContent>
         </Card>
 
@@ -1011,11 +1449,20 @@ export default function HandbookPage() {
             <div>
               <p className="text-sm font-medium text-foreground">Production Units</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                The thing work actually gets counted in — Second, Frame, Shot, Background, Rig, Character, and
-                about fifteen others come pre-loaded; add a custom one (e.g. "Per Facial Shot") from{" "}
+                The thing work actually gets counted in; add a custom one (e.g. "Per Facial Shot") from{" "}
                 <span className="font-medium text-foreground">+ Unit</span> anytime.
               </p>
             </div>
+
+            <RefTable
+              caption="Common units"
+              head={["Unit", "Quantity comes from"]}
+              rows={[
+                ["Second", "The shot's own frame range ÷ project fps — automatic."],
+                ["Frame", "The shot's own frame range — automatic."],
+                ["Shot / Background / Rig / Character / …", "Typed in by hand when the price is calculated."],
+              ]}
+            />
             <div>
               <p className="text-sm font-medium text-foreground">Rate Cards</p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -1060,7 +1507,8 @@ export default function HandbookPage() {
               <Step n={2} title="Click Save & calculate.">
                 This resolves the applicable rate card and shows the resulting Amount right there. Changing a
                 quantity that was already saved requires typing a short reason — that override is kept on record
-                even after the number changes again later.
+                even after the number changes again later. Reassigning the task later re-runs this automatically,
+                since a rate can be scoped to a specific person.
               </Step>
               <Step n={3} title="Click Submit for approval.">
                 Available to the artist assigned to the task (or anyone who can manage tasks) once a quantity and
@@ -1069,6 +1517,21 @@ export default function HandbookPage() {
                 version later.
               </Step>
             </div>
+
+            <RefTable
+              caption="Work earning status"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Submitted", "Sent for approval, awaiting decision."],
+                ["Approved", "Decided — full or partial amount confirmed."],
+                ["Rejected / Changes Required", "Sent back; nothing becomes payable."],
+                ["Payable", "Approved and ready — visible to Finance."],
+                ["Sent to Finance", "Finance has pulled it into its own queue."],
+                ["In Payroll", "Added to a specific payroll run's line for that employee."],
+                ["Paid", "That run was paid — money actually moved."],
+              ]}
+            />
+
             <div>
               <p className="text-sm font-medium text-foreground">Deciding submitted work</p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -1078,7 +1541,10 @@ export default function HandbookPage() {
                 approve less than what was requested — a partial approval — with both the requested and approved
                 amounts kept on record. <span className="font-medium text-foreground">Reject</span> and{" "}
                 <span className="font-medium text-foreground">Changes</span> both send it back to the artist with
-                comments, and neither creates anything payable. Nobody can approve their own submitted work.
+                comments, and neither creates anything payable.{" "}
+                <span className="font-medium text-foreground">Nobody can approve their own submitted work</span> —
+                not even a Company Admin. If a submission looks stuck with no Approve button visible, that's why:
+                a different person has to make that decision.
               </p>
             </div>
             <div>
@@ -1090,8 +1556,8 @@ export default function HandbookPage() {
                 Approval never pays anyone automatically: Finance explicitly selects Payable items on{" "}
                 <span className="font-medium text-foreground">Finance → Production Earnings</span> and sends them
                 to Finance, then pulls them into a specific employee's line on a payroll run from that run's own{" "}
-                <span className="font-medium text-foreground">+ Production earnings</span> action — only then does
-                it move to Paid once that run is actually paid out.
+                <span className="font-medium text-foreground">+ Production earnings</span> action, approves the run,
+                and pays it — only then does the earning move to Paid.
               </p>
             </div>
             <Callout>
@@ -1124,15 +1590,41 @@ export default function HandbookPage() {
                 to jump playback back to that frame and redraw the markup on top of it.
               </Step>
               <Step n={4} title="Request a review: pick a person from Request review from…, then click Request.">
-                They'll see <span className="font-medium text-foreground">Approve</span> and{" "}
-                <span className="font-medium text-foreground">Request changes</span> buttons on that review —
-                deciding it automatically updates the version's and the shot's own status.
+                The review shows "Requested from &lt;name&gt;" — but deciding it isn't limited to that one person.{" "}
+                <span className="font-medium text-foreground">Approve</span> and{" "}
+                <span className="font-medium text-foreground">Request changes</span> buttons appear for the picked
+                reviewer <span className="font-medium text-foreground">and</span> for anyone else who holds the
+                decide permission for reviews (Directors and Producers always do; Supervisors do too) — so a
+                manager doesn't have to be the one hand-picked person to step in and decide it. Deciding
+                automatically updates the version's and the shot's own status.
               </Step>
             </div>
             <p className="text-sm text-muted-foreground">
               A trash icon next to each version's status removes it (with confirmation) — useful for a version
               submitted by mistake.
             </p>
+
+            <RefTable
+              caption="Version status"
+              head={["Status", "Meaning"]}
+              rows={[
+                ["Pending Review", "Submitted, no decision yet."],
+                ["Approved", "Signed off — also moves the shot/asset to Approved."],
+                ["Changes Requested", "Sent back — also moves the shot/asset to Changes Requested."],
+                ["Archived", "Superseded by a newer version."],
+              ]}
+            />
+
+            <RefTable
+              caption="Permissions"
+              head={["Permission", "Lets you"]}
+              rows={[
+                ["PRODUCTION.VERSIONS.CREATE", "Submit a version."],
+                ["PRODUCTION.REVIEWS.CREATE", "Request a review on a version."],
+                ["PRODUCTION.REVIEWS.DECIDE", "Approve or request changes on any review — not just ones requested from you."],
+                ["PRODUCTION.NOTES.CREATE", "Draw and comment on a frame."],
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -1371,20 +1863,21 @@ export default function HandbookPage() {
 
             <Separator />
 
-            <div>
-              <p className="mb-2.5 text-sm font-medium text-foreground">Pre-built system roles</p>
-              <ul className="space-y-3">
-                <Item title="Admin">Every permission that exists — full access to every module.</Item>
-                <Item title="IT">The full ticket lifecycle and day-to-day inventory operations.</Item>
-                <Item title="HR">The whole HR surface except deleting employees or approving payroll.</Item>
-                <Item title="Accountant">The whole Finance surface.</Item>
-                <Item title="Administrative Officer">The whole Administration business surface.</Item>
-                <Item title="Director / Producer">The full Production surface — project, schedule, and budget authority.</Item>
-                <Item title="Supervisor">Departmental oversight in Production — task assignment and review decisions, without project or budget management.</Item>
-                <Item title="Artist">Self-service in Production — view assigned work, submit versions, respond to reviews and notes.</Item>
-                <Item title="Employee">Baseline access — file IT tickets, submit HR requests, and whatever else every role is granted by default.</Item>
-              </ul>
-            </div>
+            <RefTable
+              caption="Pre-built system roles"
+              head={["Role", "Scope", "Notable limits"]}
+              rows={[
+                ["Admin", "Every permission that exists.", "None — full access to every module."],
+                ["IT", "The full ticket lifecycle and day-to-day inventory operations.", "No Finance, HR, or Production authority."],
+                ["HR", "The whole HR surface.", "Can't delete employees or approve payroll."],
+                ["Accountant", "The whole Finance surface, including Budget Approvals company-wide.", "No direct control over other departments' non-financial work."],
+                ["Administrative Officer", "The whole Administration business surface.", "No Finance posting rights."],
+                ["Director / Producer", "The full Production surface — project, schedule, budget, and review authority.", "None within Production."],
+                ["Supervisor", "Departmental oversight in Production — task assignment, review decisions.", "No project creation or budget management."],
+                ["Artist", "Self-service in Production — view assigned work, submit versions, respond to reviews and notes.", "Can't decide reviews, price tasks, or see others' rate cards."],
+                ["Employee", "Baseline access — file IT tickets, submit HR requests.", "Whatever else every role is granted by default; no approval rights anywhere."],
+              ]}
+            />
 
             <Callout>
               These system roles are starting points, not fixed limits. Company Admins can create custom roles
