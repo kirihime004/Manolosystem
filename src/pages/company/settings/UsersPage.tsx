@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Users } from "lucide-react";
+import { Users, FileSpreadsheet } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useCompanyUsersList,
@@ -9,6 +10,8 @@ import {
 } from "@/features/company/settings/useCompanyUsers";
 import { InviteEmployeeDialog } from "@/features/company/settings/InviteEmployeeDialog";
 import { ManageUserSheet } from "@/features/company/settings/ManageUserSheet";
+import { Can } from "@/lib/permissions/Can";
+import { PERMISSIONS } from "@/lib/permissions/keys";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,7 +57,17 @@ export default function UsersPage() {
             Manage who has access to {company?.name}. Click a user to edit roles or reset their password.
           </p>
         </div>
-        <InviteEmployeeDialog companyId={company?.id} />
+        <div className="flex gap-2">
+          <Can permission={[PERMISSIONS.ADMIN_USERS_MANAGE, PERMISSIONS.HR_EMPLOYEES_CREATE]} requireAll>
+            <Button asChild variant="outline">
+              <Link to="import">
+                <FileSpreadsheet className="h-4 w-4" />
+                Import from Excel
+              </Link>
+            </Button>
+          </Can>
+          <InviteEmployeeDialog companyId={company?.id} />
+        </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card">

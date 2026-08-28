@@ -150,6 +150,46 @@ export function useDeleteCompanyMembership(companyId: string | undefined) {
   });
 }
 
+export interface BulkImportRow {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  departmentId: string | null;
+  positionId: string | null;
+  employmentTypeId: string | null;
+  employmentStatusId: string | null;
+  roleIds: string[];
+  hireDate: string | null;
+  phone: string | null;
+}
+
+export interface BulkImportRowResult {
+  email: string;
+  success: boolean;
+  userId?: string;
+  error?: string;
+}
+
+export function useBulkImportUsers(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: BulkImportRow[]): Promise<BulkImportRowResult[]> => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const { data, error } = await supabase.functions.invoke("bulk-import-users", {
+        body: { companyId, rows },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw new Error(await getFunctionErrorMessage(error));
+      return (data as { results: BulkImportRowResult[] }).results;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-users-list", companyId] }),
+  });
+}
+
 export function useAdminSetPassword(companyId: string | undefined) {
   return useMutation({
     mutationFn: async (input: { userId: string; newPassword: string }) => {

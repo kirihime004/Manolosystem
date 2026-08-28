@@ -4,6 +4,7 @@ import { Copy, Plus, RefreshCw } from "lucide-react";
 import { useDepartments } from "@/features/company/settings/useDepartments";
 import { useRoles } from "@/features/company/settings/useRoles";
 import { useInviteEmployee } from "@/features/company/settings/useCompanyUsers";
+import { generatePassword } from "@/lib/generatePassword";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,14 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// Cryptographically-adequate-enough temporary password: readable-ish,
-// generated client-side just for convenience -- the admin is expected to
-// relay it out-of-band, and the employee should change it on first login.
-function generatePassword() {
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  return btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "").slice(0, 14);
-}
 
 export function InviteEmployeeDialog({ companyId }: { companyId: string | undefined }) {
   const { data: departments } = useDepartments(companyId);

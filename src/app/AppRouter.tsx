@@ -147,6 +147,7 @@ import AiDashboardPage from "@/pages/ai/AiDashboardPage";
 import AiAssistantPage from "@/pages/ai/AiAssistantPage";
 
 import UsersPage from "@/pages/company/settings/UsersPage";
+import BulkImportUsersPage from "@/pages/company/settings/BulkImportUsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
 import AppearancePage from "@/pages/company/settings/AppearancePage";
@@ -1415,6 +1416,14 @@ export function AppRouter() {
                 element={
                   <RequirePermission permission={[PERMISSIONS.ADMIN_USERS_VIEW, PERMISSIONS.ADMIN_USERS_MANAGE]}>
                     <UsersPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="users/import"
+                element={
+                  <RequirePermission permission={[PERMISSIONS.ADMIN_USERS_MANAGE, PERMISSIONS.HR_EMPLOYEES_CREATE]} requireAll>
+                    <BulkImportUsersPage />
                   </RequirePermission>
                 }
               />
