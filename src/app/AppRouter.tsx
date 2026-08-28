@@ -533,6 +533,39 @@ export function AppRouter() {
                 <Route path="budgets" element={<BudgetsListPage moduleKey="HR" />} />
                 <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
               </Route>
+
+              {/* HR's own view onto the shared Procurement engine (see the
+                  IT "it/procurement" block above for the canonical
+                  version -- same components, filtered to moduleKey="HR").
+                  Suppliers/History stay IT-only -- not duplicated here. */}
+              <Route
+                path="procurement"
+                element={
+                  <RequirePermission permission={PERMISSIONS.HR_PROCUREMENT_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<ProcurementDashboardPage moduleKey="HR" />} />
+                <Route path="requests">
+                  <Route index element={<PurchaseRequestsListPage moduleKey="HR" />} />
+                  <Route
+                    path="new"
+                    element={
+                      <RequirePermission permission={PERMISSIONS.HR_PROCUREMENT_CREATE}>
+                        <CreatePurchaseRequestPage moduleKey="HR" />
+                      </RequirePermission>
+                    }
+                  />
+                  <Route path=":requestId" element={<PurchaseRequestDetailPage />} />
+                </Route>
+                <Route path="quotations" element={<QuotationsListPage moduleKey="HR" />} />
+                <Route path="orders">
+                  <Route index element={<PurchaseOrdersListPage moduleKey="HR" />} />
+                  <Route path=":poId" element={<PurchaseOrderDetailPage />} />
+                </Route>
+                <Route path="deliveries" element={<DeliveriesListPage moduleKey="HR" />} />
+              </Route>
             </Route>
 
             <Route
@@ -781,6 +814,39 @@ export function AppRouter() {
                   </RequirePermission>
                 }
               />
+
+              {/* Finance's own view onto the shared Procurement engine
+                  (see the IT "it/procurement" block above for the
+                  canonical version -- same components, filtered to
+                  moduleKey="FINANCE"). Suppliers/History stay IT-only. */}
+              <Route
+                path="procurement"
+                element={
+                  <RequirePermission permission={PERMISSIONS.FINANCE_PROCUREMENT_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<ProcurementDashboardPage moduleKey="FINANCE" />} />
+                <Route path="requests">
+                  <Route index element={<PurchaseRequestsListPage moduleKey="FINANCE" />} />
+                  <Route
+                    path="new"
+                    element={
+                      <RequirePermission permission={PERMISSIONS.FINANCE_PROCUREMENT_CREATE}>
+                        <CreatePurchaseRequestPage moduleKey="FINANCE" />
+                      </RequirePermission>
+                    }
+                  />
+                  <Route path=":requestId" element={<PurchaseRequestDetailPage />} />
+                </Route>
+                <Route path="quotations" element={<QuotationsListPage moduleKey="FINANCE" />} />
+                <Route path="orders">
+                  <Route index element={<PurchaseOrdersListPage moduleKey="FINANCE" />} />
+                  <Route path=":poId" element={<PurchaseOrderDetailPage />} />
+                </Route>
+                <Route path="deliveries" element={<DeliveriesListPage moduleKey="FINANCE" />} />
+              </Route>
             </Route>
 
             <Route
@@ -1049,6 +1115,39 @@ export function AppRouter() {
                 <Route path="budgets" element={<BudgetsListPage moduleKey="ADMIN" />} />
                 <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
               </Route>
+
+              {/* Administration's own view onto the shared Procurement
+                  engine (see the IT "it/procurement" block above for the
+                  canonical version -- same components, filtered to
+                  moduleKey="ADMIN"). Suppliers/History stay IT-only. */}
+              <Route
+                path="procurement"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_PROCUREMENT_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<ProcurementDashboardPage moduleKey="ADMIN" />} />
+                <Route path="requests">
+                  <Route index element={<PurchaseRequestsListPage moduleKey="ADMIN" />} />
+                  <Route
+                    path="new"
+                    element={
+                      <RequirePermission permission={PERMISSIONS.ADMIN_PROCUREMENT_CREATE}>
+                        <CreatePurchaseRequestPage moduleKey="ADMIN" />
+                      </RequirePermission>
+                    }
+                  />
+                  <Route path=":requestId" element={<PurchaseRequestDetailPage />} />
+                </Route>
+                <Route path="quotations" element={<QuotationsListPage moduleKey="ADMIN" />} />
+                <Route path="orders">
+                  <Route index element={<PurchaseOrdersListPage moduleKey="ADMIN" />} />
+                  <Route path=":poId" element={<PurchaseOrderDetailPage />} />
+                </Route>
+                <Route path="deliveries" element={<DeliveriesListPage moduleKey="ADMIN" />} />
+              </Route>
             </Route>
 
             <Route
@@ -1204,6 +1303,39 @@ export function AppRouter() {
                 <Route index element={<BudgetDashboardPage moduleKey="PRODUCTION" />} />
                 <Route path="budgets" element={<BudgetsListPage moduleKey="PRODUCTION" />} />
                 <Route path="budgets/:budgetId" element={<BudgetDetailPage />} />
+              </Route>
+
+              {/* Production's own view onto the shared Procurement engine
+                  (see the IT "it/procurement" block above for the
+                  canonical version -- same components, filtered to
+                  moduleKey="PRODUCTION"). Suppliers/History stay IT-only. */}
+              <Route
+                path="procurement"
+                element={
+                  <RequirePermission permission={PERMISSIONS.PRODUCTION_PROCUREMENT_VIEW}>
+                    <Outlet />
+                  </RequirePermission>
+                }
+              >
+                <Route index element={<ProcurementDashboardPage moduleKey="PRODUCTION" />} />
+                <Route path="requests">
+                  <Route index element={<PurchaseRequestsListPage moduleKey="PRODUCTION" />} />
+                  <Route
+                    path="new"
+                    element={
+                      <RequirePermission permission={PERMISSIONS.PRODUCTION_PROCUREMENT_CREATE}>
+                        <CreatePurchaseRequestPage moduleKey="PRODUCTION" />
+                      </RequirePermission>
+                    }
+                  />
+                  <Route path=":requestId" element={<PurchaseRequestDetailPage />} />
+                </Route>
+                <Route path="quotations" element={<QuotationsListPage moduleKey="PRODUCTION" />} />
+                <Route path="orders">
+                  <Route index element={<PurchaseOrdersListPage moduleKey="PRODUCTION" />} />
+                  <Route path=":poId" element={<PurchaseOrderDetailPage />} />
+                </Route>
+                <Route path="deliveries" element={<DeliveriesListPage moduleKey="PRODUCTION" />} />
               </Route>
 
               {/* Rate Card + Approved Work Payment System. */}

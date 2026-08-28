@@ -4,6 +4,7 @@ import { Plus, Search, FileText } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import { usePurchaseRequests } from "@/features/it/procurement/hooks";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,36 +14,37 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { PurchaseRequestStatusBadge, RequestPriorityBadge } from "@/components/shared/ProcurementBadges";
 import { Can } from "@/lib/permissions/Can";
-import { PERMISSIONS } from "@/lib/permissions/keys";
-import type { PurchaseRequestStatus } from "@/types/database";
+import type { BudgetModuleKey, PurchaseRequestStatus } from "@/types/database";
 
 const STATUSES: PurchaseRequestStatus[] = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "CANCELLED", "CONVERTED_TO_PO"];
 
-export default function PurchaseRequestsListPage() {
+export default function PurchaseRequestsListPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company, hasPermission } = useCompany();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const config = PROCUREMENT_MODULE_CONFIG[moduleKey];
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-  const [mineOnly, setMineOnly] = useState(!hasPermission(PERMISSIONS.IT_PROCUREMENT_VIEW));
+  const [mineOnly, setMineOnly] = useState(!hasPermission(config.viewPermission));
 
   const { data: requests, isLoading } = usePurchaseRequests(
     company?.id,
     { search: search || undefined, status: status === "all" ? undefined : status, mineOnly },
     user?.id,
+    moduleKey,
   );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Purchase Requests</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{config.label} Purchase Requests</h1>
           <p className="text-sm text-muted-foreground">{requests?.length ?? 0} requests</p>
         </div>
-        <Can permission={PERMISSIONS.IT_PROCUREMENT_CREATE}>
-          <Link to={`/c/${companySlug}/it/procurement/requests/new`}>
+        <Can permission={config.createPermission}>
+          <Link to={`/c/${companySlug}/${config.basePath}/requests/new`}>
             <Button><Plus className="h-4 w-4" />New request</Button>
           </Link>
         </Can>
@@ -60,7 +62,7 @@ export default function PurchaseRequestsListPage() {
             {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Can permission={PERMISSIONS.IT_PROCUREMENT_VIEW}>
+        <Can permission={config.viewPermission}>
           <Button variant={mineOnly ? "outline" : "default"} size="sm" onClick={() => setMineOnly((v) => !v)}>
             {mineOnly ? "Showing: mine only" : "Showing: all requests"}
           </Button>
@@ -86,7 +88,7 @@ export default function PurchaseRequestsListPage() {
             </TableHeader>
             <TableBody>
               {requests.map((r) => (
-                <TableRow key={r.id} className="cursor-pointer" onClick={() => navigate(`/c/${companySlug}/it/procurement/requests/${r.id}`)}>
+                <TableRow key={r.id} className="cursor-pointer" onClick={() => navigate(`/c/${companySlug}/${config.basePath}/requests/${r.id}`)}>
                   <TableCell className="font-mono text-xs font-medium">{r.request_number}</TableCell>
                   <TableCell className="text-muted-foreground">{r.requester ? `${r.requester.first_name ?? ""} ${r.requester.last_name ?? ""}`.trim() : "—"}</TableCell>
                   <TableCell><RequestPriorityBadge priority={r.priority} /></TableCell>

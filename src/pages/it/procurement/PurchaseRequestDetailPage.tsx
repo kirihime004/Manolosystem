@@ -20,7 +20,7 @@ import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { Money } from "@/components/shared/Money";
 import { PurchaseRequestStatusBadge, RequestPriorityBadge, ApprovalDecisionBadge, QuotationStatusBadge } from "@/components/shared/ProcurementBadges";
 import { Can } from "@/lib/permissions/Can";
-import { PERMISSIONS } from "@/lib/permissions/keys";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -65,6 +65,7 @@ export default function PurchaseRequestDetailPage() {
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /></div>;
   if (!pr) return <ErrorScreen title="Request not found" description="This purchase request does not exist or you do not have access to it." />;
 
+  const config = PROCUREMENT_MODULE_CONFIG[pr.module_key];
   const isOwner = pr.requester_id === user?.id;
   const canSubmit = isOwner && pr.status === "DRAFT";
   const nextApproval = pr.approvals.find((a) => a.decision === "PENDING" && !pr.approvals.some((o) => o.sequence < a.sequence && o.decision === "PENDING"));
@@ -135,7 +136,7 @@ export default function PurchaseRequestDetailPage() {
         expectedDeliveryDate: poExpectedDate || null,
       });
       toast.success("Purchase order created");
-      navigate(`/c/${companySlug}/it/procurement/orders/${poId}`);
+      navigate(`/c/${companySlug}/${config.basePath}/orders/${poId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create purchase order");
     }
@@ -154,12 +155,12 @@ export default function PurchaseRequestDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {canSubmit && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_SUBMIT}>
+            <Can permission={config.submitPermission}>
               <Button onClick={handleSubmit} disabled={submit.isPending}>{submit.isPending ? "Submitting…" : "Submit for approval"}</Button>
             </Can>
           )}
           {nextApproval && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_APPROVE}>
+            <Can permission={config.approvePermission}>
               <Button variant="outline" onClick={() => setDecisionOpen({ approvalId: nextApproval.id, decision: "APPROVED" })}>
                 <CheckCircle2 className="h-3.5 w-3.5" />Approve
               </Button>
@@ -169,7 +170,7 @@ export default function PurchaseRequestDetailPage() {
             </Can>
           )}
           {pr.status === "APPROVED" && selectedQuotation && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_CREATE_PO}>
+            <Can permission={config.createPoPermission}>
               <Button onClick={() => setPoOpen(true)}>Create purchase order</Button>
             </Can>
           )}
@@ -264,7 +265,7 @@ export default function PurchaseRequestDetailPage() {
 
         <TabsContent value="quotations" className="space-y-4 pt-4">
           {(pr.status === "SUBMITTED" || pr.status === "UNDER_REVIEW" || pr.status === "APPROVED") && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_CREATE}>
+            <Can permission={config.createPermission}>
               <div className="flex justify-end">
                 <Button size="sm" onClick={() => setQuoteOpen(true)}><Plus className="h-3.5 w-3.5" />Add quotation</Button>
               </div>
@@ -286,7 +287,7 @@ export default function PurchaseRequestDetailPage() {
                       <TableCell><QuotationStatusBadge status={q.status} /></TableCell>
                       <TableCell>
                         {pr.status === "APPROVED" && q.status !== "SELECTED" && (
-                          <Can permission={PERMISSIONS.IT_PROCUREMENT_UPDATE}>
+                          <Can permission={config.updatePermission}>
                             <Button size="sm" variant="outline" onClick={() => setSelectReasonOpen(q.id)}>Select</Button>
                           </Can>
                         )}

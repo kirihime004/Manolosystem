@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Search, Package } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { usePurchaseOrders } from "@/features/it/procurement/hooks";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,22 +11,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { PurchaseOrderStatusBadge } from "@/components/shared/ProcurementBadges";
-import type { PurchaseOrderStatus } from "@/types/database";
+import type { BudgetModuleKey, PurchaseOrderStatus } from "@/types/database";
 
 const STATUSES: PurchaseOrderStatus[] = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "SENT_TO_SUPPLIER", "ACKNOWLEDGED", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED", "CLOSED"];
 
-export default function PurchaseOrdersListPage() {
+export default function PurchaseOrdersListPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
   const navigate = useNavigate();
+  const config = PROCUREMENT_MODULE_CONFIG[moduleKey];
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-  const { data: orders, isLoading } = usePurchaseOrders(company?.id, { search: search || undefined, status: status === "all" ? undefined : status });
+  const { data: orders, isLoading } = usePurchaseOrders(company?.id, { search: search || undefined, status: status === "all" ? undefined : status }, moduleKey);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Purchase Orders</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{config.label} Purchase Orders</h1>
         <p className="text-sm text-muted-foreground">{orders?.length ?? 0} orders</p>
       </div>
 
@@ -55,7 +57,7 @@ export default function PurchaseOrdersListPage() {
             </TableHeader>
             <TableBody>
               {orders.map((po) => (
-                <TableRow key={po.id} className="cursor-pointer" onClick={() => navigate(`/c/${companySlug}/it/procurement/orders/${po.id}`)}>
+                <TableRow key={po.id} className="cursor-pointer" onClick={() => navigate(`/c/${companySlug}/${config.basePath}/orders/${po.id}`)}>
                   <TableCell className="font-mono text-xs font-medium">{po.po_number}</TableCell>
                   <TableCell className="font-medium">{po.supplier?.name ?? "—"}</TableCell>
                   <TableCell><Money amount={po.total} currencyId={po.currency_id} /></TableCell>

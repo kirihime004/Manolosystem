@@ -822,6 +822,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                         {hasPermission(PERMISSIONS.HR_BUDGET_VIEW) && (
                           <NavLink to={`${base}/hr/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/hr/budget`)} />
                         )}
+                        {hasPermission(PERMISSIONS.HR_PROCUREMENT_VIEW) && (
+                          <NavLink to={`${base}/hr/procurement`} icon={ShoppingCart} label="Procurement" active={location.pathname.startsWith(`${base}/hr/procurement`)} />
+                        )}
                       </div>
                     )}
                   </>
@@ -900,6 +903,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                             this Finance group renders at all. */}
                         {hasPermission(PERMISSIONS.FINANCE_BUDGET_VIEW) && (
                           <NavLink to={`${base}/finance/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/finance/budget`)} />
+                        )}
+                        {hasPermission(PERMISSIONS.FINANCE_PROCUREMENT_VIEW) && (
+                          <NavLink to={`${base}/finance/procurement`} icon={ShoppingCart} label="Procurement" active={location.pathname.startsWith(`${base}/finance/procurement`)} />
                         )}
                         {hasPermission(PERMISSIONS.BUDGET_FINANCE_APPROVE) && (
                           <NavLink to={`${base}/finance/budgets/review`} icon={ClipboardCheck} label="Budget Approvals" active={location.pathname.startsWith(`${base}/finance/budgets/review`)} />
@@ -1018,6 +1024,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       {hasPermission(PERMISSIONS.ADMIN_BUDGET_VIEW) && (
                         <NavLink to={`${base}/admin/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/admin/budget`)} />
                       )}
+                      {hasPermission(PERMISSIONS.ADMIN_PROCUREMENT_VIEW) && (
+                        <NavLink to={`${base}/admin/procurement`} icon={ShoppingCart} label="Procurement" active={location.pathname.startsWith(`${base}/admin/procurement`)} />
+                      )}
                     </div>
                   )}
                 </>
@@ -1108,6 +1117,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       })}
                       {hasPermission(PERMISSIONS.PRODUCTION_BUDGET_VIEW) && (
                         <NavLink to={`${base}/production/budget`} icon={Wallet} label="Budget" active={location.pathname.startsWith(`${base}/production/budget`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_PROCUREMENT_VIEW) && (
+                        <NavLink to={`${base}/production/procurement`} icon={ShoppingCart} label="Procurement" active={location.pathname.startsWith(`${base}/production/procurement`)} />
                       )}
                       {hasPermission(PERMISSIONS.PRODUCTION_WORK_APPROVE) && (
                         <NavLink to={`${base}/production/approved-work`} icon={ClipboardCheck} label="Approved Work" active={location.pathname.startsWith(`${base}/production/approved-work`)} />

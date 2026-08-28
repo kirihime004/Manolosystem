@@ -2,21 +2,24 @@ import { Link, useParams } from "react-router-dom";
 import { FileSpreadsheet } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useQuotations } from "@/features/it/procurement/hooks";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Money } from "@/components/shared/Money";
 import { QuotationStatusBadge } from "@/components/shared/ProcurementBadges";
+import type { BudgetModuleKey } from "@/types/database";
 
-export default function QuotationsListPage() {
+export default function QuotationsListPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
-  const { data: quotations, isLoading } = useQuotations(company?.id);
+  const config = PROCUREMENT_MODULE_CONFIG[moduleKey];
+  const { data: quotations, isLoading } = useQuotations(company?.id, moduleKey);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Quotations</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{config.label} Quotations</h1>
         <p className="text-sm text-muted-foreground">{quotations?.length ?? 0} quotations across all requests</p>
       </div>
 
@@ -30,9 +33,9 @@ export default function QuotationsListPage() {
             <TableHeader><TableRow><TableHead>Request</TableHead><TableHead>Supplier</TableHead><TableHead>Total</TableHead><TableHead>Delivery</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
             <TableBody>
               {quotations.map((q) => (
-                <TableRow key={q.id} className="cursor-pointer" onClick={() => (window.location.href = `/c/${companySlug}/it/procurement/requests/${q.purchase_request_id}`)}>
+                <TableRow key={q.id} className="cursor-pointer" onClick={() => (window.location.href = `/c/${companySlug}/${config.basePath}/requests/${q.purchase_request_id}`)}>
                   <TableCell>
-                    <Link to={`/c/${companySlug}/it/procurement/requests/${q.purchase_request_id}`} className="font-mono text-xs font-medium hover:underline" onClick={(e) => e.stopPropagation()}>
+                    <Link to={`/c/${companySlug}/${config.basePath}/requests/${q.purchase_request_id}`} className="font-mono text-xs font-medium hover:underline" onClick={(e) => e.stopPropagation()}>
                       {q.purchase_request?.request_number ?? "—"}
                     </Link>
                   </TableCell>

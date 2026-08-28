@@ -20,6 +20,7 @@ import { Money } from "@/components/shared/Money";
 import { PurchaseOrderStatusBadge, ApprovalDecisionBadge } from "@/components/shared/ProcurementBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -53,6 +54,7 @@ export default function PurchaseOrderDetailPage() {
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /></div>;
   if (!po) return <ErrorScreen title="Purchase order not found" description="This purchase order does not exist or you do not have access to it." />;
 
+  const config = PROCUREMENT_MODULE_CONFIG[po.module_key];
   const nextApproval = po.approvals.find((a) => a.decision === "PENDING" && !po.approvals.some((o) => o.sequence < a.sequence && o.decision === "PENDING"));
   const openItems = po.items.filter((i) => i.remaining_quantity > 0);
 
@@ -119,25 +121,25 @@ export default function PurchaseOrderDetailPage() {
             <PurchaseOrderStatusBadge status={po.status} />
           </div>
           {po.purchaseRequest && (
-            <Link to={`/c/${companySlug}/it/procurement/requests/${po.purchaseRequest.id}`} className="mt-1 inline-block text-xs text-primary hover:underline">
+            <Link to={`/c/${companySlug}/${config.basePath}/requests/${po.purchaseRequest.id}`} className="mt-1 inline-block text-xs text-primary hover:underline">
               From {po.purchaseRequest.request_number}
             </Link>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
           {nextApproval && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_APPROVE_PO}>
+            <Can permission={config.approvePoPermission}>
               <Button variant="outline" onClick={() => setDecisionOpen({ approvalId: nextApproval.id, decision: "APPROVED" })}><CheckCircle2 className="h-3.5 w-3.5" />Approve</Button>
               <Button variant="outline" onClick={() => setDecisionOpen({ approvalId: nextApproval.id, decision: "REJECTED" })}><XCircle className="h-3.5 w-3.5" />Reject</Button>
             </Can>
           )}
           {po.status === "APPROVED" && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_UPDATE}>
+            <Can permission={config.updatePermission}>
               <Button variant="outline" onClick={handleSend} disabled={updateStatus.isPending}><Send className="h-3.5 w-3.5" />Send to supplier</Button>
             </Can>
           )}
           {openItems.length > 0 && ["SENT_TO_SUPPLIER", "ACKNOWLEDGED", "PARTIALLY_RECEIVED"].includes(po.status) && (
-            <Can permission={PERMISSIONS.IT_PROCUREMENT_RECEIVE}>
+            <Can permission={config.receivePermission}>
               <Button onClick={() => setReceiveOpen(true)}><PackageCheck className="h-3.5 w-3.5" />Receive delivery</Button>
             </Can>
           )}

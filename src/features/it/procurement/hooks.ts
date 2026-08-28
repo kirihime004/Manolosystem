@@ -179,10 +179,10 @@ export function useBudgetMutations(budgetId?: string) {
 // ---------------------------------------------------------------------
 // Purchase Requests
 // ---------------------------------------------------------------------
-export function usePurchaseRequests(companyId: string | undefined, filters: PurchaseRequestFilters, userId?: string) {
+export function usePurchaseRequests(companyId: string | undefined, filters: PurchaseRequestFilters, userId?: string, moduleKey?: BudgetModuleKey) {
   return useQuery({
-    queryKey: ["purchase-requests", companyId, filters, userId],
-    queryFn: () => procurementApi.listPurchaseRequests(companyId!, filters, userId),
+    queryKey: ["purchase-requests", companyId, filters, userId, moduleKey],
+    queryFn: () => procurementApi.listPurchaseRequests(companyId!, filters, userId, moduleKey),
     enabled: !!companyId,
   });
 }
@@ -224,8 +224,8 @@ export function useQuotationMutations(purchaseRequestId?: string) {
   return { create, select };
 }
 
-export function useQuotations(companyId: string | undefined) {
-  return useQuery({ queryKey: ["quotations", companyId], queryFn: () => procurementApi.listQuotations(companyId!), enabled: !!companyId });
+export function useQuotations(companyId: string | undefined, moduleKey?: BudgetModuleKey) {
+  return useQuery({ queryKey: ["quotations", companyId, moduleKey], queryFn: () => procurementApi.listQuotations(companyId!, moduleKey), enabled: !!companyId });
 }
 
 export function useQuotationItems(quotationId: string | undefined) {
@@ -239,10 +239,10 @@ export function useQuotationItems(quotationId: string | undefined) {
 // ---------------------------------------------------------------------
 // Purchase Orders
 // ---------------------------------------------------------------------
-export function usePurchaseOrders(companyId: string | undefined, filters: PurchaseOrderFilters = {}) {
+export function usePurchaseOrders(companyId: string | undefined, filters: PurchaseOrderFilters = {}, moduleKey?: BudgetModuleKey) {
   return useQuery({
-    queryKey: ["purchase-orders", companyId, filters],
-    queryFn: () => procurementApi.listPurchaseOrders(companyId!, filters),
+    queryKey: ["purchase-orders", companyId, filters, moduleKey],
+    queryFn: () => procurementApi.listPurchaseOrders(companyId!, filters, moduleKey),
     enabled: !!companyId,
   });
 }
@@ -273,8 +273,8 @@ export function usePurchaseOrderMutations(id?: string) {
   return { createFromPR, decideApproval, updateStatus, receiveDelivery };
 }
 
-export function useDeliveries(companyId: string | undefined) {
-  return useQuery({ queryKey: ["deliveries", companyId], queryFn: () => procurementApi.listDeliveries(companyId!), enabled: !!companyId });
+export function useDeliveries(companyId: string | undefined, moduleKey?: BudgetModuleKey) {
+  return useQuery({ queryKey: ["deliveries", companyId, moduleKey], queryFn: () => procurementApi.listDeliveries(companyId!, moduleKey), enabled: !!companyId });
 }
 
 // ---------------------------------------------------------------------
@@ -284,8 +284,12 @@ export function useProcurementHistory(companyId: string | undefined) {
   return useQuery({ queryKey: ["procurement-history", companyId], queryFn: () => procurementApi.listProcurementHistory(companyId!), enabled: !!companyId });
 }
 
-export function useProcurementDashboardStats(companyId: string | undefined) {
-  return useQuery({ queryKey: ["procurement-dashboard-stats", companyId], queryFn: () => procurementApi.getProcurementDashboardStats(companyId!), enabled: !!companyId });
+export function useProcurementDashboardStats(companyId: string | undefined, moduleKey?: BudgetModuleKey) {
+  return useQuery({
+    queryKey: ["procurement-dashboard-stats", companyId, moduleKey],
+    queryFn: () => procurementApi.getProcurementDashboardStats(companyId!, moduleKey),
+    enabled: !!companyId,
+  });
 }
 
 export function useSupplierDetail(supplierId: string | undefined) {

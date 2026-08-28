@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import type {
+  BudgetModuleKey,
   PurchaseRequest,
   PurchaseRequestItem,
   PurchaseRequestApproval,
@@ -39,8 +40,9 @@ export interface PurchaseRequestFilters {
   mineOnly?: boolean;
 }
 
-export async function listPurchaseRequests(companyId: string, filters: PurchaseRequestFilters = {}, userId?: string): Promise<EnrichedPurchaseRequest[]> {
+export async function listPurchaseRequests(companyId: string, filters: PurchaseRequestFilters = {}, userId?: string, moduleKey?: BudgetModuleKey): Promise<EnrichedPurchaseRequest[]> {
   let query = supabase.from("purchase_requests").select("*").eq("company_id", companyId);
+  if (moduleKey) query = query.eq("module_key", moduleKey);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.priority) query = query.eq("priority", filters.priority);
   if (filters.mineOnly && userId) query = query.eq("requester_id", userId);
@@ -88,6 +90,7 @@ export async function getPurchaseRequest(id: string): Promise<PurchaseRequestDet
 
 export interface CreatePurchaseRequestInput {
   companyId: string;
+  moduleKey: BudgetModuleKey;
   budgetId?: string | null;
   budgetCategoryId?: string | null;
   departmentId?: string | null;
@@ -107,6 +110,7 @@ export async function createPurchaseRequest(input: CreatePurchaseRequestInput): 
     .from("purchase_requests")
     .insert({
       company_id: input.companyId,
+      module_key: input.moduleKey,
       budget_id: input.budgetId ?? null,
       budget_category_id: input.budgetCategoryId ?? null,
       department_id: input.departmentId ?? null,
@@ -220,12 +224,16 @@ export async function createQuotation(input: {
   return q as Quotation;
 }
 
-export async function listQuotations(companyId: string): Promise<(Quotation & { supplier: Pick<Supplier, "id" | "name"> | null; purchase_request: Pick<PurchaseRequest, "id" | "request_number"> | null })[]> {
-  const { data, error } = await supabase
-    .from("quotations")
-    .select("*, supplier:suppliers(id, name), purchase_request:purchase_requests(id, request_number)")
-    .eq("company_id", companyId)
-    .order("created_at", { ascending: false });
+export async function listQuotations(companyId: string, moduleKey?: BudgetModuleKey): Promise<(Quotation & { supplier: Pick<Supplier, "id" | "name"> | null; purchase_request: Pick<PurchaseRequest, "id" | "request_number"> | null })[]> {
+  // A quotation has no module_key of its own -- filtering by department
+  // means filtering on its parent purchase_request's module_key, which
+  // needs the `!inner` embed so PostgREST lets the filter apply to the
+  // outer (quotations) row, not just shape the embedded object.
+  let query = moduleKey
+    ? supabase.from("quotations").select("*, supplier:suppliers(id, name), purchase_request:purchase_requests!inner(id, request_number, module_key)").eq("purchase_request.module_key", moduleKey)
+    : supabase.from("quotations").select("*, supplier:suppliers(id, name), purchase_request:purchase_requests(id, request_number)");
+  query = query.eq("company_id", companyId);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return data as (Quotation & { supplier: Pick<Supplier, "id" | "name"> | null; purchase_request: Pick<PurchaseRequest, "id" | "request_number"> | null })[];
 }
@@ -254,8 +262,9 @@ export interface PurchaseOrderFilters {
   supplierId?: string;
 }
 
-export async function listPurchaseOrders(companyId: string, filters: PurchaseOrderFilters = {}): Promise<EnrichedPurchaseOrder[]> {
+export async function listPurchaseOrders(companyId: string, filters: PurchaseOrderFilters = {}, moduleKey?: BudgetModuleKey): Promise<EnrichedPurchaseOrder[]> {
   let query = supabase.from("purchase_orders").select("*, supplier:suppliers(id, name)").eq("company_id", companyId);
+  if (moduleKey) query = query.eq("module_key", moduleKey);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.supplierId) query = query.eq("supplier_id", filters.supplierId);
   if (filters.search) {
@@ -368,12 +377,12 @@ export async function createDelivery(input: {
   return delivery as Delivery;
 }
 
-export async function listDeliveries(companyId: string): Promise<(Delivery & { purchase_order: Pick<PurchaseOrder, "po_number" | "supplier_id"> | null })[]> {
-  const { data, error } = await supabase
-    .from("deliveries")
-    .select("*, purchase_order:purchase_orders(po_number, supplier_id)")
-    .eq("company_id", companyId)
-    .order("delivery_date", { ascending: false });
+export async function listDeliveries(companyId: string, moduleKey?: BudgetModuleKey): Promise<(Delivery & { purchase_order: Pick<PurchaseOrder, "po_number" | "supplier_id"> | null })[]> {
+  let query = moduleKey
+    ? supabase.from("deliveries").select("*, purchase_order:purchase_orders!inner(po_number, supplier_id, module_key)").eq("purchase_order.module_key", moduleKey)
+    : supabase.from("deliveries").select("*, purchase_order:purchase_orders(po_number, supplier_id)");
+  query = query.eq("company_id", companyId);
+  const { data, error } = await query.order("delivery_date", { ascending: false });
   if (error) throw error;
   return data as (Delivery & { purchase_order: Pick<PurchaseOrder, "po_number" | "supplier_id"> | null })[];
 }
@@ -501,12 +510,12 @@ export interface ProcurementDashboardStats {
   totalProcurementThisYear: number;
 }
 
-export async function getProcurementDashboardStats(companyId: string): Promise<ProcurementDashboardStats> {
+export async function getProcurementDashboardStats(companyId: string, moduleKey?: BudgetModuleKey): Promise<ProcurementDashboardStats> {
   const currentYear = new Date().getFullYear();
-  const [prRes, poRes] = await Promise.all([
-    supabase.from("purchase_requests").select("id, status").eq("company_id", companyId),
-    supabase.from("purchase_orders").select("id, status, expected_delivery_date, base_currency_total, total, created_at").eq("company_id", companyId),
-  ]);
+  let prQuery = supabase.from("purchase_requests").select("id, status").eq("company_id", companyId);
+  let poQuery = supabase.from("purchase_orders").select("id, status, expected_delivery_date, base_currency_total, total, created_at").eq("company_id", companyId);
+  if (moduleKey) { prQuery = prQuery.eq("module_key", moduleKey); poQuery = poQuery.eq("module_key", moduleKey); }
+  const [prRes, poRes] = await Promise.all([prQuery, poQuery]);
   if (prRes.error) throw prRes.error;
   if (poRes.error) throw poRes.error;
 

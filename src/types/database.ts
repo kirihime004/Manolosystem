@@ -545,6 +545,7 @@ export interface PurchaseRequest {
   exchange_rate: number | null;
   base_currency_amount: number | null;
   status: PurchaseRequestStatus;
+  module_key: BudgetModuleKey;
   created_at: string;
   updated_at: string;
 }
@@ -659,6 +660,7 @@ export interface PurchaseOrder {
   department_id: string | null;
   cost_center_id: string | null;
   project_id: string | null;
+  module_key: BudgetModuleKey;
   created_at: string;
   updated_at: string;
 }

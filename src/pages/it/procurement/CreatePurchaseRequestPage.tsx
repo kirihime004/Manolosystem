@@ -5,6 +5,8 @@ import { Plus, X } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useDepartments } from "@/features/company/settings/useDepartments";
 import { useBudgets, useBudgetCategories, useCompanyCurrencySettings, usePurchaseRequestMutations } from "@/features/it/procurement/hooks";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
+import type { BudgetModuleKey } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -27,12 +29,13 @@ function emptyItem(): ItemRow {
   return { description: "", category: "", assetType: "none", quantity: "1", unitPrice: "0" };
 }
 
-export default function CreatePurchaseRequestPage() {
+export default function CreatePurchaseRequestPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
   const navigate = useNavigate();
+  const config = PROCUREMENT_MODULE_CONFIG[moduleKey];
   const { data: departments } = useDepartments(company?.id);
-  const { data: budgets } = useBudgets(company?.id);
+  const { data: budgets } = useBudgets(company?.id, moduleKey);
   const { data: categories } = useBudgetCategories(company?.id);
   const { data: currencySettings } = useCompanyCurrencySettings(company?.id);
   const { create, submit } = usePurchaseRequestMutations();
@@ -71,6 +74,7 @@ export default function CreatePurchaseRequestPage() {
     try {
       const pr = await create.mutateAsync({
         companyId: company.id,
+        moduleKey,
         budgetId: budgetId === "none" ? null : budgetId,
         budgetCategoryId: categoryId === "none" ? null : categoryId,
         departmentId: departmentId === "none" ? null : departmentId,
@@ -94,13 +98,13 @@ export default function CreatePurchaseRequestPage() {
           toast.success(`${pr.request_number} submitted for approval`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Saved as draft, but submission failed");
-          navigate(`/c/${companySlug}/it/procurement/requests/${pr.id}`);
+          navigate(`/c/${companySlug}/${config.basePath}/requests/${pr.id}`);
           return;
         }
       } else {
         toast.success(`${pr.request_number} saved as draft`);
       }
-      navigate(`/c/${companySlug}/it/procurement/requests/${pr.id}`);
+      navigate(`/c/${companySlug}/${config.basePath}/requests/${pr.id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create request");
     } finally {
@@ -111,8 +115,8 @@ export default function CreatePurchaseRequestPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">New purchase request</h1>
-        <p className="text-sm text-muted-foreground">Describe what IT needs to buy — budget availability is checked when you submit.</p>
+        <h1 className="text-2xl font-semibold text-foreground">New {config.label} purchase request</h1>
+        <p className="text-sm text-muted-foreground">Describe what {config.label} needs to buy — budget availability is checked when you submit.</p>
       </div>
 
       <form className="space-y-6">
@@ -127,7 +131,7 @@ export default function CreatePurchaseRequestPage() {
                   <SelectContent>
                     <SelectItem value="none">No budget</SelectItem>
                     {budgets?.filter((b) => b.status === "ACTIVE").map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.budget_name} ({b.module_key})</SelectItem>
+                      <SelectItem key={b.id} value={b.id}>{b.budget_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

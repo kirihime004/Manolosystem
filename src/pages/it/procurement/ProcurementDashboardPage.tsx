@@ -3,18 +3,20 @@ import { FileText, CheckCircle2, Clock, Package, PackageCheck, AlertTriangle, Wa
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useProcurementDashboardStats } from "@/features/it/procurement/hooks";
 import { useBudgets, useCompanyCurrencySettings } from "@/features/it/procurement/hooks";
+import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/shared/Money";
 import { Can } from "@/lib/permissions/Can";
-import { PERMISSIONS } from "@/lib/permissions/keys";
+import type { BudgetModuleKey } from "@/types/database";
 
-export default function ProcurementDashboardPage() {
+export default function ProcurementDashboardPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
   const { companySlug } = useParams<{ companySlug: string }>();
   const { company } = useCompany();
-  const { data: stats, isLoading } = useProcurementDashboardStats(company?.id);
-  const { data: budgets } = useBudgets(company?.id);
+  const config = PROCUREMENT_MODULE_CONFIG[moduleKey];
+  const { data: stats, isLoading } = useProcurementDashboardStats(company?.id, moduleKey);
+  const { data: budgets } = useBudgets(company?.id, moduleKey);
   const { data: currencySettings } = useCompanyCurrencySettings(company?.id);
 
   const totalAvailable = (budgets ?? []).filter((b) => b.status === "ACTIVE").reduce((sum, b) => sum + b.available, 0);
@@ -23,20 +25,20 @@ export default function ProcurementDashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Procurement</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{config.label} Procurement</h1>
           <p className="text-sm text-muted-foreground">Purchase requests, orders, and deliveries for {company?.name}</p>
         </div>
-        <Can permission={PERMISSIONS.IT_PROCUREMENT_CREATE}>
-          <Link to={`/c/${companySlug}/it/procurement/requests/new`}>
+        <Can permission={config.createPermission}>
+          <Link to={`/c/${companySlug}/${config.basePath}/requests/new`}>
             <Button><Plus className="h-4 w-4" />New request</Button>
           </Link>
         </Can>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard icon={Clock} label="Pending Requests" value={stats?.pendingRequests} loading={isLoading} to={`${companySlug}/it/procurement/requests`} />
+        <StatCard icon={Clock} label="Pending Requests" value={stats?.pendingRequests} loading={isLoading} to={`${companySlug}/${config.basePath}/requests`} />
         <StatCard icon={CheckCircle2} label="Approved Requests" value={stats?.approvedRequests} loading={isLoading} />
-        <StatCard icon={FileText} label="Pending POs" value={stats?.pendingPOs} loading={isLoading} to={`${companySlug}/it/procurement/orders`} />
+        <StatCard icon={FileText} label="Pending POs" value={stats?.pendingPOs} loading={isLoading} to={`${companySlug}/${config.basePath}/orders`} />
         <StatCard icon={Package} label="Open POs" value={stats?.openPOs} loading={isLoading} />
         <StatCard icon={PackageCheck} label="Partially Received" value={stats?.partiallyReceived} loading={isLoading} />
         <StatCard icon={AlertTriangle} label="Overdue Deliveries" value={stats?.overdueDeliveries} loading={isLoading} tone="danger" />
