@@ -1,0 +1,31 @@
+-- =========================================================================
+-- Fix: migration 20260101000201 added a 5-parameter overload of
+-- get_applicable_approval_policies() (p_module_key public.module_key
+-- default null) intending it to be a drop-in replacement for every
+-- existing 4-parameter call site ("Existing non-procurement callers...
+-- keep calling it with 4 args -- untouched"). That assumption was wrong:
+-- `create or replace function` only replaces a function with the EXACT
+-- SAME parameter list -- a different parameter list creates a SECOND,
+-- separate overload instead. The original 4-parameter function was never
+-- dropped, so it has coexisted with the new 5-parameter one ever since,
+-- and every 4-argument call became ambiguous ("is not unique... add
+-- explicit type casts").
+--
+-- This silently broke every non-procurement approval submission in the
+-- app: submit_leave_request(), submit_overtime_request(),
+-- submit_production_work(), the AP bill/expense/journal-entry submit
+-- paths -- all of them call the 4-arg form and have been failing since
+-- migration 201 shipped. Confirmed live: submit_production_work() failed
+-- with exactly this "is not unique" error.
+--
+-- Fix: drop the old 4-parameter overload. The 5-parameter version with
+-- p_module_key defaulting to null is already behaviorally identical for
+-- every one of these callers -- its predicate is
+-- `module_key is null or module_key = p_module_key`, and every
+-- non-procurement approval_policies row has module_key is null, so a
+-- null p_module_key (whether passed explicitly or left to its default)
+-- always resolves to the same `module_key is null` match the old
+-- function performed. No caller needs to change.
+-- =========================================================================
+
+drop function if exists public.get_applicable_approval_policies(uuid, text, numeric, uuid);

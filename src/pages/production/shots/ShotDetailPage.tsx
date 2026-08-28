@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -8,11 +9,13 @@ import { useMyEmployeeRecord, useEmployees } from "@/features/hr/hooks";
 import {
   useProject, useShot, useShotFullCode, useShotMutations, useTasks, useTaskMutations, useTaskTypes,
   useVersions, useVersionMutations, useReviews, useReviewMutations, useNotes, useNoteMutations,
-  useProjectTaskStatusOptions,
+  useProjectTaskStatusOptions, useProductionUnits,
 } from "@/features/production/hooks";
 import { FrameReviewPlayer } from "@/components/production/FrameReviewPlayer";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { TaskPricingPanel } from "@/components/production/TaskPricingPanel";
+import { Money } from "@/components/shared/Money";
+import { setTaskPricingConfig, recalculateTaskPricing } from "@/features/production/productionRateCardsApi";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -37,9 +40,12 @@ import type { AnnotationStroke, ProductionTask, ProductionVersion } from "@/type
 const TASK_STATUSES = ["NOT_STARTED", "READY", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD"];
 const DEFAULT_TASK_STATUS_OPTIONS = TASK_STATUSES.map((s) => ({ status: s, label: s.replace(/_/g, " ") }));
 
+const SHOT_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "COMPLETED", "ON_HOLD", "OMITTED"];
+
 export default function ShotDetailPage() {
   const { shotId } = useParams<{ shotId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { company, hasPermission } = useCompany();
   const { user } = useAuth();
   const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
@@ -52,6 +58,7 @@ export default function ShotDetailPage() {
   const { data: taskTypes } = useTaskTypes(company?.id);
   const { data: tasks } = useTasks(company?.id, { shotId });
   const taskMutations = useTaskMutations(company?.id);
+  const { data: productionUnits } = useProductionUnits(company?.id);
 
   const { data: versions } = useVersions({ shotId });
   const versionMutations = useVersionMutations(shotId);
@@ -86,6 +93,7 @@ export default function ShotDetailPage() {
   const [taskName, setTaskName] = useState("");
   const [taskTypeId, setTaskTypeId] = useState("");
   const [taskAssignee, setTaskAssignee] = useState("");
+  const [taskUnitId, setTaskUnitId] = useState("");
   const [versionOpen, setVersionOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
@@ -103,9 +111,21 @@ export default function ShotDetailPage() {
   const handleCreateTask = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await taskMutations.create.mutateAsync({ companyId: company!.id, projectId: shot.project_id, shotId: shot.id, taskTypeId: taskTypeId || null, name: taskName, assignedTo: taskAssignee || null });
+      const created = await taskMutations.create.mutateAsync({ companyId: company!.id, projectId: shot.project_id, shotId: shot.id, taskTypeId: taskTypeId || null, name: taskName, assignedTo: taskAssignee || null });
+      // A task only gets a price once it has both a task type and a unit --
+      // if the person creating it set a unit too, calculate immediately so
+      // the price shows without a second trip into the Edit dialog.
+      if (taskUnitId && taskTypeId) {
+        try {
+          await setTaskPricingConfig(created.id, { productionUnitId: taskUnitId });
+          await recalculateTaskPricing(created.id);
+          queryClient.invalidateQueries({ queryKey: ["production-tasks", company!.id] });
+        } catch (pricingErr) {
+          toast.error(pricingErr instanceof Error ? pricingErr.message : "Task created, but pricing couldn't be calculated — is a rate card configured?");
+        }
+      }
       toast.success("Task created");
-      setTaskOpen(false); setTaskName(""); setTaskTypeId(""); setTaskAssignee("");
+      setTaskOpen(false); setTaskName(""); setTaskTypeId(""); setTaskAssignee(""); setTaskUnitId("");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create task"); }
   };
 
@@ -192,6 +212,17 @@ export default function ShotDetailPage() {
           actualHours: editTaskActualHours ? Number(editTaskActualHours) : null,
         },
       });
+      // Who a task is assigned to can change which rate applies (rates can
+      // be scoped to a specific employee) -- refresh the price so it never
+      // shows a stale amount from before the reassignment.
+      if (editingTask.task_type_id && editingTask.production_unit_id) {
+        try {
+          await recalculateTaskPricing(editingTask.id);
+          queryClient.invalidateQueries({ queryKey: ["production-tasks", company!.id] });
+        } catch {
+          // Non-fatal -- the assignment itself already saved successfully.
+        }
+      }
       toast.success("Task updated");
       setEditingTask(null);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to update task"); }
@@ -225,7 +256,20 @@ export default function ShotDetailPage() {
         </div>
         <div className="flex items-start gap-2">
           <div className="flex flex-col items-end gap-1.5">
-            <ProductionStatusBadge status={shot.status} />
+            <Can permission={PERMISSIONS.PRODUCTION_SHOTS_UPDATE} fallback={<ProductionStatusBadge status={shot.status} />}>
+              <Select
+                value={shot.status}
+                onValueChange={(v) => updateShot.mutate(
+                  { id: shot.id, patch: { status: v } },
+                  { onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update shot status") },
+                )}
+              >
+                <SelectTrigger className="h-7 w-44 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SHOT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Can>
             <ProductionRiskBadge risk={shot.risk_status} />
           </div>
           <Can permission={PERMISSIONS.PRODUCTION_SHOTS_UPDATE}>
@@ -277,6 +321,13 @@ export default function ShotDetailPage() {
                       <SelectContent>{(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label>Pricing unit <span className="text-muted-foreground">(optional — set this to price the task now)</span></Label>
+                    <Select value={taskUnitId} onValueChange={setTaskUnitId}>
+                      <SelectTrigger><SelectValue placeholder="No unit — price later" /></SelectTrigger>
+                      <SelectContent>{(productionUnits ?? []).filter((u) => u.is_active).map((u) => <SelectItem key={u.id} value={u.id}>{u.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
                   <DialogFooter><Button type="submit" disabled={taskMutations.create.isPending}>Create</Button></DialogFooter>
                 </form>
               </DialogContent>
@@ -285,7 +336,7 @@ export default function ShotDetailPage() {
         </div>
         <div className="rounded-lg border border-border bg-card">
           <Table>
-            <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Assignee</TableHead><TableHead>Status</TableHead><TableHead>Risk</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Assignee</TableHead><TableHead>Status</TableHead><TableHead>Price</TableHead><TableHead>Risk</TableHead><TableHead className="w-10" /></TableRow></TableHeader>
             <TableBody>
               {(tasks ?? []).map((t) => (
                 <TableRow key={t.id}>
@@ -293,7 +344,13 @@ export default function ShotDetailPage() {
                   <TableCell className="text-muted-foreground">{t.assigned_to ? employeeMap.get(t.assigned_to) ?? "—" : "Unassigned"}</TableCell>
                   <TableCell>
                     <Can permission={PERMISSIONS.PRODUCTION_TASKS_UPDATE} fallback={<ProductionStatusBadge status={t.status} />}>
-                      <Select value={t.status} onValueChange={(v) => taskMutations.updateStatus.mutate({ id: t.id, status: v })}>
+                      <Select
+                        value={t.status}
+                        onValueChange={(v) => taskMutations.updateStatus.mutate(
+                          { id: t.id, status: v },
+                          { onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update status — it may have unfinished dependencies") },
+                        )}
+                      >
                         <SelectTrigger className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {taskStatusOptions.some((o) => o.status === t.status)
@@ -303,6 +360,9 @@ export default function ShotDetailPage() {
                         </SelectContent>
                       </Select>
                     </Can>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {t.calculated_amount != null ? <Money amount={t.calculated_amount} currencyId={t.pricing_currency_id} /> : "—"}
                   </TableCell>
                   <TableCell><ProductionRiskBadge risk={t.risk_status} /></TableCell>
                   <TableCell>
@@ -323,7 +383,7 @@ export default function ShotDetailPage() {
                 </TableRow>
               ))}
               {(!tasks || tasks.length === 0) && (
-                <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">No tasks yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">No tasks yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -377,20 +437,26 @@ export default function ShotDetailPage() {
                       canAnnotate={hasPermission(PERMISSIONS.PRODUCTION_NOTES_CREATE)}
                       onCreateNote={handleCreateFrameNote}
                     />
-                    {(reviews ?? []).map((r) => (
-                      <div key={r.id} className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{r.reviewer_type === "EMPLOYEE" ? employeeMap.get(r.reviewer_employee_id ?? "") ?? "—" : r.reviewer_name ?? "Client"}</span>
-                        <div className="flex items-center gap-2">
-                          <ProductionStatusBadge status={r.decision} />
-                          {r.decision === "PENDING" && (r.reviewer_employee_id === myEmployee?.id) && (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => reviewMutations.decide.mutate({ id: r.id, decision: "APPROVED" })}>Approve</Button>
-                              <Button size="sm" variant="ghost" onClick={() => reviewMutations.decide.mutate({ id: r.id, decision: "CHANGES_REQUESTED" })}>Request changes</Button>
-                            </>
-                          )}
+                    {(reviews ?? []).map((r) => {
+                      const isPickedReviewer = r.reviewer_employee_id === myEmployee?.id;
+                      const canDecide = isPickedReviewer || hasPermission(PERMISSIONS.PRODUCTION_REVIEWS_DECIDE);
+                      return (
+                        <div key={r.id} className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Requested from {r.reviewer_type === "EMPLOYEE" ? employeeMap.get(r.reviewer_employee_id ?? "") ?? "—" : r.reviewer_name ?? "Client"}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <ProductionStatusBadge status={r.decision} />
+                            {r.decision === "PENDING" && canDecide && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => reviewMutations.decide.mutate({ id: r.id, decision: "APPROVED" })}>Approve</Button>
+                                <Button size="sm" variant="ghost" onClick={() => reviewMutations.decide.mutate({ id: r.id, decision: "CHANGES_REQUESTED" })}>Request changes</Button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <Can permission={PERMISSIONS.PRODUCTION_REVIEWS_CREATE}>
                       <div className="flex gap-2">
                         <Select value={reviewerId} onValueChange={setReviewerId}>

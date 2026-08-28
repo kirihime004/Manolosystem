@@ -294,6 +294,14 @@ export function useReviewMutations(versionId: string | undefined) {
     queryClient.invalidateQueries({ queryKey: ["production-reviews", versionId] });
     queryClient.invalidateQueries({ queryKey: ["production-pending-versions"] });
     queryClient.invalidateQueries({ queryKey: ["production-versions"] });
+    // A decision can flip the shot's or asset's own status as a trigger
+    // side effect (apply_production_review_decision()) -- without this,
+    // whichever detail page is open keeps showing the pre-decision status
+    // until a manual reload.
+    queryClient.invalidateQueries({ queryKey: ["production-shot"] });
+    queryClient.invalidateQueries({ queryKey: ["production-shots"] });
+    queryClient.invalidateQueries({ queryKey: ["production-asset"] });
+    queryClient.invalidateQueries({ queryKey: ["production-assets"] });
   };
   const request = useMutation({ mutationFn: versionsApi.requestReview, onSuccess: invalidate });
   const decide = useMutation({

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Money } from "@/components/shared/Money";
 import { ProductionRiskBadge, ProductionPriorityBadge } from "@/components/shared/ProductionBadges";
 import { ListChecks, Trash2 } from "lucide-react";
 import { Can } from "@/lib/permissions/Can";
@@ -188,6 +189,11 @@ function TaskCard({ task, assignee, draggable, onDelete }: { task: ProductionTas
           )}
         </div>
         <p className="text-xs text-muted-foreground">{assignee ?? "Unassigned"}</p>
+        {task.calculated_amount != null && (
+          <p className="text-xs font-medium text-foreground">
+            <Money amount={task.calculated_amount} currencyId={task.pricing_currency_id} />
+          </p>
+        )}
         <div className="flex items-center gap-1.5">
           <ProductionPriorityBadge priority={task.priority} />
           <ProductionRiskBadge risk={task.risk_status} />
