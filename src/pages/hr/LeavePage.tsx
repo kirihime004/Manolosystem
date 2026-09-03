@@ -1,10 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useAuth } from "@/lib/auth/useAuth";
 import {
   useLeaveRequests, useLeaveMutations, useMyEmployeeRecord, useLeaveTypes, useEmployees, useLeaveApprovals,
+  useLeaveBalances,
 } from "@/features/hr/hooks";
+import { ensureLeaveBalance } from "@/features/hr/hrLeaveApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,14 +26,31 @@ function daysBetween(start: string, end: string): number {
   return Math.max(1, Math.round(ms / 86400000) + 1);
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export default function LeavePage() {
   const { company } = useCompany();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
   const { data: leaveRequests, isLoading } = useLeaveRequests(company?.id);
   const { data: leaveTypes } = useLeaveTypes(company?.id);
   const { data: employees } = useEmployees(company?.id);
+  const { data: balances } = useLeaveBalances(company?.id, myEmployee?.id, CURRENT_YEAR);
   const { create, submit, decide, cancel } = useLeaveMutations(company?.id);
+
+  // First-ever view for a leave type in the current year has no balance row
+  // yet -- create it on the fly so the summary shows entitlement/remaining
+  // instead of nothing, rather than requiring a separate admin step.
+  useEffect(() => {
+    if (!myEmployee || !leaveTypes || leaveTypes.length === 0 || !balances) return;
+    const existingTypeIds = new Set(balances.map((b) => b.leave_type_id));
+    const missing = leaveTypes.filter((t) => !existingTypeIds.has(t.id));
+    if (missing.length === 0) return;
+    Promise.all(missing.map((t) => ensureLeaveBalance(myEmployee.id, t.id, CURRENT_YEAR))).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["hr-leave-balances", company?.id, myEmployee.id, CURRENT_YEAR] });
+    });
+  }, [myEmployee, leaveTypes, balances, company?.id, queryClient]);
 
   const [open, setOpen] = useState(false);
   const [leaveTypeId, setLeaveTypeId] = useState("");
@@ -84,6 +104,18 @@ export default function LeavePage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {myEmployee && balances && balances.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {balances.map((b) => (
+            <div key={b.id} className="rounded-lg border border-border bg-card p-3">
+              <p className="text-xs text-muted-foreground">{typeMap.get(b.leave_type_id) ?? "Leave"}</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{b.remaining}<span className="text-xs font-normal text-muted-foreground"> / {b.entitlement} left</span></p>
+              <p className="text-xs text-muted-foreground">{b.used} used · {b.pending} pending</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-card">
         {isLoading ? (
