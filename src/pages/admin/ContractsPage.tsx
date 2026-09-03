@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { FileSignature } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -82,7 +83,7 @@ export default function ContractsPage() {
             <TableBody>
               {contracts.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-mono text-xs">{c.contract_number}</TableCell>
+                  <TableCell className="font-mono text-xs"><Link to={c.id} className="hover:underline">{c.contract_number}</Link></TableCell>
                   <TableCell className="font-medium">{c.contract_name}</TableCell>
                   <TableCell className="text-muted-foreground">{c.contract_type.replace(/_/g, " ")}</TableCell>
                   <TableCell className="text-muted-foreground">{c.end_date}</TableCell>

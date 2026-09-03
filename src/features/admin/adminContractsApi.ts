@@ -50,3 +50,23 @@ export async function terminateAdminContract(id: string, reason?: string): Promi
   const { error } = await supabase.rpc("terminate_admin_contract", { p_contract_id: id, p_reason: reason ?? null });
   if (error) throw error;
 }
+
+// The renewal chain: renew_admin_contract() creates a new contract row with
+// renewed_from_id pointing back at the one it replaces, rather than mutating
+// dates in place -- this walks that chain in both directions so the detail
+// page can show "renewed from X" / "renewed as Y".
+export async function listContractRenewals(contractId: string): Promise<{ predecessor: AdminContract | null; successor: AdminContract | null }> {
+  const current = await getAdminContract(contractId);
+  const [predecessorRes, successorRes] = await Promise.all([
+    current.renewed_from_id
+      ? supabase.from("admin_contracts").select("*").eq("id", current.renewed_from_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    supabase.from("admin_contracts").select("*").eq("renewed_from_id", contractId).maybeSingle(),
+  ]);
+  if (predecessorRes.error) throw predecessorRes.error;
+  if (successorRes.error) throw successorRes.error;
+  return {
+    predecessor: (predecessorRes.data as AdminContract | null) ?? null,
+    successor: (successorRes.data as AdminContract | null) ?? null,
+  };
+}

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Car } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -111,7 +112,7 @@ export default function VehiclesPage() {
             <TableBody>
               {vehicles.map((v) => (
                 <TableRow key={v.id}>
-                  <TableCell className="font-mono text-xs">{v.plate_number}</TableCell>
+                  <TableCell className="font-mono text-xs"><Link to={v.id} className="hover:underline">{v.plate_number}</Link></TableCell>
                   <TableCell className="text-muted-foreground">{[v.make, v.model].filter(Boolean).join(" ") || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{v.vehicle_type.replace(/_/g, " ")}</TableCell>
                   <TableCell><AdminStatusBadge status={v.status} /></TableCell>

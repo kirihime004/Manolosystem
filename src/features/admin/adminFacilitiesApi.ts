@@ -27,6 +27,12 @@ export async function createLocation(input: {
   return data as AdminLocation;
 }
 
+export async function getLocation(id: string): Promise<AdminLocation> {
+  const { data, error } = await supabase.from("locations").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data as AdminLocation;
+}
+
 export async function updateLocation(id: string, patch: Partial<{ name: string; type: string; address: string; city: string; province: string; country: string; status: string; managerId: string | null; notes: string }>): Promise<void> {
   const { error } = await supabase
     .from("locations")

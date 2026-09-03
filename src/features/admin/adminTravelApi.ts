@@ -1,6 +1,21 @@
 import { supabase } from "@/lib/supabase/client";
 import type { TravelRequest, AdminDocument } from "@/types/database";
 
+// Same shape as admin_request_approvals (see AdminRequestApproval) -- travel
+// requests get their own approval-chain table rather than reusing that one.
+export interface TravelRequestApproval {
+  id: string;
+  company_id: string;
+  travel_request_id: string;
+  approver_id: string | null;
+  required_permission: string;
+  sequence: number;
+  decision: "PENDING" | "APPROVED" | "REJECTED";
+  decided_at: string | null;
+  comments: string | null;
+  created_at: string;
+}
+
 export async function listTravelRequests(companyId: string): Promise<TravelRequest[]> {
   const { data, error } = await supabase.from("travel_requests").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
   if (error) throw error;
@@ -67,6 +82,16 @@ export async function completeTravel(id: string): Promise<void> {
 export async function cancelTravelRequest(id: string): Promise<void> {
   const { error } = await supabase.rpc("cancel_travel_request", { p_travel_request_id: id });
   if (error) throw error;
+}
+
+export async function listTravelApprovals(travelRequestId: string): Promise<TravelRequestApproval[]> {
+  const { data, error } = await supabase
+    .from("travel_request_approvals")
+    .select("*")
+    .eq("travel_request_id", travelRequestId)
+    .order("sequence");
+  if (error) throw error;
+  return data as TravelRequestApproval[];
 }
 
 export async function listTravelDocuments(travelRequestId: string): Promise<AdminDocument[]> {

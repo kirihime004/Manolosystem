@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Plane } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -102,7 +103,7 @@ export default function TravelPage() {
             <TableBody>
               {requests.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-mono text-xs">{r.request_number}</TableCell>
+                  <TableCell className="font-mono text-xs"><Link to={r.id} className="hover:underline">{r.request_number}</Link></TableCell>
                   <TableCell className="font-medium">{r.destination}</TableCell>
                   <TableCell className="text-muted-foreground">{r.departure_date} – {r.return_date}</TableCell>
                   <TableCell><AdminStatusBadge status={r.status} /></TableCell>

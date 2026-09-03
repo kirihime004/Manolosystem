@@ -104,6 +104,7 @@ import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
 import AdminRequestsListPage from "@/pages/admin/requests/AdminRequestsListPage";
 import AdminRequestDetailPage from "@/pages/admin/requests/AdminRequestDetailPage";
 import LocationsPage from "@/pages/admin/facilities/LocationsPage";
+import LocationDetailPage from "@/pages/admin/facilities/LocationDetailPage";
 import RoomsPage from "@/pages/admin/facilities/RoomsPage";
 import RoomBookingsPage from "@/pages/admin/facilities/RoomBookingsPage";
 import WorkspacesPage from "@/pages/admin/facilities/WorkspacesPage";
@@ -117,6 +118,10 @@ import VisitorsPage from "@/pages/admin/VisitorsPage";
 import MeetingsPage from "@/pages/admin/MeetingsPage";
 import EventsPage from "@/pages/admin/EventsPage";
 import EventDetailPage from "@/pages/admin/EventDetailPage";
+import VehicleDetailPage from "@/pages/admin/VehicleDetailPage";
+import TravelDetailPage from "@/pages/admin/TravelDetailPage";
+import MeetingDetailPage from "@/pages/admin/MeetingDetailPage";
+import AdminContractDetailPage from "@/pages/admin/AdminContractDetailPage";
 import AdminContractsPage from "@/pages/admin/ContractsPage";
 import CompliancePage from "@/pages/admin/CompliancePage";
 import AnnouncementsPage from "@/pages/admin/AnnouncementsPage";
@@ -910,10 +915,13 @@ export function AppRouter() {
                   path="facilities"
                   element={
                     <RequirePermission permission={PERMISSIONS.ADMIN_FACILITIES_VIEW}>
-                      <LocationsPage />
+                      <Outlet />
                     </RequirePermission>
                   }
-                />
+                >
+                  <Route index element={<LocationsPage />} />
+                  <Route path=":locationId" element={<LocationDetailPage />} />
+                </Route>
                 <Route
                   path="rooms"
                   element={
@@ -987,22 +995,28 @@ export function AppRouter() {
                 element={
                   <RequireModule moduleKey="ADMIN_VEHICLES">
                     <RequirePermission permission={PERMISSIONS.ADMIN_VEHICLES_VIEW}>
-                      <VehiclesPage />
+                      <Outlet />
                     </RequirePermission>
                   </RequireModule>
                 }
-              />
+              >
+                <Route index element={<VehiclesPage />} />
+                <Route path=":vehicleId" element={<VehicleDetailPage />} />
+              </Route>
 
               <Route
                 path="travel"
                 element={
                   <RequireModule moduleKey="ADMIN_TRAVEL">
                     <RequirePermission permission={PERMISSIONS.ADMIN_TRAVEL_VIEW}>
-                      <TravelPage />
+                      <Outlet />
                     </RequirePermission>
                   </RequireModule>
                 }
-              />
+              >
+                <Route index element={<TravelPage />} />
+                <Route path=":travelRequestId" element={<TravelDetailPage />} />
+              </Route>
 
               {/* Visitors + Meetings (front-of-house / room coordination cluster). */}
               <Route
@@ -1024,10 +1038,13 @@ export function AppRouter() {
                   path="meetings"
                   element={
                     <RequirePermission permission={PERMISSIONS.ADMIN_MEETINGS_VIEW}>
-                      <MeetingsPage />
+                      <Outlet />
                     </RequirePermission>
                   }
-                />
+                >
+                  <Route index element={<MeetingsPage />} />
+                  <Route path=":meetingId" element={<MeetingDetailPage />} />
+                </Route>
               </Route>
 
               <Route
@@ -1056,10 +1073,13 @@ export function AppRouter() {
                   path="contracts"
                   element={
                     <RequirePermission permission={PERMISSIONS.ADMIN_CONTRACTS_VIEW}>
-                      <AdminContractsPage />
+                      <Outlet />
                     </RequirePermission>
                   }
-                />
+                >
+                  <Route index element={<AdminContractsPage />} />
+                  <Route path=":contractId" element={<AdminContractDetailPage />} />
+                </Route>
                 <Route
                   path="compliance"
                   element={

@@ -99,6 +99,10 @@ export function useLocations(companyId: string | undefined) {
   return useQuery({ queryKey: ["admin-locations", companyId], queryFn: () => facilitiesApi.listLocations(companyId!), enabled: !!companyId });
 }
 
+export function useLocation(id: string | undefined) {
+  return useQuery({ queryKey: ["admin-location", id], queryFn: () => facilitiesApi.getLocation(id!), enabled: !!id });
+}
+
 export function useLocationMutations(companyId: string | undefined) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-locations", companyId] });
@@ -345,6 +349,10 @@ export function useTravelDocuments(travelRequestId: string | undefined) {
   return useQuery({ queryKey: ["travel-documents", travelRequestId], queryFn: () => travelApi.listTravelDocuments(travelRequestId!), enabled: !!travelRequestId });
 }
 
+export function useTravelApprovals(travelRequestId: string | undefined) {
+  return useQuery({ queryKey: ["travel-approvals", travelRequestId], queryFn: () => travelApi.listTravelApprovals(travelRequestId!), enabled: !!travelRequestId });
+}
+
 export function useTravelRequestMutations(companyId: string | undefined, travelRequestId?: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
@@ -458,11 +466,16 @@ export function useAdminContract(id: string | undefined) {
   return useQuery({ queryKey: ["admin-contract", id], queryFn: () => contractsApi.getAdminContract(id!), enabled: !!id });
 }
 
+export function useContractRenewals(id: string | undefined) {
+  return useQuery({ queryKey: ["admin-contract-renewals", id], queryFn: () => contractsApi.listContractRenewals(id!), enabled: !!id });
+}
+
 export function useAdminContractMutations(companyId: string | undefined, contractId?: string) {
   const queryClient = useQueryClient();
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["admin-contracts", companyId] });
     queryClient.invalidateQueries({ queryKey: ["admin-contract", contractId] });
+    queryClient.invalidateQueries({ queryKey: ["admin-contract-renewals", contractId] });
   };
   return {
     create: useMutation({ mutationFn: contractsApi.createAdminContract, onSuccess: invalidate }),

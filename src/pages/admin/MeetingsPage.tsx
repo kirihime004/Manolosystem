@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CalendarDays } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -84,7 +85,7 @@ export default function MeetingsPage() {
             <TableBody>
               {meetings.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell className="font-medium">{m.title}</TableCell>
+                  <TableCell className="font-medium"><Link to={m.id} className="hover:underline">{m.title}</Link></TableCell>
                   <TableCell className="text-muted-foreground">{m.room_booking_id ? "Booked" : "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{m.meeting_date}</TableCell>
                   <TableCell className="text-muted-foreground">{m.start_time.slice(0, 5)} – {m.end_time.slice(0, 5)}</TableCell>

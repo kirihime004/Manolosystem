@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { MapPin } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -90,7 +91,7 @@ export default function LocationsPage() {
             <TableBody>
               {locations.map((loc) => (
                 <TableRow key={loc.id}>
-                  <TableCell className="font-medium">{loc.name}</TableCell>
+                  <TableCell className="font-medium"><Link to={loc.id} className="hover:underline">{loc.name}</Link></TableCell>
                   <TableCell className="text-muted-foreground">{loc.type.replace(/_/g, " ")}</TableCell>
                   <TableCell className="text-muted-foreground">{loc.city ?? "—"}</TableCell>
                   <TableCell><AdminStatusBadge status={loc.status} /></TableCell>
