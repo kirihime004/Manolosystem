@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Wallet } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useEmployees } from "@/features/hr/hooks";
-import { useTasks, useAllWorkEarnings, useWorkAdjustments, useProductionWorkMutations } from "@/features/production/hooks";
+import { useTasks, useAllWorkEarnings, useWorkAdjustments, useWorkApprovals, useProductionWorkMutations } from "@/features/production/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -83,6 +83,7 @@ export default function AllWorkEarningsPage() {
 
 function AdjustmentDialog({ earning, employeeName, onOpenChange }: { earning: ProductionWorkEarning | null; employeeName: string | undefined; onOpenChange: (open: boolean) => void }) {
   const { data: adjustments } = useWorkAdjustments(earning?.id);
+  const { data: approvals } = useWorkApprovals(earning?.id);
   const { createAdjustment } = useProductionWorkMutations(earning?.company_id);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -109,9 +110,29 @@ function AdjustmentDialog({ earning, employeeName, onOpenChange }: { earning: Pr
               <span className="font-medium text-foreground"><Money amount={earning.approved_amount ?? earning.requested_amount} currencyId={earning.currency_id} /></span>
             </div>
 
-            {(adjustments ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No adjustments recorded.</p>
-            ) : (
+            {approvals && approvals.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Approval history</Label>
+                <ul className="space-y-1.5">
+                  {approvals.map((a) => (
+                    <li key={a.id} className="rounded-md border border-border p-2.5 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-foreground">Level {a.approval_level} — {a.required_permission}</span>
+                        <ProductionStatusBadge status={a.decision} />
+                      </div>
+                      {a.decided_at && <p className="mt-0.5 text-xs text-muted-foreground">{new Date(a.decided_at).toLocaleString()}</p>}
+                      {a.comments && <p className="mt-0.5 text-xs text-muted-foreground">"{a.comments}"</p>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              {approvals && approvals.length > 0 && <Label className="text-xs text-muted-foreground">Adjustments</Label>}
+              {(adjustments ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No adjustments recorded.</p>
+              ) : (
               <ul className="space-y-1.5">
                 {(adjustments ?? []).map((a) => (
                   <li key={a.id} className="rounded-md border border-border p-2.5 text-sm">
@@ -123,7 +144,8 @@ function AdjustmentDialog({ earning, employeeName, onOpenChange }: { earning: Pr
                   </li>
                 ))}
               </ul>
-            )}
+              )}
+            </div>
 
             <Can permission={PERMISSIONS.PRODUCTION_WORK_ADJUST}>
               <div className="space-y-2 border-t border-border pt-3">

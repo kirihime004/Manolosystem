@@ -11,6 +11,7 @@ import {
   useBudgetLines,
   useBudgetHistory,
   useBudgetMutations,
+  useBudgetRevisions,
 } from "@/features/it/procurement/hooks";
 import { BUDGET_MODULE_CONFIG } from "@/features/it/procurement/budgetModuleConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +26,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { Money } from "@/components/shared/Money";
-import { BudgetStatusBadge } from "@/components/shared/ProcurementBadges";
+import { BudgetStatusBadge, ApprovalDecisionBadge } from "@/components/shared/ProcurementBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
 
@@ -50,9 +51,10 @@ export default function BudgetDetailPage() {
   const { data: transactions } = useBudgetTransactions(budgetId);
   const { data: lines } = useBudgetLines(budgetId);
   const { data: history } = useBudgetHistory(budgetId);
+  const { data: revisions } = useBudgetRevisions(budgetId);
   const {
     setAllocation, createAdjustment, createLine, deleteLine,
-    submitToFinance, cancel, activate, close, requestIncrease,
+    submitToFinance, cancel, activate, close, requestIncrease, decideRevision,
   } = useBudgetMutations(budgetId);
 
   const [allocOpen, setAllocOpen] = useState(false);
@@ -200,6 +202,15 @@ export default function BudgetDetailPage() {
     }
   };
 
+  const handleDecideRevision = async (revisionId: string, decision: "APPROVED" | "REJECTED") => {
+    try {
+      await decideRevision.mutateAsync({ revisionId, decision });
+      toast.success(decision === "APPROVED" ? "Increase approved" : "Increase rejected");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to record decision");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -276,6 +287,7 @@ export default function BudgetDetailPage() {
           <TabsTrigger value="categories">Category Allocation</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="revisions">Revisions</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
         </TabsList>
 
@@ -487,6 +499,40 @@ export default function BudgetDetailPage() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="revisions" className="pt-4">
+          <Card>
+            <CardContent className="pt-6">
+              {!revisions || revisions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No increase requests on record.</p>
+              ) : (
+                <ol className="space-y-4">
+                  {revisions.map((r) => (
+                    <li key={r.id} className="flex items-start justify-between gap-3 rounded-md border border-border p-3.5">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          v{r.version} — <Money amount={r.previous_amount} currencyId={budget.currency_id} /> → <Money amount={r.new_amount} currencyId={budget.currency_id} />
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">"{r.reason}"</p>
+                        <p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {r.status === "PENDING" ? (
+                          <Can permission={PERMISSIONS.BUDGET_FINANCE_APPROVE}>
+                            <Button size="sm" variant="outline" onClick={() => handleDecideRevision(r.id, "APPROVED")} disabled={decideRevision.isPending}>Approve</Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleDecideRevision(r.id, "REJECTED")} disabled={decideRevision.isPending}>Reject</Button>
+                          </Can>
+                        ) : (
+                          <ApprovalDecisionBadge decision={r.status} />
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="details" className="pt-4">

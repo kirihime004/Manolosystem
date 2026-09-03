@@ -101,6 +101,7 @@ import FinanceReportsPage from "@/pages/finance/FinanceReportsPage";
 import FinanceSettingsPage from "@/pages/finance/FinanceSettingsPage";
 
 import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
+import AdminReportsPage from "@/pages/admin/AdminReportsPage";
 import AdminRequestsListPage from "@/pages/admin/requests/AdminRequestsListPage";
 import AdminRequestDetailPage from "@/pages/admin/requests/AdminRequestDetailPage";
 import LocationsPage from "@/pages/admin/facilities/LocationsPage";
@@ -130,6 +131,7 @@ import AdminDocumentsPage from "@/pages/admin/AdminDocumentsPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 
 import ProductionDashboardPage from "@/pages/production/ProductionDashboardPage";
+import ProductionReportsPage from "@/pages/production/ProductionReportsPage";
 import ProjectsListPage from "@/pages/production/projects/ProjectsListPage";
 import ProjectDetailPage from "@/pages/production/projects/ProjectDetailPage";
 import ShotsPage from "@/pages/production/shots/ShotsPage";
@@ -873,6 +875,14 @@ export function AppRouter() {
               }
             >
               <Route index element={<AdminDashboardPage />} />
+              <Route
+                path="reports"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_REPORTS_VIEW}>
+                    <AdminReportsPage />
+                  </RequirePermission>
+                }
+              />
 
               {/* Requests: request queue + settings (request categories). */}
               <Route
@@ -1189,6 +1199,14 @@ export function AppRouter() {
               }
             >
               <Route index element={<ProductionDashboardPage />} />
+              <Route
+                path="reports"
+                element={
+                  <RequirePermission permission={PERMISSIONS.PRODUCTION_REPORTS_VIEW}>
+                    <ProductionReportsPage />
+                  </RequirePermission>
+                }
+              />
 
               <Route
                 element={

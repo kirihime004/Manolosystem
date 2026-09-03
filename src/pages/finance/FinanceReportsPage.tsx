@@ -2,14 +2,18 @@ import { useState } from "react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useProfitAndLoss, useBalanceSheet, useCashFlow, useTaxSummary } from "@/features/finance/hooks";
 import { useCompanyCurrencySettings } from "@/features/it/procurement/hooks";
+import { exportCsv } from "@/lib/csvExport";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { BarChart3 } from "lucide-react";
+import { Can } from "@/lib/permissions/Can";
+import { PERMISSIONS } from "@/lib/permissions/keys";
+import { BarChart3, Download, Printer } from "lucide-react";
 
 function monthRange() {
   const now = new Date();
@@ -24,6 +28,7 @@ export default function FinanceReportsPage() {
   const { data: currencySettings } = useCompanyCurrencySettings(company?.id);
   const [{ start, end }, setRange] = useState(monthRange);
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().slice(0, 10));
+  const [activeTab, setActiveTab] = useState("pnl");
 
   const { data: pnl } = useProfitAndLoss(company?.id, start, end);
   const { data: balanceSheet } = useBalanceSheet(company?.id, asOfDate);
@@ -42,6 +47,40 @@ export default function FinanceReportsPage() {
   const equity = (balanceSheet ?? []).filter((r) => r.account_type === "EQUITY").reduce((s, r) => s + r.amount, 0);
   const balanced = Math.abs(assets - (liabilities + equity)) < 0.01;
 
+  const handleExport = () => {
+    if (activeTab === "pnl") {
+      exportCsv(`pnl-${start}-to-${end}.csv`, [
+        { label: "Account Code", render: (r: NonNullable<typeof pnl>[number]) => r.account_code },
+        { label: "Account Name", render: (r: NonNullable<typeof pnl>[number]) => r.account_name },
+        { label: "Amount", render: (r: NonNullable<typeof pnl>[number]) => String(r.amount) },
+      ], pnl ?? []);
+    } else if (activeTab === "balance-sheet") {
+      exportCsv(`balance-sheet-${asOfDate}.csv`, [
+        { label: "Account Code", render: (r: NonNullable<typeof balanceSheet>[number]) => r.account_code },
+        { label: "Account Name", render: (r: NonNullable<typeof balanceSheet>[number]) => r.account_name },
+        { label: "Amount", render: (r: NonNullable<typeof balanceSheet>[number]) => String(r.amount) },
+      ], balanceSheet ?? []);
+    } else if (activeTab === "cash-flow" && cashFlow) {
+      exportCsv(`cash-flow-${start}-to-${end}.csv`, [
+        { label: "Metric", render: (r: { label: string; amount: number }) => r.label },
+        { label: "Amount", render: (r: { label: string; amount: number }) => String(r.amount) },
+      ], [
+        { label: "Beginning Cash", amount: cashFlow.beginning_cash },
+        { label: "Cash Inflows", amount: cashFlow.cash_inflows },
+        { label: "Cash Outflows", amount: cashFlow.cash_outflows },
+        { label: "Net Cash Flow", amount: cashFlow.net_cash_flow },
+        { label: "Ending Cash", amount: cashFlow.ending_cash },
+      ]);
+    } else if (activeTab === "tax") {
+      exportCsv(`tax-summary-${start}-to-${end}.csv`, [
+        { label: "Tax Type", render: (r: NonNullable<typeof taxSummary>[number]) => r.tax_type },
+        { label: "Direction", render: (r: NonNullable<typeof taxSummary>[number]) => r.direction },
+        { label: "Base Amount", render: (r: NonNullable<typeof taxSummary>[number]) => String(r.base_amount) },
+        { label: "Tax Amount", render: (r: NonNullable<typeof taxSummary>[number]) => String(r.tax_amount) },
+      ], taxSummary ?? []);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -49,13 +88,19 @@ export default function FinanceReportsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Reports</h1>
           <p className="text-sm text-muted-foreground">Financial statements in the company base currency.</p>
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 print:hidden">
           <div className="space-y-1"><Label className="text-xs">From</Label><Input type="date" value={start} onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))} /></div>
           <div className="space-y-1"><Label className="text-xs">To</Label><Input type="date" value={end} onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))} /></div>
+          <Can permission={PERMISSIONS.FINANCE_REPORTS_PRINT}>
+            <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-3.5 w-3.5" />Print</Button>
+          </Can>
+          <Can permission={PERMISSIONS.FINANCE_REPORTS_EXPORT}>
+            <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-3.5 w-3.5" />Export CSV</Button>
+          </Can>
         </div>
       </div>
 
-      <Tabs defaultValue="pnl">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pnl">Profit & Loss</TabsTrigger>
           <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>

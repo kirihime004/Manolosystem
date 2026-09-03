@@ -11,6 +11,7 @@ import {
 } from "@/features/production/hooks";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { ProductionFilesSection } from "@/components/production/ProductionFilesSection";
+import { ProductionHistorySection } from "@/components/production/ProductionHistorySection";
 import { DonutChart, StackedBarChart, HorizontalBarChart, statusChartColor } from "@/components/production/charts/ProductionCharts";
 import { useEmployees } from "@/features/hr/hooks";
 import { Card, CardContent } from "@/components/ui/card";
@@ -356,6 +357,8 @@ export default function ProjectDetailPage() {
           <CustomFieldsSection companyId={company?.id} entityType="PROJECT" entityId={project.id} />
 
           <ProductionFilesSection resourceType="PROJECT" resourceId={project.id} />
+
+          <ProductionHistorySection resourceType="PROJECT" resourceId={project.id} />
         </TabsContent>
 
         <TabsContent value="insights" className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-2">

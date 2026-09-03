@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Plus } from "lucide-react";
+import { CheckCircle2, XCircle, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useSuppliers } from "@/features/it/inventory/hooks";
-import { usePurchaseRequest, usePurchaseRequestMutations, useQuotationMutations, usePurchaseOrderMutations, useCurrencies, useBudget } from "@/features/it/procurement/hooks";
+import { usePurchaseRequest, usePurchaseRequestMutations, useQuotationMutations, usePurchaseOrderMutations, useCurrencies, useBudget, useQuotationItems } from "@/features/it/procurement/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,6 +31,33 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
+function QuotationItemsRow({ quotationId, currencyId }: { quotationId: string; currencyId: string | null }) {
+  const { data: items, isLoading } = useQuotationItems(quotationId);
+  return (
+    <TableRow>
+      <TableCell />
+      <TableCell colSpan={6} className="bg-muted/30">
+        {isLoading ? (
+          <p className="py-2 text-xs text-muted-foreground">Loading line items…</p>
+        ) : !items || items.length === 0 ? (
+          <p className="py-2 text-xs text-muted-foreground">No line items on record for this quotation.</p>
+        ) : (
+          <div className="space-y-1 py-1">
+            {items.map((li) => (
+              <div key={li.id} className="flex items-center justify-between text-xs">
+                <span className="text-foreground">{li.description} <span className="text-muted-foreground">× {li.quantity}</span></span>
+                <span className="flex gap-3 text-muted-foreground">
+                  <Money amount={li.unit_price} currencyId={currencyId} /> ea · <span className="font-medium text-foreground"><Money amount={li.line_total} currencyId={currencyId} /></span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function PurchaseRequestDetailPage() {
   const { companySlug, requestId } = useParams<{ companySlug: string; requestId: string }>();
   const { user } = useAuth();
@@ -48,11 +75,13 @@ export default function PurchaseRequestDetailPage() {
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteSupplierId, setQuoteSupplierId] = useState("");
-  const [quoteTotal, setQuoteTotal] = useState("");
+  const [quoteItemPrices, setQuoteItemPrices] = useState<Record<string, string>>({});
   const [quoteDeliveryDays, setQuoteDeliveryDays] = useState("");
   const [quoteWarranty, setQuoteWarranty] = useState("");
   const [quotePaymentTerms, setQuotePaymentTerms] = useState("");
   const [quoteNotes, setQuoteNotes] = useState("");
+
+  const [expandedQuotationId, setExpandedQuotationId] = useState<string | null>(null);
 
   const [selectReasonOpen, setSelectReasonOpen] = useState<string | null>(null);
   const [selectReason, setSelectReason] = useState("");
@@ -100,7 +129,7 @@ export default function PurchaseRequestDetailPage() {
         purchaseRequestId: requestId,
         supplierId: quoteSupplierId,
         currencyId: pr.currency_id,
-        items: pr.items.map((i) => ({ purchaseRequestItemId: i.id, description: i.description, quantity: i.quantity, unitPrice: Number(quoteTotal) / pr.items.reduce((s, x) => s + x.quantity, 0) || 0 })),
+        items: pr.items.map((i) => ({ purchaseRequestItemId: i.id, description: i.description, quantity: i.quantity, unitPrice: Number(quoteItemPrices[i.id]) || 0 })),
         deliveryTimeDays: quoteDeliveryDays ? Number(quoteDeliveryDays) : null,
         warrantyTerms: quoteWarranty || null,
         paymentTerms: quotePaymentTerms || null,
@@ -108,7 +137,7 @@ export default function PurchaseRequestDetailPage() {
       });
       toast.success("Quotation added");
       setQuoteOpen(false);
-      setQuoteSupplierId(""); setQuoteTotal(""); setQuoteDeliveryDays(""); setQuoteWarranty(""); setQuotePaymentTerms(""); setQuoteNotes("");
+      setQuoteSupplierId(""); setQuoteItemPrices({}); setQuoteDeliveryDays(""); setQuoteWarranty(""); setQuotePaymentTerms(""); setQuoteNotes("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add quotation");
     }
@@ -276,23 +305,27 @@ export default function PurchaseRequestDetailPage() {
           ) : (
             <div className="rounded-lg border border-border bg-card">
               <Table>
-                <TableHeader><TableRow><TableHead>Supplier</TableHead><TableHead>Total</TableHead><TableHead>Delivery</TableHead><TableHead>Warranty</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead className="w-8" /><TableHead>Supplier</TableHead><TableHead>Total</TableHead><TableHead>Delivery</TableHead><TableHead>Warranty</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                 <TableBody>
                   {pr.quotations.map((q) => (
-                    <TableRow key={q.id}>
-                      <TableCell className="font-medium">{q.supplier?.name ?? "—"}</TableCell>
-                      <TableCell><Money amount={q.total} currencyId={q.currency_id} /></TableCell>
-                      <TableCell className="text-muted-foreground">{q.delivery_time_days ? `${q.delivery_time_days} days` : "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{q.warranty_terms ?? "—"}</TableCell>
-                      <TableCell><QuotationStatusBadge status={q.status} /></TableCell>
-                      <TableCell>
-                        {pr.status === "APPROVED" && q.status !== "SELECTED" && (
-                          <Can permission={config.updatePermission}>
-                            <Button size="sm" variant="outline" onClick={() => setSelectReasonOpen(q.id)}>Select</Button>
-                          </Can>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                    <Fragment key={q.id}>
+                      <TableRow className="cursor-pointer" onClick={() => setExpandedQuotationId(expandedQuotationId === q.id ? null : q.id)}>
+                        <TableCell>{expandedQuotationId === q.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}</TableCell>
+                        <TableCell className="font-medium">{q.supplier?.name ?? "—"}</TableCell>
+                        <TableCell><Money amount={q.total} currencyId={q.currency_id} /></TableCell>
+                        <TableCell className="text-muted-foreground">{q.delivery_time_days ? `${q.delivery_time_days} days` : "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{q.warranty_terms ?? "—"}</TableCell>
+                        <TableCell><QuotationStatusBadge status={q.status} /></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {pr.status === "APPROVED" && q.status !== "SELECTED" && (
+                            <Can permission={config.updatePermission}>
+                              <Button size="sm" variant="outline" onClick={() => setSelectReasonOpen(q.id)}>Select</Button>
+                            </Can>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {expandedQuotationId === q.id && <QuotationItemsRow quotationId={q.id} currencyId={q.currency_id} />}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -326,7 +359,25 @@ export default function PurchaseRequestDetailPage() {
                 <SelectContent>{suppliers?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>Total quoted price ({pr.items.reduce((s, x) => s + x.quantity, 0)} units)</Label><Input type="number" step="0.01" required value={quoteTotal} onChange={(e) => setQuoteTotal(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>Unit prices</Label>
+              <div className="space-y-2 rounded-md border border-border p-3">
+                {pr.items.map((i) => (
+                  <div key={i.id} className="flex items-center gap-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{i.description} <span className="text-xs">× {i.quantity}</span></span>
+                    <Input
+                      type="number" step="0.01" required className="w-28" placeholder="0.00"
+                      value={quoteItemPrices[i.id] ?? ""}
+                      onChange={(e) => setQuoteItemPrices((prev) => ({ ...prev, [i.id]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+                <Separator />
+                <div className="flex justify-end text-sm font-semibold">
+                  Total: <Money amount={pr.items.reduce((sum, i) => sum + i.quantity * (Number(quoteItemPrices[i.id]) || 0), 0)} currencyId={pr.currency_id} />
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Delivery time (days)</Label><Input type="number" value={quoteDeliveryDays} onChange={(e) => setQuoteDeliveryDays(e.target.value)} /></div>
               <div className="space-y-1.5"><Label>Warranty</Label><Input value={quoteWarranty} onChange={(e) => setQuoteWarranty(e.target.value)} placeholder="e.g. 1 year" /></div>

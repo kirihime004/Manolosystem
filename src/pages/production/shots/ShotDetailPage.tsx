@@ -16,6 +16,7 @@ import { CustomFieldsSection } from "@/components/production/CustomFieldsSection
 import { TaskPricingPanel } from "@/components/production/TaskPricingPanel";
 import { TaskDependenciesPanel } from "@/components/production/TaskDependenciesPanel";
 import { ProductionFilesSection } from "@/components/production/ProductionFilesSection";
+import { ProductionHistorySection } from "@/components/production/ProductionHistorySection";
 import { Money } from "@/components/shared/Money";
 import { setTaskPricingConfig, recalculateTaskPricing } from "@/features/production/productionRateCardsApi";
 import { Card, CardContent } from "@/components/ui/card";
@@ -495,6 +496,8 @@ export default function ShotDetailPage() {
           <Button type="submit" disabled={noteMutations.create.isPending}>Post</Button>
         </form>
       </div>
+
+      <ProductionHistorySection resourceType="SHOT" resourceId={shot.id} />
 
       <Dialog open={editShotOpen} onOpenChange={setEditShotOpen}>
         <DialogContent>

@@ -1029,6 +1029,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       {hasPermission(PERMISSIONS.ADMIN_PROCUREMENT_VIEW) && (
                         <NavLink to={`${base}/admin/procurement`} icon={ShoppingCart} label="Procurement" active={location.pathname.startsWith(`${base}/admin/procurement`)} />
                       )}
+                      {hasPermission(PERMISSIONS.ADMIN_REPORTS_VIEW) && (
+                        <NavLink to={`${base}/admin/reports`} icon={BarChart3} label="Reports" active={location.pathname.startsWith(`${base}/admin/reports`)} />
+                      )}
                     </div>
                   )}
                 </>
@@ -1131,6 +1134,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       )}
                       {hasPermission(PERMISSIONS.PRODUCTION_WORK_VIEW_ALL) && (
                         <NavLink to={`${base}/production/work-earnings`} icon={Wallet} label="Work Earnings" active={location.pathname.startsWith(`${base}/production/work-earnings`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_REPORTS_VIEW) && (
+                        <NavLink to={`${base}/production/reports`} icon={BarChart3} label="Reports" active={location.pathname.startsWith(`${base}/production/reports`)} />
                       )}
                     </div>
                   )}
