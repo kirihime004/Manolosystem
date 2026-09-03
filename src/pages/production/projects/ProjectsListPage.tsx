@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { FolderKanban, MoreHorizontal } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
-import { useProjects, useProjectMutations } from "@/features/production/hooks";
+import { useProjects, useProjectMutations, useProjectTemplates, useProjectTemplateMutations } from "@/features/production/hooks";
 import { useEmployees } from "@/features/hr/hooks";
 import { useCustomers } from "@/features/finance/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +33,8 @@ export default function ProjectsListPage() {
   const { data: employees } = useEmployees(company?.id);
   const { data: customers } = useCustomers(company?.id);
   const { create, remove } = useProjectMutations(company?.id);
+  const { data: templates } = useProjectTemplates(company?.id);
+  const { apply: applyTemplate } = useProjectTemplateMutations(company?.id);
   const [deleteTarget, setDeleteTarget] = useState<ProductionProject | null>(null);
 
   const [open, setOpen] = useState(false);
@@ -42,6 +44,7 @@ export default function ProjectsListPage() {
   const [clientId, setClientId] = useState("");
   const [directorId, setDirectorId] = useState("");
   const [producerId, setProducerId] = useState("");
+  const [templateId, setTemplateId] = useState("");
 
   const employeeMap = new Map((employees ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
   const customerMap = new Map((customers ?? []).map((c) => [c.id, c.name]));
@@ -49,12 +52,19 @@ export default function ProjectsListPage() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await create.mutateAsync({
+      const created = await create.mutateAsync({
         companyId: company!.id, name, projectType, description: description || null,
         clientId: clientId || null, directorId: directorId || null, producerId: producerId || null,
       });
+      if (templateId) {
+        try {
+          await applyTemplate.mutateAsync({ projectId: created.id, templateId });
+        } catch (templateErr) {
+          toast.error(templateErr instanceof Error ? templateErr.message : "Project created, but the template couldn't be applied");
+        }
+      }
       toast.success("Project created");
-      setOpen(false); setName(""); setDescription(""); setClientId(""); setDirectorId(""); setProducerId("");
+      setOpen(false); setName(""); setDescription(""); setClientId(""); setDirectorId(""); setProducerId(""); setTemplateId("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create project");
     }
@@ -116,6 +126,16 @@ export default function ProjectsListPage() {
                     </Select>
                   </div>
                 </div>
+                {templates && templates.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Template (optional)</Label>
+                    <Select value={templateId} onValueChange={setTemplateId}>
+                      <SelectTrigger><SelectValue placeholder="No template" /></SelectTrigger>
+                      <SelectContent>{templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Pre-loads this project with the template's standard milestones.</p>
+                  </div>
+                )}
                 <DialogFooter><Button type="submit" disabled={create.isPending}>Create</Button></DialogFooter>
               </form>
             </DialogContent>

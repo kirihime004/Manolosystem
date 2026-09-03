@@ -119,6 +119,19 @@ export function useProjectTemplates(companyId: string | undefined) {
   return useQuery({ queryKey: ["production-project-templates", companyId], queryFn: () => projectsApi.listProjectTemplates(companyId!), enabled: !!companyId });
 }
 
+export function useProjectTemplateMutations(companyId: string | undefined) {
+  const queryClient = useQueryClient();
+  const create = useMutation({
+    mutationFn: projectsApi.createProjectTemplate,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["production-project-templates", companyId] }),
+  });
+  const apply = useMutation({
+    mutationFn: (input: { projectId: string; templateId: string }) => projectsApi.applyProjectTemplate(input.projectId, input.templateId),
+    onSuccess: (_d, vars) => queryClient.invalidateQueries({ queryKey: ["production-milestones", vars.projectId] }),
+  });
+  return { create, apply };
+}
+
 export function useProductionBudgetSummary(projectId: string | undefined) {
   return useQuery({ queryKey: ["production-budget-summary", projectId], queryFn: () => projectsApi.getProductionBudgetSummary(projectId!), enabled: !!projectId });
 }

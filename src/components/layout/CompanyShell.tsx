@@ -1127,6 +1127,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       {hasPermission(PERMISSIONS.PRODUCTION_WORK_VIEW_OWN) && (
                         <NavLink to={`${base}/production/my-earnings`} icon={Banknote} label="My Earnings" active={location.pathname.startsWith(`${base}/production/my-earnings`)} />
                       )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_WORK_VIEW_ALL) && (
+                        <NavLink to={`${base}/production/work-earnings`} icon={Wallet} label="Work Earnings" active={location.pathname.startsWith(`${base}/production/work-earnings`)} />
+                      )}
                     </div>
                   )}
                 </>

@@ -122,10 +122,18 @@ export function TaskPricingPanel({ task: initialTask, canSubmitWork }: { task: P
 
 function PricingReadout({ task, unitLabel }: { task: ProductionTask; unitLabel: string | undefined }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-      <span>Unit: <span className="text-foreground">{unitLabel ?? "—"}</span></span>
-      <span>Quantity: <span className="text-foreground">{task.pricing_quantity ?? "—"}</span>{task.pricing_quantity_source && <span> ({task.pricing_quantity_source === "AUTO" ? "auto" : "manual"})</span>}</span>
-      <span>Amount: <span className="text-foreground font-medium">{task.calculated_amount != null ? <Money amount={task.calculated_amount} currencyId={task.pricing_currency_id} /> : "—"}</span></span>
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span>Unit: <span className="text-foreground">{unitLabel ?? "—"}</span></span>
+        <span>Quantity: <span className="text-foreground">{task.pricing_quantity ?? "—"}</span>{task.pricing_quantity_source && <span> ({task.pricing_quantity_source === "AUTO" ? "auto" : "manual"})</span>}</span>
+        <span>Amount: <span className="text-foreground font-medium">{task.calculated_amount != null ? <Money amount={task.calculated_amount} currencyId={task.pricing_currency_id} /> : "—"}</span></span>
+      </div>
+      {task.quantity_changed_at && (
+        <p className="text-xs text-muted-foreground">
+          Quantity overridden from {task.original_quantity ?? "—"} on {new Date(task.quantity_changed_at).toLocaleDateString()}
+          {task.quantity_override_reason ? ` — "${task.quantity_override_reason}"` : ""}
+        </p>
+      )}
     </div>
   );
 }

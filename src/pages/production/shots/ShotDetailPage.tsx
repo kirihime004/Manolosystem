@@ -14,6 +14,8 @@ import {
 import { FrameReviewPlayer } from "@/components/production/FrameReviewPlayer";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { TaskPricingPanel } from "@/components/production/TaskPricingPanel";
+import { TaskDependenciesPanel } from "@/components/production/TaskDependenciesPanel";
+import { ProductionFilesSection } from "@/components/production/ProductionFilesSection";
 import { Money } from "@/components/shared/Money";
 import { setTaskPricingConfig, recalculateTaskPricing } from "@/features/production/productionRateCardsApi";
 import { Card, CardContent } from "@/components/ui/card";
@@ -297,6 +299,8 @@ export default function ShotDetailPage() {
 
       <CustomFieldsSection companyId={company?.id} entityType="SHOT" entityId={shot.id} projectId={shot.project_id} />
 
+      <ProductionFilesSection resourceType="SHOT" resourceId={shot.id} />
+
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Tasks</h3>
@@ -529,6 +533,7 @@ export default function ShotDetailPage() {
             <DialogFooter><Button type="submit" disabled={taskMutations.update.isPending}>Save changes</Button></DialogFooter>
           </form>
           {editingTask && <CustomFieldsSection companyId={company?.id} entityType="TASK" entityId={editingTask.id} projectId={shot.project_id} />}
+          {editingTask && <TaskDependenciesPanel task={editingTask} siblingTasks={tasks ?? []} />}
           {editingTask && <TaskPricingPanel task={editingTask} canSubmitWork={editingTask.assigned_to === myEmployee?.id || hasPermission(PERMISSIONS.PRODUCTION_TASKS_UPDATE)} />}
         </DialogContent>
       </Dialog>

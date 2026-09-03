@@ -6,6 +6,7 @@ import {
   useProductionSettings, useTaskTypes, useTaskTypeMutations, useCustomFields, useCustomFieldMutations,
   useWorkflowTemplates, useWorkflowStages, useWorkflowMutations, useClientUsers, useClientUserMutations,
   useProductionUnits, useProductionUnitMutations, useRateCards, useRateCardMutations, useProjects,
+  useProjectTemplates, useProjectTemplateMutations,
 } from "@/features/production/hooks";
 import { updateProductionSettings } from "@/features/production/productionProjectsApi";
 import { useDepartments } from "@/features/company/settings/useDepartments";
@@ -17,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -57,6 +59,13 @@ export default function ProductionSettingsPage() {
   const [unitOpen, setUnitOpen] = useState(false);
   const [unitCode, setUnitCode] = useState("");
   const [unitLabel, setUnitLabel] = useState("");
+
+  const { data: templates } = useProjectTemplates(company?.id);
+  const templateMutations = useProjectTemplateMutations(company?.id);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [tplDescription, setTplDescription] = useState("");
+  const [tplMilestones, setTplMilestones] = useState<{ name: string; days_offset: string; milestone_type: string }[]>([]);
 
   const { data: rateCards } = useRateCards(company?.id);
   const rateCardMutations = useRateCardMutations(company?.id);
@@ -130,6 +139,18 @@ export default function ProductionSettingsPage() {
       toast.success("Production unit created");
       setUnitOpen(false); setUnitCode(""); setUnitLabel("");
     } catch (err) { toast.error(getErrorMessage(err, "Failed to create unit")); }
+  };
+
+  const handleCreateTemplate = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await templateMutations.create.mutateAsync({
+        companyId: company!.id, name: tplName, description: tplDescription || null,
+        config: { milestones: tplMilestones.filter((m) => m.name.trim()).map((m) => ({ name: m.name, days_offset: Number(m.days_offset) || 0, milestone_type: m.milestone_type })) },
+      });
+      toast.success("Template created");
+      setTemplateOpen(false); setTplName(""); setTplDescription(""); setTplMilestones([]);
+    } catch (err) { toast.error(getErrorMessage(err, "Failed to create template")); }
   };
 
   const handleCreateRateCard = async (e: FormEvent) => {
@@ -229,6 +250,7 @@ export default function ProductionSettingsPage() {
           <TabsTrigger value="client-access">Client Access</TabsTrigger>
           <Can permission={PERMISSIONS.PRODUCTION_RATES_VIEW}><TabsTrigger value="rate-cards">Rate Cards</TabsTrigger></Can>
           <TabsTrigger value="production-units">Production Units</TabsTrigger>
+          <TabsTrigger value="templates">Project Templates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="task-types" className="space-y-4 pt-4">
@@ -648,6 +670,63 @@ export default function ProductionSettingsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-4 pt-4">
+          <div className="flex justify-end">
+            <Can permission={PERMISSIONS.PRODUCTION_TEMPLATES_MANAGE}>
+              <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
+                <DialogTrigger asChild><Button size="sm">+ Template</Button></DialogTrigger>
+                <DialogContent className="max-h-[85vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>New project template</DialogTitle></DialogHeader>
+                  <form onSubmit={handleCreateTemplate} className="space-y-3">
+                    <div className="space-y-1.5"><Label>Name</Label><Input required value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="e.g. Standard 22-min episode" /></div>
+                    <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={tplDescription} onChange={(e) => setTplDescription(e.target.value)} /></div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label>Milestones (optional)</Label>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setTplMilestones((m) => [...m, { name: "", days_offset: "0", milestone_type: "INTERNAL" }])}>+ Milestone</Button>
+                      </div>
+                      {tplMilestones.map((m, i) => (
+                        <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2">
+                          <Input placeholder="Name" value={m.name} onChange={(e) => setTplMilestones((arr) => arr.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
+                          <Input type="number" className="w-20" placeholder="Days" value={m.days_offset} onChange={(e) => setTplMilestones((arr) => arr.map((x, j) => j === i ? { ...x, days_offset: e.target.value } : x))} />
+                          <Select value={m.milestone_type} onValueChange={(v) => setTplMilestones((arr) => arr.map((x, j) => j === i ? { ...x, milestone_type: v } : x))}>
+                            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="INTERNAL">Internal</SelectItem>
+                              <SelectItem value="CLIENT">Client</SelectItem>
+                              <SelectItem value="DELIVERY">Delivery</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="ghost" size="icon-sm" onClick={() => setTplMilestones((arr) => arr.filter((_, j) => j !== i))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">Days = how many days after the new project's start date each milestone falls due.</p>
+                    </div>
+                    <DialogFooter><Button type="submit" disabled={templateMutations.create.isPending}>Create</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </Can>
+          </div>
+          <div className="rounded-lg border border-border bg-card">
+            <Table>
+              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Description</TableHead><TableHead>Milestones</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {(templates ?? []).map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{t.description ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{(t.config?.milestones ?? []).length}</TableCell>
+                  </TableRow>
+                ))}
+                {(!templates || templates.length === 0) && (
+                  <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">No templates yet — new projects can be created from scratch either way.</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </div>

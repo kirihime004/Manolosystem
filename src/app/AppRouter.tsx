@@ -139,6 +139,7 @@ import ResourcesPage from "@/pages/production/resources/ResourcesPage";
 import ProductionSettingsPage from "@/pages/production/ProductionSettingsPage";
 import ApprovedWorkQueuePage from "@/pages/production/work/ApprovedWorkQueuePage";
 import MyEarningsPage from "@/pages/production/work/MyEarningsPage";
+import AllWorkEarningsPage from "@/pages/production/work/AllWorkEarningsPage";
 import FinanceProductionEarningsPage from "@/pages/finance/production/FinanceProductionEarningsPage";
 import ClientLoginPage from "@/pages/client/ClientLoginPage";
 import ClientPortalPage from "@/pages/client/ClientPortalPage";
@@ -1360,6 +1361,14 @@ export function AppRouter() {
                   element={
                     <RequirePermission permission={PERMISSIONS.PRODUCTION_WORK_VIEW_OWN}>
                       <MyEarningsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="work-earnings"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_WORK_VIEW_ALL}>
+                      <AllWorkEarningsPage />
                     </RequirePermission>
                   }
                 />
