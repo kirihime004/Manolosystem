@@ -152,6 +152,7 @@ import BulkImportUsersPage from "@/pages/company/settings/BulkImportUsersPage";
 import DepartmentsPage from "@/pages/company/settings/DepartmentsPage";
 import RolesPage from "@/pages/company/settings/RolesPage";
 import AppearancePage from "@/pages/company/settings/AppearancePage";
+import AuditLogPage from "@/pages/company/settings/AuditLogPage";
 import CurrencySettingsPage from "@/pages/company/settings/CurrencySettingsPage";
 import AiSettingsPage from "@/pages/company/settings/AiSettingsPage";
 import ExchangeRatesPage from "@/pages/company/admin/ExchangeRatesPage";
@@ -1457,6 +1458,14 @@ export function AppRouter() {
                 element={
                   <RequirePermission permission={PERMISSIONS.ADMIN_COMPANY_SETTINGS_MANAGE}>
                     <AppearancePage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="audit-log"
+                element={
+                  <RequirePermission permission={PERMISSIONS.ADMIN_AUDIT_VIEW}>
+                    <AuditLogPage />
                   </RequirePermission>
                 }
               />
