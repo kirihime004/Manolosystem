@@ -2,10 +2,13 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Wrench } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
+import { useAuth } from "@/lib/auth/useAuth";
+import { useCompanyMembers } from "@/features/it/tickets/hooks";
 import { useAdminAssets, useRooms, useMaintenanceRecords, useMaintenanceMutations } from "@/features/admin/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,16 +21,22 @@ import type { MaintenanceRecord } from "@/types/database";
 
 export default function MaintenancePage() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const { data: records, isLoading } = useMaintenanceRecords(company?.id);
   const { data: assets } = useAdminAssets(company?.id);
   const { data: rooms } = useRooms(company?.id);
-  const { create, complete, cancel } = useMaintenanceMutations(company?.id);
+  const { data: members } = useCompanyMembers(company?.id);
+  const { create, complete, cancel, assign, start } = useMaintenanceMutations(company?.id);
 
   const [open, setOpen] = useState(false);
   const [assetId, setAssetId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [issue, setIssue] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
+
+  const [assignTarget, setAssignTarget] = useState<MaintenanceRecord | null>(null);
+  const [assignTo, setAssignTo] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
 
   const assetMap = new Map((assets ?? []).map((a) => [a.id, a.name]));
   const roomMap = new Map((rooms ?? []).map((r) => [r.id, r.name]));
@@ -49,6 +58,32 @@ export default function MaintenancePage() {
       toast.success("Marked complete");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to complete");
+    }
+  };
+
+  const openAssign = (r: MaintenanceRecord) => {
+    setAssignTarget(r);
+    setAssignTo(r.assigned_to ?? "");
+    setScheduledDate("");
+  };
+
+  const handleAssign = async () => {
+    if (!assignTarget || !assignTo) return;
+    try {
+      await assign.mutateAsync({ id: assignTarget.id, assignedTo: assignTo, scheduledDate: scheduledDate || undefined });
+      toast.success("Maintenance assigned");
+      setAssignTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign");
+    }
+  };
+
+  const handleStart = async (r: MaintenanceRecord) => {
+    try {
+      await start.mutateAsync(r.id);
+      toast.success("Marked in progress");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start");
     }
   };
 
@@ -113,14 +148,28 @@ export default function MaintenancePage() {
                   <TableCell><AdminPriorityBadge priority={r.priority} /></TableCell>
                   <TableCell><AdminStatusBadge status={r.status} /></TableCell>
                   <TableCell>
-                    <Can permission={PERMISSIONS.ADMIN_MAINTENANCE_COMPLETE}>
-                      {!["COMPLETED", "CANCELLED"].includes(r.status) && (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleComplete(r)}>Complete</Button>
-                          <Button variant="ghost" size="sm" onClick={() => cancel.mutate({ id: r.id })}>Cancel</Button>
-                        </div>
-                      )}
-                    </Can>
+                    <div className="flex gap-1">
+                      <Can permission={PERMISSIONS.ADMIN_MAINTENANCE_ASSIGN}>
+                        {["REPORTED", "ASSESSED"].includes(r.status) && (
+                          <Button variant="ghost" size="sm" onClick={() => openAssign(r)}>Assign</Button>
+                        )}
+                      </Can>
+                      {["SCHEDULED", "WAITING_PARTS"].includes(r.status) && (r.assigned_to === user?.id ? (
+                        <Button variant="ghost" size="sm" onClick={() => handleStart(r)}>Start</Button>
+                      ) : (
+                        <Can permission={PERMISSIONS.ADMIN_MAINTENANCE_ASSIGN}>
+                          <Button variant="ghost" size="sm" onClick={() => handleStart(r)}>Start</Button>
+                        </Can>
+                      ))}
+                      <Can permission={PERMISSIONS.ADMIN_MAINTENANCE_COMPLETE}>
+                        {!["COMPLETED", "CANCELLED"].includes(r.status) && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => handleComplete(r)}>Complete</Button>
+                            <Button variant="ghost" size="sm" onClick={() => cancel.mutate({ id: r.id })}>Cancel</Button>
+                          </>
+                        )}
+                      </Can>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -128,6 +177,23 @@ export default function MaintenancePage() {
           </Table>
         )}
       </div>
+
+      <Dialog open={!!assignTarget} onOpenChange={(open) => !open && setAssignTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Assign {assignTarget?.maintenance_number}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Technician</Label>
+              <Select value={assignTo} onValueChange={setAssignTo}>
+                <SelectTrigger><SelectValue placeholder="Select a technician" /></SelectTrigger>
+                <SelectContent>{(members ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Scheduled date (optional)</Label><Input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} /></div>
+          </div>
+          <DialogFooter><Button onClick={handleAssign} disabled={assign.isPending || !assignTo}>{assign.isPending ? "Saving…" : "Assign"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

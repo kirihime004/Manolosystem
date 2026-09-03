@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Armchair } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useEmployees } from "@/features/hr/hooks";
-import { useWorkspaces, useWorkspaceMutations } from "@/features/admin/hooks";
+import { useWorkspaces, useWorkspaceMutations, useWorkspaceAssignments } from "@/features/admin/hooks";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,9 @@ export default function WorkspacesPage() {
 
   const [assignTarget, setAssignTarget] = useState<Workspace | null>(null);
   const [employeeId, setEmployeeId] = useState("");
+
+  const [historyTarget, setHistoryTarget] = useState<Workspace | null>(null);
+  const { data: history } = useWorkspaceAssignments(historyTarget?.id);
 
   const employeeMap = new Map((employees ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
 
@@ -103,13 +106,16 @@ export default function WorkspacesPage() {
                   <TableCell><AdminStatusBadge status={w.status} /></TableCell>
                   <TableCell>{w.current_employee_id ? employeeMap.get(w.current_employee_id) ?? "—" : "—"}</TableCell>
                   <TableCell>
-                    <Can permission={PERMISSIONS.ADMIN_WORKSPACES_MANAGE}>
-                      {w.current_employee_id ? (
-                        <Button variant="ghost" size="sm" onClick={() => handleRelease(w.id)}>Release</Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" onClick={() => setAssignTarget(w)}>Assign</Button>
-                      )}
-                    </Can>
+                    <div className="flex gap-1">
+                      <Can permission={PERMISSIONS.ADMIN_WORKSPACES_MANAGE}>
+                        {w.current_employee_id ? (
+                          <Button variant="ghost" size="sm" onClick={() => handleRelease(w.id)}>Release</Button>
+                        ) : (
+                          <Button variant="ghost" size="sm" onClick={() => setAssignTarget(w)}>Assign</Button>
+                        )}
+                      </Can>
+                      <Button variant="ghost" size="sm" onClick={() => setHistoryTarget(w)}>History</Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -131,6 +137,30 @@ export default function WorkspacesPage() {
             </div>
             <DialogFooter><Button type="submit" disabled={assign.isPending || !employeeId}>Assign</Button></DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!historyTarget} onOpenChange={(open) => !open && setHistoryTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{historyTarget?.workspace_code} — assignment history</DialogTitle></DialogHeader>
+          {!history || history.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No assignment history yet.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {history.map((h) => (
+                <li key={h.id} className="rounded-md border border-border p-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-foreground">{employeeMap.get(h.employee_id) ?? "—"}</span>
+                    <AdminStatusBadge status={h.status} />
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {h.assigned_date} → {h.released_date ?? "present"}
+                  </p>
+                  {h.notes && <p className="mt-0.5 text-xs text-muted-foreground">{h.notes}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -24,10 +25,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRoles } from "@/features/company/settings/useRoles";
+import { useDepartments } from "@/features/company/settings/useDepartments";
 import {
   useAdminSetPassword,
   useDeleteCompanyMembership,
   useUpdateUserRoles,
+  useUpdateUserDepartment,
   type CompanyUserRow,
 } from "@/features/company/settings/useCompanyUsers";
 
@@ -51,17 +54,23 @@ export function ManageUserSheet({
   allowDelete?: boolean;
 }) {
   const { data: roles } = useRoles(companyId);
+  const { data: departments } = useDepartments(companyId);
   const updateRoles = useUpdateUserRoles(companyId);
+  const updateDepartment = useUpdateUserDepartment(companyId);
   const setPassword = useAdminSetPassword(companyId);
   const deleteMembership = useDeleteCompanyMembership(companyId);
 
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
+  const [departmentId, setDepartmentId] = useState("none");
   const [newPassword, setNewPassword] = useState(generatePassword);
   const [resetResult, setResetResult] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (user) setSelectedRoles(new Set(user.roles.map((r) => r.id)));
+    if (user) {
+      setSelectedRoles(new Set(user.roles.map((r) => r.id)));
+      setDepartmentId(user.department?.id ?? "none");
+    }
     setResetResult(null);
     setNewPassword(generatePassword());
   }, [user]);
@@ -83,6 +92,15 @@ export function ManageUserSheet({
       toast.success("Roles updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update roles");
+    }
+  };
+
+  const handleSaveDepartment = async () => {
+    try {
+      await updateDepartment.mutateAsync({ membershipId: user.id, departmentId: departmentId === "none" ? null : departmentId });
+      toast.success("Department updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update department");
     }
   };
 
@@ -122,6 +140,7 @@ export function ManageUserSheet({
           <Tabs defaultValue="roles">
             <TabsList className="w-full">
               <TabsTrigger value="roles" className="flex-1">Roles</TabsTrigger>
+              <TabsTrigger value="department" className="flex-1">Department</TabsTrigger>
               <TabsTrigger value="password" className="flex-1">Password</TabsTrigger>
             </TabsList>
 
@@ -141,6 +160,22 @@ export function ManageUserSheet({
                 disabled={updateRoles.isPending}
               >
                 {updateRoles.isPending ? "Saving…" : "Save roles"}
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="department" className="space-y-3 pt-4">
+              <div className="space-y-1.5">
+                <Label>Department</Label>
+                <Select value={departmentId} onValueChange={setDepartmentId}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No department</SelectItem>
+                    {departments?.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="w-full" onClick={handleSaveDepartment} disabled={updateDepartment.isPending}>
+                {updateDepartment.isPending ? "Saving…" : "Save department"}
               </Button>
             </TabsContent>
 

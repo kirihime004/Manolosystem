@@ -44,9 +44,18 @@ export default function AssetDetailPage() {
   const { data: asset, isLoading } = useAsset(company?.id, assetCode);
   const { data: members } = useCompanyMembers(company?.id);
   const { data: departments } = useDepartments(company?.id);
-  const { reassign, markDefective } = useAssetMutations(assetCode);
+  const { update, reassign, markDefective } = useAssetMutations(assetCode);
   const { create: createRepair, update: updateRepair } = useRepairMutations();
   const { create: createDisposal } = useDisposalMutations();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editSerialNumber, setEditSerialNumber] = useState("");
+  const [editCondition, setEditCondition] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editBrand, setEditBrand] = useState("");
+  const [editModel, setEditModel] = useState("");
 
   const [reassignOpen, setReassignOpen] = useState(false);
   const [defectiveOpen, setDefectiveOpen] = useState(false);
@@ -85,6 +94,34 @@ export default function AssetDetailPage() {
   if (!asset) {
     return <ErrorScreen title="Asset not found" description="This asset does not exist or you do not have access to it." />;
   }
+
+  const openEdit = () => {
+    setEditName(asset.name);
+    setEditCategory(asset.category ?? "");
+    setEditSerialNumber(asset.serial_number ?? "");
+    setEditCondition(asset.condition ?? "");
+    setEditNotes(asset.notes ?? "");
+    setEditBrand(asset.hardware?.brand ?? "");
+    setEditModel(asset.hardware?.model ?? "");
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    try {
+      await update.mutateAsync({
+        assetId: asset.id,
+        patch: {
+          name: editName, category: editCategory || null, serialNumber: editSerialNumber || null,
+          condition: editCondition || null, notes: editNotes || null,
+          ...(asset.hardware ? { brand: editBrand || null, model: editModel || null } : {}),
+        },
+      });
+      toast.success("Asset updated");
+      setEditOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update asset");
+    }
+  };
 
   const openReassign = () => {
     setAssignTo(asset.assigned_to ?? "none");
@@ -194,6 +231,9 @@ export default function AssetDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Can permission={PERMISSIONS.IT_INVENTORY_UPDATE}>
+            <Button variant="outline" size="sm" onClick={openEdit}>Edit</Button>
+          </Can>
           <Can permission={PERMISSIONS.IT_INVENTORY_ASSIGN}>
             <Button variant="outline" size="sm" onClick={openReassign}>Reassign</Button>
           </Can>
@@ -403,6 +443,39 @@ export default function AssetDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit asset</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5"><Label>Name</Label><Input required value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>Category</Label><Input value={editCategory} onChange={(e) => setEditCategory(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Serial number</Label><Input value={editSerialNumber} onChange={(e) => setEditSerialNumber(e.target.value)} /></div>
+            </div>
+            {asset.hardware && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>Brand</Label><Input value={editBrand} onChange={(e) => setEditBrand(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>Model</Label><Input value={editModel} onChange={(e) => setEditModel(e.target.value)} /></div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Condition</Label>
+              <Select value={editCondition} onValueChange={setEditCondition}>
+                <SelectTrigger><SelectValue placeholder="Unset" /></SelectTrigger>
+                <SelectContent>
+                  {["NEW", "GOOD", "FAIR", "POOR", "DEFECTIVE", "NON_FUNCTIONAL"].map((c) => <SelectItem key={c} value={c}>{c.replace(/_/g, " ")}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={3} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEdit} disabled={update.isPending || !editName.trim()}>{update.isPending ? "Saving…" : "Save changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reassign dialog */}
       <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
