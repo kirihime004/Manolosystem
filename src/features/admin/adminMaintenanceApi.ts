@@ -13,6 +13,12 @@ export async function getMaintenanceRecord(id: string): Promise<MaintenanceRecor
   return data as MaintenanceRecord;
 }
 
+export async function listMaintenanceRecordsByAsset(assetId: string): Promise<MaintenanceRecord[]> {
+  const { data, error } = await supabase.from("maintenance_records").select("*").eq("asset_id", assetId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as MaintenanceRecord[];
+}
+
 export async function createMaintenanceRecord(input: {
   companyId: string; assetId?: string | null; roomId?: string | null; locationId?: string | null; reportedBy?: string | null;
   issue: string; priority: string; estimatedCost?: number | null; currencyId?: string | null; supplierId?: string | null;

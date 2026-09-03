@@ -262,6 +262,10 @@ export function useMaintenanceRecords(companyId: string | undefined) {
   return useQuery({ queryKey: ["maintenance-records", companyId], queryFn: () => maintenanceApi.listMaintenanceRecords(companyId!), enabled: !!companyId });
 }
 
+export function useMaintenanceRecordsByAsset(assetId: string | undefined) {
+  return useQuery({ queryKey: ["maintenance-records-by-asset", assetId], queryFn: () => maintenanceApi.listMaintenanceRecordsByAsset(assetId!), enabled: !!assetId });
+}
+
 export function useMaintenanceRecord(id: string | undefined) {
   return useQuery({ queryKey: ["maintenance-record", id], queryFn: () => maintenanceApi.getMaintenanceRecord(id!), enabled: !!id });
 }

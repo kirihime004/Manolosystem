@@ -556,12 +556,13 @@ export interface PurchaseRequestItem {
   company_id: string;
   description: string;
   category: string | null;
-  asset_type: "HARDWARE" | "SOFTWARE" | null;
+  asset_type: "HARDWARE" | "SOFTWARE" | "ADMIN_ASSET" | "OFFICE_SUPPLY" | null;
   software_type: "SUBSCRIPTION" | "ONE_TIME_PURCHASE" | null;
   quantity: number;
   estimated_unit_price: number;
   estimated_total: number;
   preferred_supplier_id: string | null;
+  office_supply_id: string | null;
   notes: string | null;
 }
 
@@ -671,7 +672,7 @@ export interface PurchaseOrderItem {
   company_id: string;
   description: string;
   category: string | null;
-  asset_type: "HARDWARE" | "SOFTWARE" | null;
+  asset_type: "HARDWARE" | "SOFTWARE" | "ADMIN_ASSET" | "OFFICE_SUPPLY" | null;
   software_type: "SUBSCRIPTION" | "ONE_TIME_PURCHASE" | null;
   quantity: number;
   unit_price: number;
@@ -680,6 +681,7 @@ export interface PurchaseOrderItem {
   line_total: number;
   received_quantity: number;
   remaining_quantity: number;
+  office_supply_id: string | null;
 }
 
 export interface PurchaseOrderApproval {
@@ -2271,6 +2273,8 @@ export interface AdminAsset {
   notes: string | null;
   created_by: string | null;
   disposal_journal_entry_id: string | null;
+  purchase_order_id: string | null;
+  purchase_order_item_id: string | null;
   created_at: string;
   updated_at: string;
 }

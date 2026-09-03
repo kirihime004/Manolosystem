@@ -100,7 +100,7 @@ export interface CreatePurchaseRequestInput {
   reason?: string | null;
   description?: string | null;
   currencyId: string;
-  items: { description: string; category?: string | null; assetType?: string | null; softwareType?: string | null; quantity: number; estimatedUnitPrice: number; preferredSupplierId?: string | null; notes?: string | null }[];
+  items: { description: string; category?: string | null; assetType?: string | null; softwareType?: string | null; quantity: number; estimatedUnitPrice: number; preferredSupplierId?: string | null; officeSupplyId?: string | null; notes?: string | null }[];
 }
 
 export async function createPurchaseRequest(input: CreatePurchaseRequestInput): Promise<PurchaseRequest> {
@@ -138,6 +138,7 @@ export async function createPurchaseRequest(input: CreatePurchaseRequestInput): 
         quantity: i.quantity,
         estimated_unit_price: i.estimatedUnitPrice,
         preferred_supplier_id: i.preferredSupplierId ?? null,
+        office_supply_id: i.officeSupplyId ?? null,
         notes: i.notes ?? null,
       })),
     );

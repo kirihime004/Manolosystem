@@ -114,8 +114,8 @@ export default function AdminAssetsPage() {
             <TableBody>
               {assets.map((a) => (
                 <TableRow key={a.id}>
-                  <TableCell className="font-mono text-xs">{a.asset_code}</TableCell>
-                  <TableCell className="font-medium">{a.name}</TableCell>
+                  <TableCell className="font-mono text-xs"><Link to={a.id} className="hover:underline">{a.asset_code}</Link></TableCell>
+                  <TableCell className="font-medium"><Link to={a.id} className="hover:underline">{a.name}</Link></TableCell>
                   <TableCell className="text-muted-foreground">{a.category ?? "—"}</TableCell>
                   <TableCell><AdminStatusBadge status={a.status} /></TableCell>
                   <TableCell>{a.assigned_to ? employeeMap.get(a.assigned_to) ?? "—" : "—"}</TableCell>

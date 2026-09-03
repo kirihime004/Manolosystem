@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useDepartments } from "@/features/company/settings/useDepartments";
 import { useBudgets, useBudgetCategories, useCompanyCurrencySettings, usePurchaseRequestMutations } from "@/features/it/procurement/hooks";
+import { useOfficeSupplies } from "@/features/admin/hooks";
 import { PROCUREMENT_MODULE_CONFIG } from "@/features/it/procurement/procurementModuleConfig";
 import type { BudgetModuleKey } from "@/types/database";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,10 +24,11 @@ interface ItemRow {
   assetType: string;
   quantity: string;
   unitPrice: string;
+  officeSupplyId: string;
 }
 
 function emptyItem(): ItemRow {
-  return { description: "", category: "", assetType: "none", quantity: "1", unitPrice: "0" };
+  return { description: "", category: "", assetType: "none", quantity: "1", unitPrice: "0", officeSupplyId: "" };
 }
 
 export default function CreatePurchaseRequestPage({ moduleKey = "IT" }: { moduleKey?: BudgetModuleKey }) {
@@ -38,6 +40,7 @@ export default function CreatePurchaseRequestPage({ moduleKey = "IT" }: { module
   const { data: budgets } = useBudgets(company?.id, moduleKey);
   const { data: categories } = useBudgetCategories(company?.id);
   const { data: currencySettings } = useCompanyCurrencySettings(company?.id);
+  const { data: officeSupplies } = useOfficeSupplies(company?.id);
   const { create, submit } = usePurchaseRequestMutations();
 
   const [budgetId, setBudgetId] = useState("none");
@@ -60,6 +63,15 @@ export default function CreatePurchaseRequestPage({ moduleKey = "IT" }: { module
 
   const updateItem = (idx: number, patch: Partial<ItemRow>) => {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  };
+
+  const pickOfficeSupply = (idx: number, supplyId: string) => {
+    const supply = officeSupplies?.find((s) => s.id === supplyId);
+    updateItem(idx, {
+      officeSupplyId: supplyId,
+      description: supply?.name ?? "",
+      unitPrice: supply?.unit_cost != null ? String(supply.unit_cost) : "0",
+    });
   };
 
   const handleSubmit = async (e: FormEvent, submitAfterCreate: boolean) => {
@@ -89,6 +101,7 @@ export default function CreatePurchaseRequestPage({ moduleKey = "IT" }: { module
           assetType: i.assetType === "none" ? null : i.assetType,
           quantity: Number(i.quantity),
           estimatedUnitPrice: Number(i.unitPrice),
+          officeSupplyId: i.assetType === "OFFICE_SUPPLY" ? i.officeSupplyId || null : null,
         })),
       });
 
@@ -206,14 +219,24 @@ export default function CreatePurchaseRequestPage({ moduleKey = "IT" }: { module
               <TableBody>
                 {items.map((item, idx) => (
                   <TableRow key={idx}>
-                    <TableCell><Input value={item.description} onChange={(e) => updateItem(idx, { description: e.target.value })} placeholder="e.g. Dell Latitude 5420" /></TableCell>
                     <TableCell>
-                      <Select value={item.assetType} onValueChange={(v) => updateItem(idx, { assetType: v })}>
+                      {item.assetType === "OFFICE_SUPPLY" ? (
+                        <Select value={item.officeSupplyId} onValueChange={(v) => pickOfficeSupply(idx, v)}>
+                          <SelectTrigger><SelectValue placeholder="Select supply item" /></SelectTrigger>
+                          <SelectContent>{(officeSupplies ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={item.description} onChange={(e) => updateItem(idx, { description: e.target.value })} placeholder="e.g. Dell Latitude 5420" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Select value={item.assetType} onValueChange={(v) => updateItem(idx, { assetType: v, officeSupplyId: "", description: v === "OFFICE_SUPPLY" ? "" : item.description })}>
                         <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Other</SelectItem>
                           <SelectItem value="HARDWARE">Hardware</SelectItem>
                           <SelectItem value="SOFTWARE">Software</SelectItem>
+                          <SelectItem value="OFFICE_SUPPLY">Office Supply</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>

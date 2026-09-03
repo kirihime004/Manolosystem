@@ -112,6 +112,7 @@ import WorkspacesPage from "@/pages/admin/facilities/WorkspacesPage";
 import OfficeSuppliesPage from "@/pages/admin/OfficeSuppliesPage";
 import OfficeSupplyRequestsPage from "@/pages/admin/OfficeSupplyRequestsPage";
 import AdminAssetsPage from "@/pages/admin/AdminAssetsPage";
+import AdminAssetDetailPage from "@/pages/admin/AdminAssetDetailPage";
 import MaintenancePage from "@/pages/admin/MaintenancePage";
 import VehiclesPage from "@/pages/admin/VehiclesPage";
 import TravelPage from "@/pages/admin/TravelPage";
@@ -986,10 +987,13 @@ export function AppRouter() {
                   path="assets"
                   element={
                     <RequirePermission permission={PERMISSIONS.ADMIN_ASSETS_VIEW}>
-                      <AdminAssetsPage />
+                      <Outlet />
                     </RequirePermission>
                   }
-                />
+                >
+                  <Route index element={<AdminAssetsPage />} />
+                  <Route path=":assetId" element={<AdminAssetDetailPage />} />
+                </Route>
                 <Route
                   path="maintenance"
                   element={
