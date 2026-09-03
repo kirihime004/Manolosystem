@@ -1,5 +1,7 @@
-import { Link, useParams } from "react-router-dom";
-import { useTicket } from "@/features/it/tickets/hooks";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { useTicket, useTicketMutations } from "@/features/it/tickets/hooks";
 import { TicketConversation } from "@/features/it/tickets/components/TicketConversation";
 import { TicketActivityFeed } from "@/features/it/tickets/components/TicketActivityFeed";
 import { TicketSidebarActions } from "@/features/it/tickets/components/TicketSidebarActions";
@@ -9,7 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
+import { Can } from "@/lib/permissions/Can";
+import { PERMISSIONS } from "@/lib/permissions/keys";
+import { getErrorMessage } from "@/lib/errors";
 
 function fullName(first?: string | null, last?: string | null) {
   const name = `${first ?? ""} ${last ?? ""}`.trim();
@@ -18,7 +28,20 @@ function fullName(first?: string | null, last?: string | null) {
 
 export default function TicketDetailPage() {
   const { companySlug, ticketId } = useParams<{ companySlug: string; ticketId: string }>();
+  const navigate = useNavigate();
   const { data: ticket, isLoading } = useTicket(ticketId);
+  const { remove } = useTicketMutations(ticketId);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await remove.mutateAsync();
+      toast.success("Ticket deleted");
+      navigate(`/c/${companySlug}/it/tickets`);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete ticket"));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -131,7 +154,32 @@ export default function TicketDetailPage() {
             <TicketSidebarActions ticket={ticket} />
           </CardContent>
         </Card>
+
+        <Can permission={PERMISSIONS.IT_TICKETS_DELETE}>
+          <Card>
+            <CardContent className="pt-6">
+              <Button variant="destructive" size="sm" className="w-full" onClick={() => setDeleteOpen(true)}>
+                Delete ticket
+              </Button>
+            </CardContent>
+          </Card>
+        </Can>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{ticket.subject}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the ticket and its comments, attachments, and history. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

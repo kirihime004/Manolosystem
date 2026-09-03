@@ -497,6 +497,28 @@ export async function updateSupplier(
   if (error) throw error;
 }
 
+// A supplier can't actually be deleted once it's referenced anywhere the FK
+// is ON DELETE RESTRICT (quotations, purchase_orders, supplier_bills,
+// supplier_payments) -- purchase_orders is already loaded on the detail
+// page, so this only needs to check the other two; a bill-referencing
+// payment can't exist without its bill, so checking bills covers payments
+// too. Used to show a friendly "can't delete, has N records" message
+// instead of letting the raw FK-restrict error surface.
+export async function getSupplierDeleteBlockers(supplierId: string): Promise<{ quotations: number; bills: number }> {
+  const [quotationsRes, billsRes] = await Promise.all([
+    supabase.from("quotations").select("id", { count: "exact", head: true }).eq("supplier_id", supplierId),
+    supabase.from("supplier_bills").select("id", { count: "exact", head: true }).eq("supplier_id", supplierId),
+  ]);
+  if (quotationsRes.error) throw quotationsRes.error;
+  if (billsRes.error) throw billsRes.error;
+  return { quotations: quotationsRes.count ?? 0, bills: billsRes.count ?? 0 };
+}
+
+export async function deleteSupplier(id: string): Promise<void> {
+  const { error } = await supabase.from("suppliers").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ---------------------------------------------------------------------
 // Procurement dashboard
 // ---------------------------------------------------------------------

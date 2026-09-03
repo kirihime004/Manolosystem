@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useCompanyMembers, useTicketMutations } from "@/features/it/tickets/hooks";
+import { AssetPicker } from "@/features/it/tickets/components/AssetPicker";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
 import {
@@ -23,7 +24,7 @@ const PRIORITY_OPTIONS: TicketPriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 export function TicketSidebarActions({ ticket }: { ticket: TicketDetail }) {
   const { company } = useCompany();
   const { data: members } = useCompanyMembers(company?.id);
-  const { assign, changeStatus, changePriority } = useTicketMutations(ticket.id);
+  const { assign, changeStatus, changePriority, updateAsset } = useTicketMutations(ticket.id);
 
   const runMutation = async (fn: () => Promise<unknown>, successMsg: string) => {
     try {
@@ -58,6 +59,20 @@ export function TicketSidebarActions({ ticket }: { ticket: TicketDetail }) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </Can>
+
+      <Can permission={PERMISSIONS.IT_TICKETS_UPDATE}>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Linked asset</Label>
+          <AssetPicker
+            companyId={company?.id}
+            value={ticket.asset_id}
+            initialAsset={ticket.asset ? { id: ticket.asset_id!, ...ticket.asset } : null}
+            onChange={(assetId) =>
+              runMutation(() => updateAsset.mutateAsync(assetId), assetId ? "Asset linked" : "Asset unlinked")
+            }
+          />
         </div>
       </Can>
 

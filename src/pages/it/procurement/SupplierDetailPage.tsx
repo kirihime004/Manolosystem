@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useSupplierDetail, useSupplierMutations } from "@/features/it/procurement/hooks";
+import { getSupplierDeleteBlockers } from "@/features/it/procurement/procurementApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,11 +11,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { Money } from "@/components/shared/Money";
 import { PurchaseOrderStatusBadge, PurchaseRequestStatusBadge, SupplierStatusBadge } from "@/components/shared/ProcurementBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
+import { getErrorMessage } from "@/lib/errors";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -27,12 +33,16 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 export default function SupplierDetailPage() {
   const { companySlug, supplierId } = useParams<{ companySlug: string; supplierId: string }>();
+  const navigate = useNavigate();
   const { data, isLoading } = useSupplierDetail(supplierId);
-  const { update } = useSupplierMutations();
+  const { update, remove } = useSupplierMutations();
 
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState("ACTIVE");
   const [notes, setNotes] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBlockers, setDeleteBlockers] = useState<{ purchaseOrders: number; quotations: number; bills: number } | null>(null);
+  const [checkingDelete, setCheckingDelete] = useState(false);
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /></div>;
   if (!data) return <ErrorScreen title="Supplier not found" description="This supplier does not exist or you do not have access to it." />;
@@ -56,6 +66,31 @@ export default function SupplierDetailPage() {
     }
   };
 
+  const handleDeleteClick = async () => {
+    setCheckingDelete(true);
+    try {
+      const { quotations, bills } = await getSupplierDeleteBlockers(supplier.id);
+      setDeleteBlockers({ purchaseOrders: purchaseOrders.length, quotations, bills });
+      setDeleteOpen(true);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to check supplier's order history"));
+    } finally {
+      setCheckingDelete(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await remove.mutateAsync(supplier.id);
+      toast.success("Supplier deleted");
+      navigate(`/c/${companySlug}/it/procurement/suppliers`);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to delete supplier"));
+    }
+  };
+
+  const canDelete = deleteBlockers ? deleteBlockers.purchaseOrders + deleteBlockers.quotations + deleteBlockers.bills === 0 : false;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -67,6 +102,11 @@ export default function SupplierDetailPage() {
           <SupplierStatusBadge status={supplier.status} />
           <Can permission={PERMISSIONS.IT_SUPPLIERS_UPDATE}>
             <Button variant="outline" size="sm" onClick={startEdit}>Edit</Button>
+          </Can>
+          <Can permission={[PERMISSIONS.IT_SUPPLIERS_DELETE, PERMISSIONS.ADMIN_SUPPLIERS_DELETE]}>
+            <Button variant="destructive" size="sm" onClick={handleDeleteClick} disabled={checkingDelete}>
+              {checkingDelete ? "Checking…" : "Delete"}
+            </Button>
           </Can>
         </div>
       </div>
@@ -168,6 +208,29 @@ export default function SupplierDetailPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={deleteOpen} onOpenChange={(open) => { setDeleteOpen(open); if (!open) setDeleteBlockers(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {canDelete ? `Delete "${supplier.name}"?` : `Can't delete "${supplier.name}"`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {canDelete
+                ? "This permanently deletes the supplier. This cannot be undone."
+                : `This supplier has order history on record (${[
+                    deleteBlockers && deleteBlockers.purchaseOrders > 0 ? `${deleteBlockers.purchaseOrders} purchase order${deleteBlockers.purchaseOrders === 1 ? "" : "s"}` : null,
+                    deleteBlockers && deleteBlockers.quotations > 0 ? `${deleteBlockers.quotations} quotation${deleteBlockers.quotations === 1 ? "" : "s"}` : null,
+                    deleteBlockers && deleteBlockers.bills > 0 ? `${deleteBlockers.bills} bill${deleteBlockers.bills === 1 ? "" : "s"}` : null,
+                  ].filter(Boolean).join(", ")}) and can't be deleted. Set its status to Inactive instead.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{canDelete ? "Cancel" : "Close"}</AlertDialogCancel>
+            {canDelete && <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

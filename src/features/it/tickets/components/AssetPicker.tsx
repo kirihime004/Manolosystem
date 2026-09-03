@@ -15,15 +15,21 @@ export function AssetPicker({
   companyId,
   value,
   onChange,
+  initialAsset,
 }: {
   companyId: string | undefined;
   value: string | null;
   onChange: (assetId: string | null) => void;
+  // Seeds the picker with an already-linked asset's display info (code +
+  // name) so re-opening it on an existing link shows that, not a bare
+  // asset_id -- the picker otherwise only ever learns an asset's name from
+  // an in-session search pick.
+  initialAsset?: MiniAsset | null;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MiniAsset[]>([]);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<MiniAsset | null>(null);
+  const [selected, setSelected] = useState<MiniAsset | null>(initialAsset ?? null);
 
   useEffect(() => {
     if (!companyId || query.trim().length < 2) {

@@ -255,6 +255,11 @@ export async function updateTicketAsset(ticketId: string, assetId: string | null
   if (error) throw error;
 }
 
+export async function deleteTicket(ticketId: string) {
+  const { error } = await supabase.from("tickets").delete().eq("id", ticketId);
+  if (error) throw error;
+}
+
 // Lightweight lookup for the "link an asset" picker on the ticket form.
 export async function searchAssetsForTicket(companyId: string, query: string, limit = 8) {
   const trimmed = query.trim();

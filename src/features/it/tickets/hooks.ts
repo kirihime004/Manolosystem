@@ -148,5 +148,15 @@ export function useTicketMutations(ticketId?: string) {
     onSuccess: invalidate,
   });
 
-  return { assign, changeStatus, changePriority, comment, upload };
+  const updateAsset = useMutation({
+    mutationFn: (assetId: string | null) => api.updateTicketAsset(ticketId!, assetId),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: () => api.deleteTicket(ticketId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+  });
+
+  return { assign, changeStatus, changePriority, comment, upload, updateAsset, remove };
 }

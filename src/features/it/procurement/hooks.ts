@@ -305,5 +305,9 @@ export function useSupplierMutations() {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     },
   });
-  return { update };
+  const remove = useMutation({
+    mutationFn: (id: string) => procurementApi.deleteSupplier(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["suppliers"] }),
+  });
+  return { update, remove };
 }
