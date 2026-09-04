@@ -177,7 +177,7 @@ function AgentTokensDialog({ open, onOpenChange, companyId }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setCreated(null); }}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader><DialogTitle>Network Agent tokens</DialogTitle></DialogHeader>
         <p className="text-sm text-muted-foreground">
           A local ManoloSystem Network Agent on your LAN can use one of these tokens to report devices to{" "}

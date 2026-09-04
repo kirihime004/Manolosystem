@@ -107,6 +107,7 @@ export default function BulkImportUsersPage() {
       departmentId: row.departmentId, positionId: row.positionId,
       employmentTypeId: row.employmentTypeId, employmentStatusId: row.employmentStatusId,
       roleIds: row.roleIds, hireDate: row.hireDate, phone: row.phone,
+      tin: row.tin, sssNumber: row.sssNumber, philhealthNumber: row.philhealthNumber, pagibigNumber: row.pagibigNumber,
     }));
     try {
       const rowResults = await bulkImport.mutateAsync(payload);

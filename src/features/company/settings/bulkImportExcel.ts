@@ -29,6 +29,10 @@ export interface ParsedRow {
   roleIds: string[];
   hireDate: string | null;
   phone: string | null;
+  tin: string | null;
+  sssNumber: string | null;
+  philhealthNumber: string | null;
+  pagibigNumber: string | null;
   status: "ready" | "warning" | "error";
   messages: string[];
 }
@@ -36,11 +40,13 @@ export interface ParsedRow {
 const HEADERS = [
   "First Name*", "Last Name*", "Email*", "Department", "Position",
   "Employment Type", "Employment Status", "Roles (comma-separated)", "Hire Date (YYYY-MM-DD)", "Phone",
+  "TIN", "SSS Number", "PhilHealth Number", "Pag-IBIG Number",
 ];
 
 const EXAMPLE_ROW = [
   "Jane", "Dela Cruz", "jane.delacruz@example.com", "Animation", "Junior Animator",
   "Full-Time", "Active", "Animator", "2026-09-01", "09171234567",
+  "000-000-000-000", "00-0000000-0", "00-000000000-0", "0000-0000-0000",
 ];
 
 async function downloadWorkbook(wb: Workbook, filename: string) {
@@ -141,6 +147,7 @@ export async function parseImportFile(file: File, lookups: ImportLookups): Promi
   const cFirst = col("first name"), cLast = col("last name"), cEmail = col("email");
   const cDept = col("department"), cPos = col("position"), cType = col("employment type");
   const cStatus = col("employment status"), cRoles = col("roles"), cHire = col("hire date"), cPhone = col("phone");
+  const cTin = col("tin"), cSss = col("sss number"), cPhilhealth = col("philhealth number"), cPagibig = col("pag-ibig number");
 
   const seenEmails = new Set<string>();
   const rows: ParsedRow[] = [];
@@ -209,12 +216,17 @@ export async function parseImportFile(file: File, lookups: ImportLookups): Promi
     if (hireWarning) { messages.push(hireWarning); escalate("warning"); }
 
     const phone = cPhone > 0 ? cellText(row, cPhone) : "";
+    const tin = cTin > 0 ? cellText(row, cTin) : "";
+    const sssNumber = cSss > 0 ? cellText(row, cSss) : "";
+    const philhealthNumber = cPhilhealth > 0 ? cellText(row, cPhilhealth) : "";
+    const pagibigNumber = cPagibig > 0 ? cellText(row, cPagibig) : "";
 
     rows.push({
       rowNumber, firstName, lastName, email,
       departmentId: dept?.id ?? null, positionId: pos?.id ?? null,
       employmentTypeId: empType?.id ?? null, employmentStatusId: empStatus?.id ?? null,
       roleIds, hireDate, phone: phone || null,
+      tin: tin || null, sssNumber: sssNumber || null, philhealthNumber: philhealthNumber || null, pagibigNumber: pagibigNumber || null,
       status, messages,
     });
   });

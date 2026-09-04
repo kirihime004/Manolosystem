@@ -88,7 +88,19 @@ export default function EmployeeDetailPage() {
           <Can permission={PERMISSIONS.HR_EMPLOYEES_VIEW_SENSITIVE}><TabsTrigger value="history">History</TabsTrigger></Can>
         </TabsList>
 
-        <TabsContent value="overview" className="pt-4"><OverviewTab employee={employee} /></TabsContent>
+        <TabsContent value="overview" className="pt-4">
+          <OverviewTab
+            employee={employee}
+            onSaveGovIds={async (patch) => {
+              try {
+                await update.mutateAsync({ id: employee.id, patch });
+                toast.success("Government IDs updated");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update");
+              }
+            }}
+          />
+        </TabsContent>
         <TabsContent value="employment" className="pt-4">
           <EmploymentTab
             employee={employee} departments={departments ?? []} positions={positions ?? []}
@@ -119,7 +131,10 @@ export default function EmployeeDetailPage() {
   );
 }
 
-function OverviewTab({ employee }: { employee: NonNullable<ReturnType<typeof useEmployee>["data"]> }) {
+function OverviewTab({ employee, onSaveGovIds }: {
+  employee: NonNullable<ReturnType<typeof useEmployee>["data"]>;
+  onSaveGovIds: (patch: Partial<import("@/types/database").Employee>) => void;
+}) {
   const { data: contacts, isLoading } = useEmergencyContacts(employee.id);
   const { upsert, remove } = useEmergencyContactMutations(employee.id);
   const [open, setOpen] = useState(false);
@@ -153,6 +168,7 @@ function OverviewTab({ employee }: { employee: NonNullable<ReturnType<typeof use
   };
 
   return (
+    <div className="space-y-4">
     <div className="grid grid-cols-2 gap-4">
       <Card><CardContent className="pt-6">
         <DetailRow label="Preferred name" value={employee.preferred_name ?? "—"} />
@@ -205,6 +221,50 @@ function OverviewTab({ employee }: { employee: NonNullable<ReturnType<typeof use
         )}
       </CardContent></Card>
     </div>
+
+    <Can permission={PERMISSIONS.HR_EMPLOYEES_VIEW_SENSITIVE} fallback={null}>
+      <GovIdsCard employee={employee} onSave={onSaveGovIds} />
+    </Can>
+    </div>
+  );
+}
+
+function GovIdsCard({ employee, onSave }: {
+  employee: NonNullable<ReturnType<typeof useEmployee>["data"]>;
+  onSave: (patch: Partial<import("@/types/database").Employee>) => void;
+}) {
+  const [tin, setTin] = useState(employee.tin ?? "");
+  const [sssNumber, setSssNumber] = useState(employee.sss_number ?? "");
+  const [philhealthNumber, setPhilhealthNumber] = useState(employee.philhealth_number ?? "");
+  const [pagibigNumber, setPagibigNumber] = useState(employee.pagibig_number ?? "");
+
+  const handleSave = (e: FormEvent) => {
+    e.preventDefault();
+    onSave({ tin: tin || null, sss_number: sssNumber || null, philhealth_number: philhealthNumber || null, pagibig_number: pagibigNumber || null });
+  };
+
+  return (
+    <Card><CardContent className="pt-6 space-y-4 max-w-lg">
+      <h3 className="text-sm font-semibold text-foreground">Government IDs (Philippines)</h3>
+      <DetailRow label="TIN" value={employee.tin ?? "—"} />
+      <DetailRow label="SSS number" value={employee.sss_number ?? "—"} />
+      <DetailRow label="PhilHealth number" value={employee.philhealth_number ?? "—"} />
+      <DetailRow label="Pag-IBIG number" value={employee.pagibig_number ?? "—"} />
+
+      <Can permission={PERMISSIONS.HR_EMPLOYEES_UPDATE} fallback={null}>
+        <form onSubmit={handleSave} className="space-y-3 border-t border-border pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>TIN</Label><Input value={tin} onChange={(e) => setTin(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>SSS number</Label><Input value={sssNumber} onChange={(e) => setSssNumber(e.target.value)} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>PhilHealth number</Label><Input value={philhealthNumber} onChange={(e) => setPhilhealthNumber(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Pag-IBIG number</Label><Input value={pagibigNumber} onChange={(e) => setPagibigNumber(e.target.value)} /></div>
+          </div>
+          <Button type="submit" size="sm">Save</Button>
+        </form>
+      </Can>
+    </CardContent></Card>
   );
 }
 

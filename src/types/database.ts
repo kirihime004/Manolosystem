@@ -879,6 +879,10 @@ export interface Employee {
   regularization_date: string | null;
   termination_date: string | null;
   work_location: string | null;
+  tin: string | null;
+  sss_number: string | null;
+  philhealth_number: string | null;
+  pagibig_number: string | null;
   created_at: string;
   updated_at: string;
 }

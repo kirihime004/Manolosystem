@@ -91,9 +91,10 @@ export default function CredentialsPage() {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4" />New credential</Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[85vh] overflow-y-auto">
+            <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
               <DialogHeader><DialogTitle>New credential</DialogTitle></DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
+              <form onSubmit={handleCreate} className="flex flex-1 flex-col gap-4 overflow-hidden">
+              <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1">
                 <div className="space-y-1.5"><Label>Credential name</Label><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main office router" /></div>
                 <div className="space-y-1.5"><Label>System</Label><Input required value={system} onChange={(e) => setSystem(e.target.value)} placeholder="e.g. Firewall, Email admin" /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -119,6 +120,7 @@ export default function CredentialsPage() {
                 </div>
                 <div className="space-y-1.5"><Label>Password / secret</Label><Input type="password" value={initialSecret} onChange={(e) => setInitialSecret(e.target.value)} placeholder="Encrypted before it's stored" /></div>
                 <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+              </div>
                 <DialogFooter>
                   <Button type="submit" disabled={create.isPending}>{create.isPending ? "Creating…" : "Create credential"}</Button>
                 </DialogFooter>

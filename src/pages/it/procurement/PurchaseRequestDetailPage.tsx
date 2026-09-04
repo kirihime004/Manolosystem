@@ -349,9 +349,10 @@ export default function PurchaseRequestDetailPage() {
 
       {/* Add quotation dialog */}
       <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Add supplier quotation</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreateQuotation} className="space-y-4">
+          <form onSubmit={handleCreateQuotation} className="flex flex-1 flex-col gap-4 overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1">
             <div className="space-y-1.5">
               <Label>Supplier</Label>
               <Select value={quoteSupplierId} onValueChange={setQuoteSupplierId}>
@@ -384,6 +385,7 @@ export default function PurchaseRequestDetailPage() {
             </div>
             <div className="space-y-1.5"><Label>Payment terms</Label><Input value={quotePaymentTerms} onChange={(e) => setQuotePaymentTerms(e.target.value)} placeholder="e.g. Net 30" /></div>
             <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={quoteNotes} onChange={(e) => setQuoteNotes(e.target.value)} /></div>
+          </div>
             <DialogFooter><Button type="submit" disabled={createQuotation.isPending || !quoteSupplierId}>{createQuotation.isPending ? "Saving…" : "Add quotation"}</Button></DialogFooter>
           </form>
         </DialogContent>

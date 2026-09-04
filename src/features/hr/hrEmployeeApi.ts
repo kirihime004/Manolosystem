@@ -50,6 +50,7 @@ export interface CreateEmployeeInput {
   employmentTypeId?: string | null; employmentStatusId?: string | null; employeeCategory?: string | null;
   hireDate?: string | null; probationStartDate?: string | null; probationEndDate?: string | null; workLocation?: string | null;
   userId?: string | null;
+  tin?: string | null; sssNumber?: string | null; philhealthNumber?: string | null; pagibigNumber?: string | null;
 }
 
 export async function createEmployee(input: CreateEmployeeInput): Promise<Employee> {
@@ -68,6 +69,8 @@ export async function createEmployee(input: CreateEmployeeInput): Promise<Employ
     hire_date: input.hireDate ?? null, probation_start_date: input.probationStartDate ?? null,
     probation_end_date: input.probationEndDate ?? null, work_location: input.workLocation ?? null,
     user_id: input.userId ?? null,
+    tin: input.tin ?? null, sss_number: input.sssNumber ?? null,
+    philhealth_number: input.philhealthNumber ?? null, pagibig_number: input.pagibigNumber ?? null,
   }).select("*").single();
   if (error) throw error;
   return data as Employee;

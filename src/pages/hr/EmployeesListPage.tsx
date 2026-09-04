@@ -38,9 +38,14 @@ export default function EmployeesListPage() {
           <h1 className="text-2xl font-semibold text-foreground">Employees</h1>
           <p className="text-sm text-muted-foreground">{employees?.length ?? 0} employees</p>
         </div>
-        <Can permission={PERMISSIONS.HR_EMPLOYEES_CREATE}>
-          <Button asChild><Link to="new">+ New employee</Link></Button>
-        </Can>
+        <div className="flex gap-2">
+          <Can permission={[PERMISSIONS.ADMIN_USERS_MANAGE, PERMISSIONS.HR_EMPLOYEES_CREATE]} requireAll>
+            <Button asChild variant="outline"><Link to={`/c/${companySlug}/settings/users/import`}>Import from Excel</Link></Button>
+          </Can>
+          <Can permission={PERMISSIONS.HR_EMPLOYEES_CREATE}>
+            <Button asChild><Link to="new">+ New employee</Link></Button>
+          </Can>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

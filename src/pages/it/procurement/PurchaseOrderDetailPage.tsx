@@ -261,9 +261,10 @@ export default function PurchaseOrderDetailPage() {
       </Dialog>
 
       <Dialog open={receiveOpen} onOpenChange={setReceiveOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Receive delivery</DialogTitle></DialogHeader>
-          <form onSubmit={handleReceive} className="space-y-4">
+          <form onSubmit={handleReceive} className="flex flex-1 flex-col gap-4 overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1">
             <p className="text-xs text-muted-foreground">Receiving hardware creates one inventory asset per unit; software creates a single licensed asset.</p>
             <div className="space-y-2">
               {openItems.map((i) => (
@@ -285,6 +286,7 @@ export default function PurchaseOrderDetailPage() {
             </div>
             <div className="space-y-1.5"><Label>Tracking number</Label><Input value={tracking} onChange={(e) => setTracking(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={receiveNotes} onChange={(e) => setReceiveNotes(e.target.value)} /></div>
+          </div>
             <DialogFooter><Button type="submit" disabled={receiveDelivery.isPending}>{receiveDelivery.isPending ? "Saving…" : "Confirm receipt"}</Button></DialogFooter>
           </form>
         </DialogContent>

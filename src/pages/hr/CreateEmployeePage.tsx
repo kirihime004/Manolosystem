@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useEmployeeMutations, useEmploymentTypes, useEmploymentStatuses, usePositions, useEmployees } from "@/features/hr/hooks";
@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { UserCog } from "lucide-react";
+
+const NO_ACCOUNT = "__none__";
 
 export default function CreateEmployeePage() {
   const { companySlug } = useParams<{ companySlug: string }>();
@@ -25,17 +25,20 @@ export default function CreateEmployeePage() {
   const { data: companyUsers, isLoading: loadingUsers } = useCompanyUsersList(company?.id);
   const { data: employees } = useEmployees(company?.id);
 
-  // Every employee must be linked to an existing MindBurst account,
-  // provisioned through the IT/Admin invite flow -- HR doesn't create
-  // login accounts itself. Accounts already linked to another employee
-  // are excluded so one account can never back two employee records.
+  // An employee is a pure HR record on its own -- it does not need a login
+  // account. Linking one here is optional, for the case where an account
+  // already exists (invited before HR got around to entering this person),
+  // not a requirement. The other direction is what's actually required:
+  // creating an *account* always asks for an employee (see
+  // InviteEmployeeDialog). Accounts already linked to another employee are
+  // excluded here so one account can never back two employee records.
   const linkedUserIds = useMemo(() => new Set((employees ?? []).map((e) => e.user_id).filter((id): id is string => !!id)), [employees]);
   const availableUsers = useMemo(
     () => (companyUsers ?? []).filter((u) => u.status === "ACTIVE" && !linkedUserIds.has(u.userId)),
     [companyUsers, linkedUserIds],
   );
 
-  const [userId, setUserId] = useState("");
+  const [userId, setUserId] = useState(NO_ACCOUNT);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [companyEmail, setCompanyEmail] = useState("");
@@ -46,6 +49,10 @@ export default function CreateEmployeePage() {
   const [employmentTypeId, setEmploymentTypeId] = useState<string>("");
   const [employmentStatusId, setEmploymentStatusId] = useState<string>("");
   const [hireDate, setHireDate] = useState("");
+  const [tin, setTin] = useState("");
+  const [sssNumber, setSssNumber] = useState("");
+  const [philhealthNumber, setPhilhealthNumber] = useState("");
+  const [pagibigNumber, setPagibigNumber] = useState("");
 
   const handleSelectUser = (id: string) => {
     setUserId(id);
@@ -59,14 +66,17 @@ export default function CreateEmployeePage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!company || !userId) return;
+    if (!company) return;
     try {
       const employee = await create.mutateAsync({
-        companyId: company.id, userId, firstName: firstName.trim(), lastName: lastName.trim(),
+        companyId: company.id, userId: userId === NO_ACCOUNT ? null : userId,
+        firstName: firstName.trim(), lastName: lastName.trim(),
         companyEmail: companyEmail || null, personalEmail: personalEmail || null, phone: phone || null,
         departmentId: departmentId || null, positionId: positionId || null,
         employmentTypeId: employmentTypeId || null, employmentStatusId: employmentStatusId || null,
         hireDate: hireDate || null,
+        tin: tin || null, sssNumber: sssNumber || null,
+        philhealthNumber: philhealthNumber || null, pagibigNumber: pagibigNumber || null,
       });
       toast.success(`${employee.employee_number} created`);
       navigate(`/c/${companySlug}/hr/employees/${employee.id}`);
@@ -79,25 +89,18 @@ export default function CreateEmployeePage() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-foreground">New employee</h1>
-        <p className="text-sm text-muted-foreground">The employee ID is generated automatically once saved. Every employee must be linked to an existing user account.</p>
+        <p className="text-sm text-muted-foreground">The employee ID is generated automatically once saved. An employee doesn't need a login account — link one now only if it already exists.</p>
       </div>
 
-      {!loadingUsers && availableUsers.length === 0 ? (
-        <EmptyState
-          icon={UserCog}
-          title="No available accounts"
-          description="Every account is already linked to an employee, or none exist yet. Invite one from Settings → Users first."
-          action={<Button asChild variant="outline"><Link to={`/c/${companySlug}/settings/users`}>Go to Users</Link></Button>}
-        />
-      ) : (
-        <Card>
+      <Card>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <Label>User account</Label>
+                <Label>User account (optional)</Label>
                 <Select value={userId} onValueChange={handleSelectUser}>
-                  <SelectTrigger><SelectValue placeholder={loadingUsers ? "Loading accounts…" : "Select an account"} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={loadingUsers ? "Loading accounts…" : "No account"} /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NO_ACCOUNT}>No account (HR record only)</SelectItem>
                     {availableUsers.map((u) => (
                       <SelectItem key={u.userId} value={u.userId}>
                         {u.profile?.first_name || u.profile?.last_name ? `${u.profile?.first_name ?? ""} ${u.profile?.last_name ?? ""}`.trim() : u.email} {u.email ? `(${u.email})` : ""}
@@ -105,7 +108,7 @@ export default function CreateEmployeePage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Accounts are created by IT/Admin under Settings → Users, not here.</p>
+                <p className="text-xs text-muted-foreground">Only accounts that don't already have an employee record are listed. New accounts are created under Settings → Users, and always ask for an employee at that point.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -152,14 +155,28 @@ export default function CreateEmployeePage() {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-3 border-t border-border pt-4">
+                <div>
+                  <Label className="text-sm font-semibold">Government IDs (Philippines)</Label>
+                  <p className="text-xs text-muted-foreground">Optional. Sensitive — only visible to roles with permission to view sensitive HR data.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><Label>TIN</Label><Input value={tin} onChange={(e) => setTin(e.target.value)} placeholder="000-000-000-000" /></div>
+                  <div className="space-y-1.5"><Label>SSS number</Label><Input value={sssNumber} onChange={(e) => setSssNumber(e.target.value)} placeholder="00-0000000-0" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><Label>PhilHealth number</Label><Input value={philhealthNumber} onChange={(e) => setPhilhealthNumber(e.target.value)} placeholder="00-000000000-0" /></div>
+                  <div className="space-y-1.5"><Label>Pag-IBIG number</Label><Input value={pagibigNumber} onChange={(e) => setPagibigNumber(e.target.value)} placeholder="0000-0000-0000" /></div>
+                </div>
+              </div>
+
               <div className="flex gap-2">
-                <Button type="submit" disabled={create.isPending || !userId}>{create.isPending ? "Creating…" : "Create employee"}</Button>
+                <Button type="submit" disabled={create.isPending}>{create.isPending ? "Creating…" : "Create employee"}</Button>
                 <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
               </div>
             </form>
           </CardContent>
-        </Card>
-      )}
+      </Card>
     </div>
   );
 }

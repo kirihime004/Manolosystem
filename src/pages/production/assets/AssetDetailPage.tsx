@@ -398,9 +398,10 @@ export default function AssetDetailPage() {
       </Dialog>
 
       <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Edit task</DialogTitle></DialogHeader>
-          <form onSubmit={handleSaveTask} className="space-y-3">
+          <form onSubmit={handleSaveTask} className="flex flex-1 flex-col gap-3 overflow-hidden">
+          <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
             <div className="space-y-1.5"><Label>Name</Label><Input required value={editTaskName} onChange={(e) => setEditTaskName(e.target.value)} /></div>
             <div className="space-y-1.5">
               <Label>Assignee</Label>
@@ -420,10 +421,11 @@ export default function AssetDetailPage() {
               <div className="space-y-1.5"><Label>Bid (hours)</Label><Input type="number" min="0" step="0.5" value={editTaskEstimatedHours} onChange={(e) => setEditTaskEstimatedHours(e.target.value)} /></div>
               <div className="space-y-1.5"><Label>Time logged (hours)</Label><Input type="number" min="0" step="0.5" value={editTaskActualHours} onChange={(e) => setEditTaskActualHours(e.target.value)} /></div>
             </div>
+            {editingTask && <CustomFieldsSection companyId={company?.id} entityType="TASK" entityId={editingTask.id} projectId={asset.project_id} />}
+            {editingTask && <TaskPricingPanel task={editingTask} canSubmitWork={editingTask.assigned_to === myEmployee?.id || hasPermission(PERMISSIONS.PRODUCTION_TASKS_UPDATE)} />}
+          </div>
             <DialogFooter><Button type="submit" disabled={taskMutations.update.isPending}>Save changes</Button></DialogFooter>
           </form>
-          {editingTask && <CustomFieldsSection companyId={company?.id} entityType="TASK" entityId={editingTask.id} projectId={asset.project_id} />}
-          {editingTask && <TaskPricingPanel task={editingTask} canSubmitWork={editingTask.assigned_to === myEmployee?.id || hasPermission(PERMISSIONS.PRODUCTION_TASKS_UPDATE)} />}
         </DialogContent>
       </Dialog>
 

@@ -531,9 +531,10 @@ export default function ProductionSettingsPage() {
               <Can permission={PERMISSIONS.PRODUCTION_RATES_CREATE}>
                 <Dialog open={rateCardOpen} onOpenChange={setRateCardOpen}>
                   <DialogTrigger asChild><Button size="sm">+ Rate card</Button></DialogTrigger>
-                  <DialogContent className="max-h-[85vh] overflow-y-auto">
+                  <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
                     <DialogHeader><DialogTitle>New rate card</DialogTitle></DialogHeader>
-                    <form onSubmit={handleCreateRateCard} className="space-y-3">
+                    <form onSubmit={handleCreateRateCard} className="flex flex-1 flex-col gap-3 overflow-hidden">
+                    <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                       <div className="space-y-1.5"><Label>Name</Label><Input required value={rcName} onChange={(e) => setRcName(e.target.value)} placeholder="e.g. Animation — Second, Company default" /></div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -586,6 +587,7 @@ export default function ProductionSettingsPage() {
                         <div className="space-y-1.5"><Label>Rate per unit</Label><Input required type="number" min="0" step="0.01" value={rcRate} onChange={(e) => setRcRate(e.target.value)} /></div>
                       </div>
                       <div className="space-y-1.5"><Label>Effective from</Label><Input required type="date" value={rcEffectiveFrom} onChange={(e) => setRcEffectiveFrom(e.target.value)} /></div>
+                    </div>
                       <DialogFooter><Button type="submit" disabled={rateCardMutations.create.isPending || !rcTaskTypeId || !rcUnitId || !rcCurrencyId}>Create</Button></DialogFooter>
                     </form>
                   </DialogContent>
@@ -680,9 +682,10 @@ export default function ProductionSettingsPage() {
             <Can permission={PERMISSIONS.PRODUCTION_TEMPLATES_MANAGE}>
               <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
                 <DialogTrigger asChild><Button size="sm">+ Template</Button></DialogTrigger>
-                <DialogContent className="max-h-[85vh] overflow-y-auto">
+                <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
                   <DialogHeader><DialogTitle>New project template</DialogTitle></DialogHeader>
-                  <form onSubmit={handleCreateTemplate} className="space-y-3">
+                  <form onSubmit={handleCreateTemplate} className="flex flex-1 flex-col gap-3 overflow-hidden">
+                  <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                     <div className="space-y-1.5"><Label>Name</Label><Input required value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="e.g. Standard 22-min episode" /></div>
                     <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} value={tplDescription} onChange={(e) => setTplDescription(e.target.value)} /></div>
                     <div className="space-y-1.5">
@@ -707,6 +710,7 @@ export default function ProductionSettingsPage() {
                       ))}
                       <p className="text-xs text-muted-foreground">Days = how many days after the new project's start date each milestone falls due.</p>
                     </div>
+                  </div>
                     <DialogFooter><Button type="submit" disabled={templateMutations.create.isPending}>Create</Button></DialogFooter>
                   </form>
                 </DialogContent>

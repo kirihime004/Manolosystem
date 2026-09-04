@@ -23,6 +23,10 @@ interface BulkRow {
   roleIds: string[];
   hireDate: string | null;
   phone: string | null;
+  tin: string | null;
+  sssNumber: string | null;
+  philhealthNumber: string | null;
+  pagibigNumber: string | null;
 }
 
 interface BulkPayload {
@@ -166,6 +170,10 @@ Deno.serve(async (req) => {
           employment_type_id: row.employmentTypeId,
           employment_status_id: row.employmentStatusId,
           hire_date: row.hireDate,
+          tin: row.tin,
+          sss_number: row.sssNumber,
+          philhealth_number: row.philhealthNumber,
+          pagibig_number: row.pagibigNumber,
         });
 
         if (employeeError) {
