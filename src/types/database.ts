@@ -3150,6 +3150,43 @@ export interface ProductionBudgetSummary {
   currency_code: string;
 }
 
+export interface ProductionInsightsSummary {
+  stat_cards: {
+    total_projects: number;
+    total_projects_prev: number;
+    completed_projects: number;
+    completed_projects_prev: number;
+    in_progress_projects: number;
+    in_progress_projects_prev: number;
+    on_hold_projects: number;
+    on_hold_projects_prev: number;
+  };
+  man_hours: { current: number; previous: number };
+  task_status: { bucket: "COMPLETED" | "IN_PROGRESS" | "REVIEW" | "NOT_STARTED"; count: number }[];
+  department_workload: { department: string; planned_hours: number; actual_hours: number }[];
+  project_timeline: {
+    project_id: string;
+    project_code: string;
+    name: string;
+    start_date: string;
+    target_end_date: string | null;
+    actual_end_date: string | null;
+    status: string;
+    risk: "ON_TRACK" | "AT_RISK" | "LATE";
+  }[];
+  recent_projects: {
+    project_id: string;
+    project_code: string;
+    name: string;
+    status: string;
+    target_end_date: string | null;
+    actual_end_date: string | null;
+    progress_pct: number;
+    variance_days: number | null;
+  }[];
+  budget: { total_budget: number; spent: number; remaining: number; currency_code: string | null };
+}
+
 // ---------------------------------------------------------------------
 // Phase 8: AI + Analytics + Cross-Department Intelligence
 // ---------------------------------------------------------------------

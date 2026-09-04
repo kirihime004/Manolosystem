@@ -125,6 +125,108 @@ export function StackedBarChart({
 }
 
 // ---------------------------------------------------------------------
+// Grouped bar chart -- side-by-side series per category (e.g. planned vs
+// actual hours per department), as opposed to StackedBarChart's segments.
+// ---------------------------------------------------------------------
+export function GroupedBarChart({
+  categories, series, height = 220,
+}: {
+  categories: { label: string; values: number[] }[];
+  series: { key: string; label: string; color: string }[];
+  height?: number;
+}) {
+  const max = Math.max(1, ...categories.flatMap((c) => c.values));
+
+  return (
+    <div>
+      <div className="flex items-end gap-4 overflow-x-auto pb-2" style={{ height }}>
+        {categories.map((c) => (
+          <div key={c.label} className="flex h-full min-w-[64px] flex-1 flex-col items-center justify-end gap-1">
+            <div className="flex w-full flex-1 items-end justify-center gap-1">
+              {series.map((s, i) => (
+                <div key={s.key} className="flex h-full w-4 flex-col-reverse justify-start" title={`${s.label}: ${c.values[i] ?? 0}`}>
+                  <div className="rounded-t-sm" style={{ height: `${((c.values[i] ?? 0) / max) * 100}%`, backgroundColor: s.color }} />
+                </div>
+              ))}
+            </div>
+            <span className="max-w-[80px] truncate text-[10px] text-muted-foreground" title={c.label}>{c.label}</span>
+          </div>
+        ))}
+        {categories.length === 0 && <p className="text-xs text-muted-foreground">No data yet.</p>}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-3">
+        {series.map((s) => (
+          <div key={s.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Project timeline -- one track per project, a light "planned" bar (start
+// to target end) with a darker "actual" bar overlaid (start to actual end,
+// or to today if still open), plus a dashed "today" marker and a risk dot.
+// ---------------------------------------------------------------------
+export function ProjectTimelineChart({
+  rows, rangeStart, rangeEnd,
+}: {
+  rows: { key: string; label: string; start: string; plannedEnd: string | null; actualEnd: string | null; risk: string }[];
+  rangeStart: string;
+  rangeEnd: string;
+}) {
+  const start = new Date(rangeStart).getTime();
+  const end = new Date(rangeEnd).getTime();
+  const span = Math.max(1, end - start);
+  const pct = (d: string) => Math.min(100, Math.max(0, ((new Date(d).getTime() - start) / span) * 100));
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayPct = pct(todayIso);
+  const todayInRange = new Date(todayIso).getTime() >= start && new Date(todayIso).getTime() <= end;
+  const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-muted-foreground/30" />Planned</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ backgroundColor: "#3b82f6" }} />Actual</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-px bg-red-400" />Today</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TONE_HEX.success }} />On Track</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TONE_HEX.warn }} />At Risk</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TONE_HEX.danger }} />Late</span>
+      </div>
+      <div className="space-y-3">
+        {rows.map((r) => {
+          const plannedStartPct = pct(r.start);
+          const plannedEndPct = r.plannedEnd ? pct(r.plannedEnd) : plannedStartPct;
+          const actualEndPct = r.actualEnd
+            ? pct(r.actualEnd)
+            : r.plannedEnd && Date.now() < new Date(r.plannedEnd).getTime()
+              ? todayPct
+              : plannedEndPct;
+          const riskColor = r.risk === "LATE" ? TONE_HEX.danger : r.risk === "AT_RISK" ? TONE_HEX.warn : TONE_HEX.success;
+          return (
+            <div key={r.key} className="flex items-center gap-3">
+              <span className="w-28 shrink-0 truncate text-xs text-foreground" title={r.label}>{r.label}</span>
+              <div className="relative h-5 flex-1 rounded bg-muted/20">
+                {todayInRange && <div className="absolute top-0 z-10 h-full w-px bg-red-400" style={{ left: `${todayPct}%` }} />}
+                <div className="absolute top-0.5 h-1.5 rounded-sm bg-muted-foreground/30" style={{ left: `${plannedStartPct}%`, width: `${Math.max(1, plannedEndPct - plannedStartPct)}%` }} />
+                <div className="absolute bottom-0.5 h-1.5 rounded-sm" style={{ left: `${plannedStartPct}%`, width: `${Math.max(1, actualEndPct - plannedStartPct)}%`, backgroundColor: "#3b82f6" }} />
+              </div>
+              <span className="w-28 shrink-0 text-[10px] text-muted-foreground">{fmt(r.start)}{r.plannedEnd ? ` - ${fmt(r.plannedEnd)}` : ""}</span>
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: riskColor }} title={humanize(r.risk)} />
+            </div>
+          );
+        })}
+        {rows.length === 0 && <p className="text-xs text-muted-foreground">No projects in this range.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
 // Horizontal bar chart -- for ranked lists like "versions per shot".
 // ---------------------------------------------------------------------
 export function HorizontalBarChart({ data, color = "#3b82f6" }: { data: { label: string; value: number }[]; color?: string }) {

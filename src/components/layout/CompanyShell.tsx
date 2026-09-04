@@ -15,6 +15,7 @@ import {
   Wallet,
   ShoppingCart,
   BarChart3,
+  LineChart,
   Coins,
   Users,
   ClipboardCheck,
@@ -1137,6 +1138,9 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       )}
                       {hasPermission(PERMISSIONS.PRODUCTION_REPORTS_VIEW) && (
                         <NavLink to={`${base}/production/reports`} icon={BarChart3} label="Reports" active={location.pathname.startsWith(`${base}/production/reports`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_REPORTS_VIEW) && (
+                        <NavLink to={`${base}/production/insights`} icon={LineChart} label="Insights" active={location.pathname.startsWith(`${base}/production/insights`)} />
                       )}
                     </div>
                   )}

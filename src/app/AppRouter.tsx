@@ -133,6 +133,7 @@ import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 
 import ProductionDashboardPage from "@/pages/production/ProductionDashboardPage";
 import ProductionReportsPage from "@/pages/production/ProductionReportsPage";
+import ProductionInsightsPage from "@/pages/production/ProductionInsightsPage";
 import ProjectsListPage from "@/pages/production/projects/ProjectsListPage";
 import ProjectDetailPage from "@/pages/production/projects/ProjectDetailPage";
 import ShotsPage from "@/pages/production/shots/ShotsPage";
@@ -1208,6 +1209,14 @@ export function AppRouter() {
                 element={
                   <RequirePermission permission={PERMISSIONS.PRODUCTION_REPORTS_VIEW}>
                     <ProductionReportsPage />
+                  </RequirePermission>
+                }
+              />
+              <Route
+                path="insights"
+                element={
+                  <RequirePermission permission={PERMISSIONS.PRODUCTION_REPORTS_VIEW}>
+                    <ProductionInsightsPage />
                   </RequirePermission>
                 }
               />
