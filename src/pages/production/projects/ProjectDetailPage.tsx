@@ -1,14 +1,21 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Fragment, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { MoreHorizontal, Clapperboard, ListChecks, CalendarClock, HeartPulse, CalendarDays, Flag, Clock } from "lucide-react";
+import {
+  MoreHorizontal, Clapperboard, ListChecks, CalendarClock, HeartPulse, CalendarDays, Flag, Clock,
+  Search, Download, CheckCircle2, PauseCircle, AlertCircle, Shapes, LayoutGrid, List as ListIcon, GitBranch,
+  MessageSquare,
+} from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useProject, useProjectMutations, useShows, useEpisodes, useSequences, useHierarchyMutations,
   useProjectMembers, useProjectMemberMutations, useMilestones, useMilestoneMutations,
   useDeliverables, useDeliverableMutations, useProductionBudgetSummary, useWorkflowTemplates,
-  useProjectInsights, useProjectDashboard, useTasks, useTaskTypes,
+  useProjectInsights, useProjectDashboard, useTasks, useTaskTypes, useShots, useAssets, useAssetMutations,
+  useVersions, useReviews, useProjectNotes, useProjectNoteMutations, useAllWorkEarnings, useProductionUnits,
 } from "@/features/production/hooks";
+import { useAuth } from "@/lib/auth/useAuth";
+import { exportCsv } from "@/lib/csvExport";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { ProductionFilesSection } from "@/components/production/ProductionFilesSection";
 import { ProductionHistorySection } from "@/components/production/ProductionHistorySection";
@@ -16,7 +23,7 @@ import {
   DonutChart, StackedBarChart, HorizontalBarChart, PhaseTimelineChart, GanttChart, statusChartColor,
   bucketTaskStatusCounts, DeltaIndicator, type GanttPhaseRow, type GanttPhaseStatus,
 } from "@/components/production/charts/ProductionCharts";
-import { useEmployees } from "@/features/hr/hooks";
+import { useEmployees, useMyEmployeeRecord } from "@/features/hr/hooks";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,10 +41,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorScreen } from "@/components/shared/ErrorScreen";
-import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Money } from "@/components/shared/Money";
+import { ProductionStatusBadge, ProductionPriorityBadge } from "@/components/shared/ProductionBadges";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
-import type { ProductionEpisode, ProductionMilestone, ProductionDeliverable, ProductionSequence, ProductionShow, ProductionTask } from "@/types/database";
+import type { ProductionEpisode, ProductionMilestone, ProductionDeliverable, ProductionSequence, ProductionShow, ProductionTask, ProductionNote } from "@/types/database";
+
+const ASSET_CATEGORIES = ["CHARACTER", "PROP", "ENVIRONMENT", "VEHICLE", "RIG", "EFFECT", "OTHER"] as const;
 
 const EPISODE_STATUSES = ["PLANNING", "IN_PROGRESS", "COMPLETED", "DELIVERED", "ON_HOLD"];
 const SEQUENCE_STATUSES = ["PLANNING", "IN_PROGRESS", "COMPLETED", "ON_HOLD"];
@@ -92,8 +104,51 @@ export default function ProjectDetailPage() {
   const { data: dash, isLoading: dashLoading } = useProjectDashboard(projectId, canViewDashboard);
   const { data: allTasks } = useTasks(company?.id, { projectId });
   const { data: taskTypes } = useTaskTypes(company?.id);
+  const { data: projectShots } = useShots(projectId);
+  const { data: projectAssets } = useAssets(projectId);
+  const assetMutations = useAssetMutations(projectId);
+  const { data: projectVersions } = useVersions({ projectId });
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const effectiveSelectedVersionId = selectedVersionId ?? projectVersions?.[0]?.id;
+  const { data: selectedVersionReviews } = useReviews(effectiveSelectedVersionId);
+  const { user } = useAuth();
+  const { data: myEmployee } = useMyEmployeeRecord(company?.id, user?.id);
+  const noteResourceIds = [
+    ...(projectShots ?? []).map((s) => s.id),
+    ...(projectAssets ?? []).map((a) => a.id),
+    ...(allTasks ?? []).map((t) => t.id),
+  ];
+  const { data: projectNotes } = useProjectNotes(noteResourceIds);
+  const noteMutations = useProjectNoteMutations(noteResourceIds);
+  const { data: allCompanyWorkEarnings } = useAllWorkEarnings(company?.id);
+  const { data: productionUnits } = useProductionUnits(company?.id);
   const { data: workflowTemplates } = useWorkflowTemplates(company?.id);
   const taskWorkflowTemplates = (workflowTemplates ?? []).filter((w) => w.entity_type === "TASK");
+
+  // Tasks tab: filters (client-side over allTasks, mirroring the mockup's
+  // stage/status/assignee/search filter bar and List/Group-by-Stage toggle)
+  const [taskStageFilter, setTaskStageFilter] = useState("__all__");
+  const [taskStatusFilter, setTaskStatusFilter] = useState("__all__");
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState("__all__");
+  const [taskSearch, setTaskSearch] = useState("");
+  const [tasksGroupByStage, setTasksGroupByStage] = useState(false);
+
+  // Assets tab
+  const [assetCategoryFilter, setAssetCategoryFilter] = useState("__all__");
+  const [assetStatusFilter, setAssetStatusFilter] = useState("__all__");
+  const [assetSearch, setAssetSearch] = useState("");
+  const [assetViewMode, setAssetViewMode] = useState<"grid" | "list">("grid");
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [assetCreateOpen, setAssetCreateOpen] = useState(false);
+  const [newAssetName, setNewAssetName] = useState("");
+  const [newAssetCategory, setNewAssetCategory] = useState<(typeof ASSET_CATEGORIES)[number]>("PROP");
+
+  // Approvals tab
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState("__all__");
+
+  // Notes tab
+  const [noteStatusFilter, setNoteStatusFilter] = useState("__all__");
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   // Overview: edit + delete project
   const [editProjectOpen, setEditProjectOpen] = useState(false);
@@ -245,6 +300,151 @@ export default function ProjectDetailPage() {
   const ganttMilestones = (milestones ?? []).map((m) => ({ key: m.id, label: m.name, date: m.due_date }));
   const ganttRangeStart = project.start_date ?? new Date().toISOString().slice(0, 10);
   const ganttRangeEnd = project.target_end_date ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
+  // ---- Tasks tab derived values ----
+  const shotCodeMap = new Map((projectShots ?? []).map((s) => [s.id, s.shot_code]));
+  const assetCodeMap = new Map((projectAssets ?? []).map((a) => [a.id, a.asset_code]));
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  // No explicit numeric progress field exists on a task -- only status and
+  // planned start/due dates -- so progress is derived: 100%/0% for a task
+  // that's finished/not started yet, otherwise a linear estimate of how far
+  // through its own planned window "today" falls (clamped so an in-flight
+  // task never shows as fully done or fully untouched).
+  const taskProgressPct = (t: ProductionTask): number => {
+    if (t.status === "COMPLETED" || t.status === "APPROVED") return 100;
+    if (t.status === "NOT_STARTED") return 0;
+    if (!t.start_date || !t.due_date) return 50;
+    const start = new Date(t.start_date).getTime();
+    const end = new Date(t.due_date).getTime();
+    if (end <= start) return 50;
+    const frac = (Date.now() - start) / (end - start);
+    return Math.round(Math.min(95, Math.max(5, frac * 100)));
+  };
+
+  const taskCounts = {
+    total: allTasks?.length ?? 0,
+    completed: (allTasks ?? []).filter((t) => t.status === "COMPLETED" || t.status === "APPROVED").length,
+    inProgress: (allTasks ?? []).filter((t) => t.status === "IN_PROGRESS" || t.status === "READY").length,
+    onHold: (allTasks ?? []).filter((t) => t.status === "ON_HOLD").length,
+    overdue: (allTasks ?? []).filter((t) => t.due_date && t.due_date < todayIso && t.status !== "COMPLETED" && t.status !== "APPROVED").length,
+  };
+
+  const taskStatusOptions = [...new Set((allTasks ?? []).map((t) => t.status))];
+  const filteredTasks = (allTasks ?? []).filter((t) => {
+    if (taskStageFilter !== "__all__" && (t.task_type_id ?? "__unassigned__") !== taskStageFilter) return false;
+    if (taskStatusFilter !== "__all__" && t.status !== taskStatusFilter) return false;
+    if (taskAssigneeFilter !== "__all__" && (t.assigned_to ?? "__unassigned__") !== taskAssigneeFilter) return false;
+    if (taskSearch && !t.name.toLowerCase().includes(taskSearch.toLowerCase())) return false;
+    return true;
+  });
+  const taskGroups: { key: string; label: string; tasks: ProductionTask[] }[] = tasksGroupByStage
+    ? [...taskTypeMap.values()].map((tt) => ({ key: tt.id, label: tt.name, tasks: filteredTasks.filter((t) => t.task_type_id === tt.id) }))
+        .concat([{ key: "__unassigned__", label: "Unassigned", tasks: filteredTasks.filter((t) => !t.task_type_id) }])
+        .filter((g) => g.tasks.length > 0)
+    : [{ key: "__all__", label: "", tasks: filteredTasks }];
+
+  const handleExportTasks = () => {
+    exportCsv(`${project.project_code}-tasks-${todayIso}.csv`, [
+      { label: "Task", render: (t: ProductionTask) => t.name },
+      { label: "Stage", render: (t: ProductionTask) => taskTypeMap.get(t.task_type_id ?? "")?.name ?? "Unassigned" },
+      { label: "Shot/Asset", render: (t: ProductionTask) => (t.shot_id ? shotCodeMap.get(t.shot_id) : t.asset_id ? assetCodeMap.get(t.asset_id) : "") ?? "" },
+      { label: "Assignee", render: (t: ProductionTask) => (t.assigned_to ? employeeMap.get(t.assigned_to) : "") ?? "" },
+      { label: "Priority", render: (t: ProductionTask) => t.priority },
+      { label: "Status", render: (t: ProductionTask) => t.status },
+      { label: "Planned Start", render: (t: ProductionTask) => t.start_date ?? "" },
+      { label: "Planned End", render: (t: ProductionTask) => t.due_date ?? "" },
+      { label: "Progress %", render: (t: ProductionTask) => String(taskProgressPct(t)) },
+    ], filteredTasks);
+  };
+
+  // ---- Assets tab derived values ----
+  const assetStatusOptions = [...new Set((projectAssets ?? []).map((a) => a.status))];
+  const filteredAssets = (projectAssets ?? []).filter((a) => {
+    if (assetCategoryFilter !== "__all__" && a.asset_category !== assetCategoryFilter) return false;
+    if (assetStatusFilter !== "__all__" && a.status !== assetStatusFilter) return false;
+    if (assetSearch && !a.name.toLowerCase().includes(assetSearch.toLowerCase())) return false;
+    return true;
+  });
+  const selectedAsset = (projectAssets ?? []).find((a) => a.id === selectedAssetId) ?? null;
+  const handleCreateAsset = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await assetMutations.create.mutateAsync({ companyId: company!.id, projectId: project.id, name: newAssetName, assetCategory: newAssetCategory });
+      toast.success("Asset created");
+      setAssetCreateOpen(false); setNewAssetName("");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to create asset"); }
+  };
+
+  // ---- Approvals tab derived values ----
+  const approvalCounts = {
+    approved: (projectVersions ?? []).filter((v) => v.status === "APPROVED").length,
+    inReview: (projectVersions ?? []).filter((v) => v.status === "PENDING_REVIEW").length,
+    changesRequested: (projectVersions ?? []).filter((v) => v.status === "CHANGES_REQUESTED").length,
+    archived: (projectVersions ?? []).filter((v) => v.status === "ARCHIVED").length,
+  };
+  const filteredVersions = (projectVersions ?? []).filter((v) => approvalStatusFilter === "__all__" || v.status === approvalStatusFilter);
+  const selectedVersion = (projectVersions ?? []).find((v) => v.id === effectiveSelectedVersionId) ?? filteredVersions[0] ?? null;
+
+  // ---- Team tab derived values ----
+  const openTasksByEmployee = new Map<string, number>();
+  for (const t of allTasks ?? []) {
+    if (!t.assigned_to || t.status === "COMPLETED" || t.status === "APPROVED") continue;
+    openTasksByEmployee.set(t.assigned_to, (openTasksByEmployee.get(t.assigned_to) ?? 0) + 1);
+  }
+  const teamRows = (members ?? []).map((m) => ({
+    member: m,
+    name: employeeMap.get(m.employee_id) ?? "—",
+    openTaskCount: openTasksByEmployee.get(m.employee_id) ?? 0,
+  }));
+  const avgOpenTasks = teamRows.length ? teamRows.reduce((s, r) => s + r.openTaskCount, 0) / teamRows.length : 0;
+  const maxOpenTasks = Math.max(1, ...teamRows.map((r) => r.openTaskCount));
+  const overloadedCount = teamRows.filter((r) => avgOpenTasks > 0 && r.openTaskCount > avgOpenTasks * 1.5).length;
+  const onTrackCount = teamRows.length - overloadedCount;
+  const departmentCounts = new Map<string, number>();
+  for (const r of teamRows) {
+    const dept = r.member.department ?? "Unassigned";
+    departmentCounts.set(dept, (departmentCounts.get(dept) ?? 0) + 1);
+  }
+  const DEPARTMENT_COLORS = ["#6366f1", "#3b82f6", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
+  const departmentDonutData = [...departmentCounts.entries()].map(([label, value], i) => ({
+    label, value, color: DEPARTMENT_COLORS[i % DEPARTMENT_COLORS.length],
+  }));
+
+  // ---- Notes tab derived values ----
+  const taskNameMap = new Map((allTasks ?? []).map((t) => [t.id, t.name]));
+  const shotIdSet = new Set((projectShots ?? []).map((s) => s.id));
+  const assetIdSet = new Set((projectAssets ?? []).map((a) => a.id));
+  const resolveNoteResource = (n: ProductionNote): { label: string; href: string | null } => {
+    if (n.resource_type === "SHOT" && shotIdSet.has(n.resource_id)) return { label: `Shot ${shotCodeMap.get(n.resource_id) ?? ""}`, href: `/c/${company?.slug}/production/shots/${n.resource_id}` };
+    if (n.resource_type === "ASSET" && assetIdSet.has(n.resource_id)) return { label: `Asset ${assetCodeMap.get(n.resource_id) ?? ""}`, href: `/c/${company?.slug}/production/assets/${n.resource_id}` };
+    if (n.resource_type === "TASK") return { label: `Task ${taskNameMap.get(n.resource_id) ?? ""}`, href: null };
+    return { label: n.resource_type, href: null };
+  };
+  const topLevelNotes = (projectNotes ?? []).filter((n) => !n.parent_note_id);
+  const noteCounts = { total: topLevelNotes.length, open: topLevelNotes.filter((n) => n.status === "OPEN").length, resolved: topLevelNotes.filter((n) => n.status === "RESOLVED").length };
+  const filteredNotes = topLevelNotes.filter((n) => noteStatusFilter === "__all__" || n.status === noteStatusFilter);
+  const effectiveSelectedNoteId = selectedNoteId ?? filteredNotes[0]?.id ?? null;
+  const selectedNote = (projectNotes ?? []).find((n) => n.id === effectiveSelectedNoteId) ?? null;
+  const selectedNoteReplies = (projectNotes ?? []).filter((n) => n.parent_note_id === effectiveSelectedNoteId);
+  const handleResolveNote = async (id: string) => {
+    if (!myEmployee) { toast.error("No employee record linked to your account"); return; }
+    try {
+      await noteMutations.resolve.mutateAsync({ id, resolvedBy: myEmployee.id });
+      toast.success("Note resolved");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to resolve note"); }
+  };
+
+  // ---- Payments tab derived values ----
+  const PENDING_EARNING_STATUSES = ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "PAYABLE", "SENT_TO_FINANCE", "IN_PAYROLL"];
+  const projectWorkEarnings = (allCompanyWorkEarnings ?? []).filter((w) => w.project_id === project.id);
+  const earningAmount = (w: (typeof projectWorkEarnings)[number]) => w.approved_amount ?? w.requested_amount;
+  const paymentTotals = {
+    budget: projectWorkEarnings.filter((w) => w.status !== "REJECTED" && w.status !== "CANCELLED").reduce((s, w) => s + earningAmount(w), 0),
+    paid: projectWorkEarnings.filter((w) => w.status === "PAID").reduce((s, w) => s + earningAmount(w), 0),
+    pending: projectWorkEarnings.filter((w) => PENDING_EARNING_STATUSES.includes(w.status)).reduce((s, w) => s + earningAmount(w), 0),
+  };
+  const unitLabelMap = new Map((productionUnits ?? []).map((u) => [u.id, u.label]));
 
   const openEditProject = () => {
     setProjectName(project.name);
@@ -424,13 +624,18 @@ export default function ProjectDetailPage() {
         <TabsList>
           {canViewDashboard && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="assets">Assets</TabsTrigger>
+          <TabsTrigger value="approvals">Approvals</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="hierarchy">Episodes & Sequences</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="members">Team</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="deliverables">Deliverables</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
 
         {canViewDashboard && (
@@ -613,6 +818,368 @@ export default function ProjectDetailPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Total Tasks</CardDescription><ListChecks className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{taskCounts.total}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Completed</CardDescription><CheckCircle2 className="h-4 w-4 text-emerald-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{taskCounts.completed} <span className="text-sm font-normal text-muted-foreground">({taskCounts.total ? Math.round(100 * taskCounts.completed / taskCounts.total) : 0}%)</span></div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>In Progress</CardDescription><Clock className="h-4 w-4 text-blue-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{taskCounts.inProgress} <span className="text-sm font-normal text-muted-foreground">({taskCounts.total ? Math.round(100 * taskCounts.inProgress / taskCounts.total) : 0}%)</span></div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>On Hold</CardDescription><PauseCircle className="h-4 w-4 text-amber-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{taskCounts.onHold} <span className="text-sm font-normal text-muted-foreground">({taskCounts.total ? Math.round(100 * taskCounts.onHold / taskCounts.total) : 0}%)</span></div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Overdue</CardDescription><AlertCircle className="h-4 w-4 text-red-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{taskCounts.overdue} <span className="text-sm font-normal text-muted-foreground">({taskCounts.total ? Math.round(100 * taskCounts.overdue / taskCounts.total) : 0}%)</span></div></CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={taskStageFilter} onValueChange={setTaskStageFilter}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Stages</SelectItem>
+                {(taskTypes ?? []).map((tt) => <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Statuses</SelectItem>
+                {taskStatusOptions.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={taskAssigneeFilter} onValueChange={setTaskAssigneeFilter}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Assignees</SelectItem>
+                <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                {(employees ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input className="w-48 pl-8" placeholder="Search tasks…" value={taskSearch} onChange={(e) => setTaskSearch(e.target.value)} />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant={tasksGroupByStage ? "default" : "outline"} size="sm" onClick={() => setTasksGroupByStage((v) => !v)}>Group by Stage</Button>
+              <Can permission={PERMISSIONS.PRODUCTION_REPORTS_EXPORT}>
+                <Button variant="outline" size="sm" onClick={handleExportTasks}><Download className="h-3.5 w-3.5" />Export</Button>
+              </Can>
+              <Button variant="outline" size="sm" asChild><Link to={`/c/${company?.slug}/production/tasks?project=${project.id}`}>Board</Link></Button>
+            </div>
+          </div>
+
+          {filteredTasks.length === 0 ? (
+            <EmptyState icon={ListChecks} title="No tasks match these filters" description="Clear a filter, or create tasks from the Task Board." />
+          ) : (
+            <div className="rounded-lg border border-border bg-card">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task Name</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead>Shot / Asset</TableHead>
+                      <TableHead>Assignee</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Planned Start</TableHead>
+                      <TableHead>Planned End</TableHead>
+                      <TableHead>Progress</TableHead>
+                      <TableHead className="text-right">Days Left</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {taskGroups.map((group) => (
+                      <Fragment key={group.key}>
+                        {group.label && (
+                          <TableRow key={`${group.key}-header`} className="bg-muted/40 hover:bg-muted/40">
+                            <TableCell colSpan={10} className="py-1.5 text-xs font-semibold text-muted-foreground">{group.label} ({group.tasks.length})</TableCell>
+                          </TableRow>
+                        )}
+                        {group.tasks.map((t) => {
+                          const assigneeName = t.assigned_to ? employeeMap.get(t.assigned_to) : null;
+                          const shotOrAssetCode = t.shot_id ? shotCodeMap.get(t.shot_id) : t.asset_id ? assetCodeMap.get(t.asset_id) : null;
+                          const daysLeft = t.due_date ? Math.round((new Date(t.due_date).getTime() - Date.now()) / 86400000) : null;
+                          const progress = taskProgressPct(t);
+                          return (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-medium text-foreground">{t.name}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{taskTypeMap.get(t.task_type_id ?? "")?.name ?? "Unassigned"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{shotOrAssetCode ?? "—"}</TableCell>
+                              <TableCell>
+                                {assigneeName ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <Avatar size="sm"><AvatarFallback>{assigneeName.split(" ").map((p) => p[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                                    <span className="text-sm text-muted-foreground">{assigneeName}</span>
+                                  </div>
+                                ) : <span className="text-sm text-muted-foreground">Unassigned</span>}
+                              </TableCell>
+                              <TableCell><ProductionPriorityBadge priority={t.priority} /></TableCell>
+                              <TableCell><ProductionStatusBadge status={t.status} /></TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{t.start_date ?? "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{t.due_date ?? "—"}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted/40"><div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} /></div>
+                                  <span className="text-xs tabular-nums text-muted-foreground">{progress}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className={`text-right text-sm tabular-nums ${daysLeft != null && daysLeft < 0 && progress < 100 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+                                {daysLeft == null ? "—" : daysLeft < 0 ? `${-daysLeft}d overdue` : `${daysLeft}d`}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="assets" className="space-y-4 pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {(["__all__", ...ASSET_CATEGORIES] as const).map((cat) => {
+              const count = cat === "__all__" ? (projectAssets ?? []).length : (projectAssets ?? []).filter((a) => a.asset_category === cat).length;
+              return (
+                <Button key={cat} size="sm" variant={assetCategoryFilter === cat ? "default" : "outline"} onClick={() => setAssetCategoryFilter(cat)}>
+                  {cat === "__all__" ? "All Assets" : cat.charAt(0) + cat.slice(1).toLowerCase()} ({count})
+                </Button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={assetStatusFilter} onValueChange={setAssetStatusFilter}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Statuses</SelectItem>
+                {assetStatusOptions.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input className="w-48 pl-8" placeholder="Search assets…" value={assetSearch} onChange={(e) => setAssetSearch(e.target.value)} />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex rounded-md border border-border">
+                <Button variant="ghost" size="icon" className={`h-8 w-8 rounded-r-none ${assetViewMode === "grid" ? "bg-muted" : ""}`} onClick={() => setAssetViewMode("grid")}><LayoutGrid className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className={`h-8 w-8 rounded-l-none ${assetViewMode === "list" ? "bg-muted" : ""}`} onClick={() => setAssetViewMode("list")}><ListIcon className="h-4 w-4" /></Button>
+              </div>
+              <Can permission={PERMISSIONS.PRODUCTION_ASSETS_CREATE}>
+                <Dialog open={assetCreateOpen} onOpenChange={setAssetCreateOpen}>
+                  <DialogTrigger asChild><Button size="sm">+ Add Asset</Button></DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>New asset</DialogTitle></DialogHeader>
+                    <form onSubmit={handleCreateAsset} className="space-y-3">
+                      <div className="space-y-1.5"><Label>Name</Label><Input required value={newAssetName} onChange={(e) => setNewAssetName(e.target.value)} /></div>
+                      <div className="space-y-1.5">
+                        <Label>Category</Label>
+                        <Select value={newAssetCategory} onValueChange={(v) => setNewAssetCategory(v as typeof newAssetCategory)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>{ASSET_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <DialogFooter><Button type="submit" disabled={assetMutations.create.isPending}>Create</Button></DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </Can>
+            </div>
+          </div>
+
+          {filteredAssets.length === 0 ? (
+            <EmptyState icon={Shapes} title="No assets match these filters" description="Clear a filter, or add the first asset for this project." />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className={assetViewMode === "grid" ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-span-2 xl:grid-cols-4" : "space-y-2 lg:col-span-2"}>
+                {filteredAssets.map((a) => {
+                  const isSelected = (selectedAssetId ?? filteredAssets[0]?.id) === a.id;
+                  return assetViewMode === "grid" ? (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedAssetId(a.id)}
+                      className={`rounded-lg border text-left transition-colors ${isSelected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/50"}`}
+                    >
+                      <div className="flex aspect-square items-center justify-center rounded-t-lg bg-muted/40">
+                        <Shapes className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1 p-2">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="truncate text-xs font-medium text-foreground" title={a.name}>{a.name}</p>
+                        </div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-mono text-[10px] text-muted-foreground">{a.asset_code}</span>
+                          <ProductionStatusBadge status={a.status} />
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedAssetId(a.id)}
+                      className={`flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors ${isSelected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/50"}`}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-muted/40"><Shapes className="h-5 w-5 text-muted-foreground" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{a.asset_code} · {a.asset_category}</p>
+                      </div>
+                      <ProductionStatusBadge status={a.status} />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <Card className="h-fit lg:sticky lg:top-4">
+                <CardContent className="space-y-3 pt-6">
+                  {(() => {
+                    const shown = selectedAsset ?? filteredAssets[0];
+                    if (!shown) return <p className="text-xs text-muted-foreground">Select an asset to see its details.</p>;
+                    return (
+                      <>
+                        <div className="flex aspect-video items-center justify-center rounded-lg bg-muted/40"><Shapes className="h-10 w-10 text-muted-foreground" /></div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-mono text-xs text-muted-foreground">{shown.asset_code}</p>
+                            <p className="text-sm font-semibold text-foreground">{shown.name}</p>
+                          </div>
+                          <ProductionStatusBadge status={shown.status} />
+                        </div>
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between"><span className="text-muted-foreground">Category</span><span className="text-foreground">{shown.asset_category}</span></div>
+                          <div className="flex items-center justify-between"><span className="text-muted-foreground">Created</span><span className="text-foreground">{shown.created_at.slice(0, 10)}</span></div>
+                          <div className="flex items-center justify-between"><span className="text-muted-foreground">Updated</span><span className="text-foreground">{shown.updated_at.slice(0, 10)}</span></div>
+                        </div>
+                        {shown.description && <p className="text-xs text-muted-foreground">{shown.description}</p>}
+                        <Button variant="outline" size="sm" className="w-full" asChild>
+                          <Link to={`/c/${company?.slug}/production/assets/${shown.id}`}>Open full details</Link>
+                        </Button>
+                      </>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="approvals" className="space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Approved</CardDescription><CheckCircle2 className="h-4 w-4 text-emerald-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{approvalCounts.approved}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>In Review</CardDescription><Clock className="h-4 w-4 text-amber-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{approvalCounts.inReview}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Changes Requested</CardDescription><AlertCircle className="h-4 w-4 text-blue-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{approvalCounts.changesRequested}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Archived</CardDescription><PauseCircle className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{approvalCounts.archived}</div></CardContent>
+            </Card>
+          </div>
+
+          <Select value={approvalStatusFilter} onValueChange={setApprovalStatusFilter}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Statuses</SelectItem>
+              <SelectItem value="PENDING_REVIEW">In Review</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="CHANGES_REQUESTED">Changes Requested</SelectItem>
+              <SelectItem value="ARCHIVED">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {filteredVersions.length === 0 ? (
+            <EmptyState icon={GitBranch} title="No versions match these filters" description="Versions submitted for review on any shot or asset in this project show up here." />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="rounded-lg border border-border bg-card lg:col-span-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow><TableHead>Version</TableHead><TableHead>Shot / Asset</TableHead><TableHead>Submitted By</TableHead><TableHead>Submitted</TableHead><TableHead>Status</TableHead></TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredVersions.map((v) => {
+                      const code = v.shot_id ? shotCodeMap.get(v.shot_id) : v.asset_id ? assetCodeMap.get(v.asset_id) : null;
+                      return (
+                        <TableRow
+                          key={v.id}
+                          className={`cursor-pointer ${(selectedVersionId ?? filteredVersions[0]?.id) === v.id ? "bg-muted/50" : ""}`}
+                          onClick={() => setSelectedVersionId(v.id)}
+                        >
+                          <TableCell className="font-medium text-foreground">v{v.version_number}{v.name ? ` — ${v.name}` : ""}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">{code ?? "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{v.submitted_by ? employeeMap.get(v.submitted_by) ?? "—" : "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{new Date(v.submitted_at).toLocaleDateString()}</TableCell>
+                          <TableCell><ProductionStatusBadge status={v.status} /></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <Card className="h-fit lg:sticky lg:top-4">
+                <CardContent className="space-y-3 pt-6">
+                  {!selectedVersion ? (
+                    <p className="text-xs text-muted-foreground">Select a version to see its review history.</p>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">v{selectedVersion.version_number}{selectedVersion.name ? ` — ${selectedVersion.name}` : ""}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedVersion.shot_id ? `Shot ${shotCodeMap.get(selectedVersion.shot_id) ?? ""}` : selectedVersion.asset_id ? `Asset ${assetCodeMap.get(selectedVersion.asset_id) ?? ""}` : ""}
+                        </p>
+                      </div>
+                      <ProductionStatusBadge status={selectedVersion.status} />
+                      {selectedVersion.description && <p className="text-xs text-muted-foreground">{selectedVersion.description}</p>}
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-semibold text-foreground">Review History</p>
+                        {(selectedVersionReviews ?? []).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No review decisions yet.</p>
+                        ) : (
+                          (selectedVersionReviews ?? []).map((r) => (
+                            <div key={r.id} className="text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-foreground">{r.reviewer_name ?? (r.reviewer_employee_id ? employeeMap.get(r.reviewer_employee_id) : null) ?? "Reviewer"}</span>
+                                <ProductionStatusBadge status={r.decision} />
+                              </div>
+                              {r.comment && <p className="mt-0.5 text-muted-foreground">{r.comment}</p>}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full" asChild>
+                        <Link to={selectedVersion.shot_id ? `/c/${company?.slug}/production/shots/${selectedVersion.shot_id}` : `/c/${company?.slug}/production/assets/${selectedVersion.asset_id}`}>
+                          Open full review
+                        </Link>
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
@@ -798,7 +1365,68 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="members" className="space-y-4 pt-4">
-          <div className="flex justify-end">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Team Members</CardDescription><ListChecks className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{teamRows.length}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Tasks Assigned</CardDescription><Clapperboard className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{teamRows.reduce((s, r) => s + r.openTaskCount, 0)}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>On Track</CardDescription><CheckCircle2 className="h-4 w-4 text-emerald-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{onTrackCount}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Overloaded</CardDescription><AlertCircle className="h-4 w-4 text-amber-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{overloadedCount}</div></CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="rounded-lg border border-border bg-card lg:col-span-2">
+              <Table>
+                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead>Current Tasks</TableHead><TableHead>Workload</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {teamRows.map((r) => {
+                    const overloaded = avgOpenTasks > 0 && r.openTaskCount > avgOpenTasks * 1.5;
+                    return (
+                      <TableRow key={r.member.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar size="sm"><AvatarFallback>{r.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                            <span className="font-medium text-foreground">{r.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{r.member.project_role}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{r.member.department ?? "—"}</TableCell>
+                        <TableCell className="text-sm tabular-nums text-muted-foreground">{r.openTaskCount}</TableCell>
+                        <TableCell>
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted/40">
+                            <div className={`h-full rounded-full ${overloaded ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${Math.round((r.openTaskCount / maxOpenTasks) * 100)}%` }} />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {overloaded ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Overloaded</span> : <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">On Track</span>}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {teamRows.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">No team members yet.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <Card>
+              <CardHeader><CardTitle className="text-base">Team by Department</CardTitle></CardHeader>
+              <CardContent><DonutChart data={departmentDonutData} size={140} /></CardContent>
+            </Card>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <h3 className="text-sm font-semibold text-foreground">Manage Members</h3>
             <Can permission={PERMISSIONS.PRODUCTION_MEMBERS_MANAGE}>
               <Dialog open={memberOpen} onOpenChange={setMemberOpen}>
                 <DialogTrigger asChild><Button size="sm">+ Add member</Button></DialogTrigger>
@@ -846,6 +1474,94 @@ export default function ProjectDetailPage() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="notes" className="space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Total Notes</CardDescription><MessageSquare className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{noteCounts.total}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Open</CardDescription><AlertCircle className="h-4 w-4 text-amber-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{noteCounts.open}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Resolved</CardDescription><CheckCircle2 className="h-4 w-4 text-emerald-500" /></CardHeader>
+              <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{noteCounts.resolved}</div></CardContent>
+            </Card>
+          </div>
+
+          <Select value={noteStatusFilter} onValueChange={setNoteStatusFilter}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Notes</SelectItem>
+              <SelectItem value="OPEN">Open</SelectItem>
+              <SelectItem value="RESOLVED">Resolved</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {filteredNotes.length === 0 ? (
+            <EmptyState icon={MessageSquare} title="No notes yet" description="Notes left on any shot, asset, or task in this project show up here." />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="rounded-lg border border-border bg-card lg:col-span-2">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Note</TableHead><TableHead>On</TableHead><TableHead>Author</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {filteredNotes.map((n) => {
+                      const resource = resolveNoteResource(n);
+                      return (
+                        <TableRow key={n.id} className={`cursor-pointer ${effectiveSelectedNoteId === n.id ? "bg-muted/50" : ""}`} onClick={() => setSelectedNoteId(n.id)}>
+                          <TableCell className="max-w-xs truncate text-sm font-medium text-foreground">{n.content}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{resource.label}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{n.author_id ? employeeMap.get(n.author_id) ?? "—" : "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>{n.status === "OPEN" ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Open</span> : <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Resolved</span>}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <Card className="h-fit lg:sticky lg:top-4">
+                <CardContent className="space-y-3 pt-6">
+                  {!selectedNote ? (
+                    <p className="text-xs text-muted-foreground">Select a note to see the full thread.</p>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">{resolveNoteResource(selectedNote).label}</p>
+                        {selectedNote.status === "OPEN" ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Open</span> : <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Resolved</span>}
+                      </div>
+                      <p className="text-sm text-foreground">{selectedNote.content}</p>
+                      <p className="text-xs text-muted-foreground">{selectedNote.author_id ? employeeMap.get(selectedNote.author_id) ?? "—" : "—"} · {new Date(selectedNote.created_at).toLocaleString()}</p>
+                      {selectedNoteReplies.length > 0 && (
+                        <div className="space-y-2 border-t border-border pt-3">
+                          <p className="text-xs font-semibold text-foreground">Replies</p>
+                          {selectedNoteReplies.map((r) => (
+                            <div key={r.id} className="text-xs">
+                              <p className="font-medium text-foreground">{r.author_id ? employeeMap.get(r.author_id) ?? "—" : "—"}</p>
+                              <p className="text-muted-foreground">{r.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selectedNote.status === "OPEN" && (
+                        <Can permission={PERMISSIONS.PRODUCTION_NOTES_RESOLVE}>
+                          <Button size="sm" variant="outline" className="w-full" onClick={() => handleResolveNote(selectedNote.id)}>Mark Resolved</Button>
+                        </Can>
+                      )}
+                      {resolveNoteResource(selectedNote).href && (
+                        <Button size="sm" variant="ghost" className="w-full" asChild><Link to={resolveNoteResource(selectedNote).href!}>Open full thread</Link></Button>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="milestones" className="space-y-4 pt-4">
@@ -933,6 +1649,58 @@ export default function ProjectDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2"><CardDescription>Total Task Budget</CardDescription></CardHeader>
+              <CardContent><div className="text-xl font-semibold text-foreground"><Money amount={paymentTotals.budget} currencyId={projectWorkEarnings[0]?.currency_id} /></div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardDescription>Total Paid</CardDescription></CardHeader>
+              <CardContent><div className="text-xl font-semibold text-emerald-600 dark:text-emerald-400"><Money amount={paymentTotals.paid} currencyId={projectWorkEarnings[0]?.currency_id} /></div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardDescription>Pending Payment</CardDescription></CardHeader>
+              <CardContent><div className="text-xl font-semibold text-amber-600 dark:text-amber-400"><Money amount={paymentTotals.pending} currencyId={projectWorkEarnings[0]?.currency_id} /></div></CardContent>
+            </Card>
+          </div>
+
+          {projectWorkEarnings.length === 0 ? (
+            <EmptyState icon={ListChecks} title="No task payments yet" description="Approved work submitted against this project's tasks shows up here." />
+          ) : (
+            <div className="rounded-lg border border-border bg-card">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Assignee</TableHead>
+                      <TableHead>Rate</TableHead>
+                      <TableHead>Qty / Unit</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projectWorkEarnings.map((w) => (
+                      <TableRow key={w.id}>
+                        <TableCell className="text-sm font-medium text-foreground">{taskNameMap.get(w.task_id) ?? "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{employeeMap.get(w.employee_id) ?? "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground"><Money amount={w.rate} currencyId={w.currency_id} /></TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{w.approved_quantity ?? w.requested_quantity} {unitLabelMap.get(w.production_unit_id) ?? ""}</TableCell>
+                        <TableCell className="text-sm font-medium text-foreground"><Money amount={earningAmount(w)} currencyId={w.currency_id} /></TableCell>
+                        <TableCell><ProductionStatusBadge status={w.status} /></TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{(w.approved_at ?? w.submitted_at ?? w.created_at)?.slice(0, 10) ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -290,7 +290,7 @@ export function useMilestoneMutations(projectId: string | undefined) {
 // Versions + Reviews + Notes
 // ---------------------------------------------------------------------
 export function useVersions(filters: Parameters<typeof versionsApi.listVersions>[0]) {
-  const key = filters.shotId ?? filters.assetId ?? filters.taskId;
+  const key = filters.shotId ?? filters.assetId ?? filters.taskId ?? filters.projectId;
   return useQuery({ queryKey: ["production-versions", key], queryFn: () => versionsApi.listVersions(filters), enabled: !!key });
 }
 
@@ -353,6 +353,26 @@ export function useNoteMutations(resourceType: string, resourceId: string | unde
     onSuccess: invalidate,
   });
   return { create, resolve };
+}
+
+export function useProjectNotes(resourceIds: string[]) {
+  const key = [...resourceIds].sort().join(",");
+  return useQuery({
+    queryKey: ["production-project-notes", key],
+    queryFn: () => versionsApi.listNotesForResources(resourceIds),
+    enabled: resourceIds.length > 0,
+  });
+}
+
+export function useProjectNoteMutations(resourceIds: string[]) {
+  const queryClient = useQueryClient();
+  const key = [...resourceIds].sort().join(",");
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["production-project-notes", key] });
+  const resolve = useMutation({
+    mutationFn: (input: { id: string; resolvedBy: string }) => versionsApi.resolveNote(input.id, input.resolvedBy),
+    onSuccess: invalidate,
+  });
+  return { resolve };
 }
 
 // ---------------------------------------------------------------------

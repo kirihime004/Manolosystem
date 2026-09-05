@@ -40,7 +40,7 @@ export default function TasksBoardPage() {
   const { data: projects } = useProjects(company?.id);
   const [searchParams] = useSearchParams();
   const [projectId, setProjectId] = useState<string>("");
-  const activeProjectId = projectId || projects?.[0]?.id;
+  const activeProjectId = projectId || searchParams.get("project") || projects?.[0]?.id;
   const activeProject = (projects ?? []).find((p) => p.id === activeProjectId);
   const mineOnly = searchParams.get("mine") === "1";
 

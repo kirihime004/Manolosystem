@@ -4,11 +4,12 @@ import type { ProductionVersion, ProductionReview, ProductionNote, AnnotationStr
 // ---------------------------------------------------------------------
 // Versions
 // ---------------------------------------------------------------------
-export async function listVersions(filters: { shotId?: string; assetId?: string; taskId?: string }): Promise<ProductionVersion[]> {
+export async function listVersions(filters: { shotId?: string; assetId?: string; taskId?: string; projectId?: string }): Promise<ProductionVersion[]> {
   let query = supabase.from("production_versions").select("*").order("version_number", { ascending: false });
   if (filters.shotId) query = query.eq("shot_id", filters.shotId);
   if (filters.assetId) query = query.eq("asset_id", filters.assetId);
   if (filters.taskId) query = query.eq("task_id", filters.taskId);
+  if (filters.projectId) query = query.eq("project_id", filters.projectId);
   const { data, error } = await query;
   if (error) throw error;
   return data as ProductionVersion[];
@@ -96,6 +97,18 @@ export async function decideReview(id: string, decision: "APPROVED" | "CHANGES_R
 // ---------------------------------------------------------------------
 export async function listNotes(resourceType: string, resourceId: string): Promise<ProductionNote[]> {
   const { data, error } = await supabase.from("production_notes").select("*").eq("resource_type", resourceType).eq("resource_id", resourceId).order("created_at");
+  if (error) throw error;
+  return data as ProductionNote[];
+}
+
+// Notes are attached to one specific shot/asset/task/version, not directly
+// to a project -- there's no project_id column on production_notes -- so a
+// project-wide "all notes" tab has to fan out over every resource id that
+// belongs to the project (its shots, assets, and tasks) instead of a single
+// eq() filter.
+export async function listNotesForResources(resourceIds: string[]): Promise<ProductionNote[]> {
+  if (resourceIds.length === 0) return [];
+  const { data, error } = await supabase.from("production_notes").select("*").in("resource_id", resourceIds).order("created_at", { ascending: false });
   if (error) throw error;
   return data as ProductionNote[];
 }
