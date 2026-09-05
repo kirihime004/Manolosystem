@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, Minus, FolderKanban, CheckCircle2, Activity, PauseCircle, Clock, FolderOpen } from "lucide-react";
+import { FolderKanban, CheckCircle2, Activity, PauseCircle, Clock, FolderOpen } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import { useProductionInsightsSummary } from "@/features/production/hooks";
 import { useCurrencies } from "@/features/it/procurement/hooks";
@@ -12,40 +12,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Money } from "@/components/shared/Money";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
-import { DonutChart, GroupedBarChart, ProjectTimelineChart, statusChartColor } from "@/components/production/charts/ProductionCharts";
-
-const TASK_BUCKET_LABEL: Record<string, string> = {
-  COMPLETED: "Completed",
-  IN_PROGRESS: "In Progress",
-  REVIEW: "Review",
-  NOT_STARTED: "Not Started",
-};
-
-const TASK_BUCKET_COLOR: Record<string, string> = {
-  COMPLETED: statusChartColor("COMPLETED"),
-  IN_PROGRESS: statusChartColor("IN_PROGRESS"),
-  REVIEW: statusChartColor("PENDING_REVIEW"),
-  NOT_STARTED: statusChartColor("NOT_STARTED"),
-};
+import {
+  DonutChart, GroupedBarChart, ProjectTimelineChart, DeltaIndicator, TASK_BUCKET_LABEL, TASK_BUCKET_COLOR,
+} from "@/components/production/charts/ProductionCharts";
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-function Delta({ current, previous }: { current: number; previous: number }) {
-  if (previous === 0) {
-    if (current === 0) return <span className="flex items-center gap-1 text-xs text-muted-foreground"><Minus className="h-3 w-3" />no change</span>;
-    return <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400"><ArrowUp className="h-3 w-3" />new</span>;
-  }
-  const pct = Math.round(((current - previous) / previous) * 100);
-  if (pct === 0) return <span className="flex items-center gap-1 text-xs text-muted-foreground"><Minus className="h-3 w-3" />0%</span>;
-  const up = pct > 0;
-  return (
-    <span className={`flex items-center gap-1 text-xs ${up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-      {up ? "+" : ""}{pct}%
-    </span>
-  );
 }
 
 export default function ProductionInsightsPage() {
@@ -140,7 +112,7 @@ export default function ProductionInsightsPage() {
                 </CardHeader>
                 <CardContent className="space-y-1">
                   <div className="text-2xl font-semibold tabular-nums text-foreground">{c.value ?? 0}</div>
-                  <Delta current={c.value ?? 0} previous={c.prev ?? 0} />
+                  <DeltaIndicator current={c.value ?? 0} previous={c.prev ?? 0} />
                 </CardContent>
               </Card>
             ))}
