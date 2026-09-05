@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
+
 const TONE_HEX: Record<string, string> = {
   neutral: "#71717a",
   info: "#3b82f6",
@@ -358,6 +361,190 @@ export function HorizontalBarChart({ data, color = "#3b82f6" }: { data: { label:
         </div>
       ))}
       {data.length === 0 && <p className="text-xs text-muted-foreground">No versions yet.</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Full-page Gantt -- a real fixed-pixels-per-day timeline (month bands +
+// weekly ticks, horizontal scroll) for the project Timeline tab, as
+// opposed to PhaseTimelineChart's compact percentage-width version used
+// on the Dashboard tab. Each phase row expands to show its individual
+// tasks as sub-rows.
+// ---------------------------------------------------------------------
+export type GanttPhaseStatus = "COMPLETED" | "ON_TRACK" | "AT_RISK" | "LATE" | "NOT_STARTED";
+
+export interface GanttTaskRow {
+  key: string;
+  label: string;
+  start: string | null;
+  end: string | null;
+  status: string;
+  assignedToName?: string | null;
+}
+
+export interface GanttPhaseRow {
+  key: string;
+  label: string;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  actualEnd: string | null;
+  progressPct: number;
+  status: GanttPhaseStatus;
+  tasks: GanttTaskRow[];
+}
+
+const GANTT_PHASE_STATUS_LABEL: Record<GanttPhaseStatus, string> = {
+  COMPLETED: "Completed", ON_TRACK: "On Track", AT_RISK: "At Risk", LATE: "Delayed", NOT_STARTED: "Not Started",
+};
+const GANTT_PHASE_STATUS_COLOR: Record<GanttPhaseStatus, string> = {
+  COMPLETED: TONE_HEX.success, ON_TRACK: TONE_HEX.success, AT_RISK: TONE_HEX.warn, LATE: TONE_HEX.danger, NOT_STARTED: TONE_HEX.neutral,
+};
+
+export function GanttChart({
+  phases, milestones, rangeStart, rangeEnd, pxPerDay = 24,
+}: {
+  phases: GanttPhaseRow[];
+  milestones: { key: string; label: string; date: string }[];
+  rangeStart: string;
+  rangeEnd: string;
+  pxPerDay?: number;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) => setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+
+  const start = new Date(rangeStart + "T00:00:00");
+  const end = new Date(rangeEnd + "T00:00:00");
+  const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000)) + 1;
+  const width = totalDays * pxPerDay;
+  const dayOffset = (d: string) => Math.round((new Date(d + "T00:00:00").getTime() - start.getTime()) / 86400000);
+  const xOf = (d: string) => dayOffset(d) * pxPerDay;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayOffset = dayOffset(todayIso);
+  const rowHeight = 36;
+  const subRowHeight = 28;
+  const headerHeight = 64;
+
+  const months: { label: string; left: number; width: number }[] = [];
+  {
+    let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cur <= end) {
+      const monthEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+      const bandStart = cur < start ? start : cur;
+      const bandEnd = monthEnd > end ? end : monthEnd;
+      months.push({
+        label: cur.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+        left: dayOffset(bandStart.toISOString().slice(0, 10)) * pxPerDay,
+        width: (dayOffset(bandEnd.toISOString().slice(0, 10)) - dayOffset(bandStart.toISOString().slice(0, 10)) + 1) * pxPerDay,
+      });
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    }
+  }
+
+  const ticks: { label: string; left: number }[] = [];
+  for (let d = 0; d <= totalDays; d += 7) {
+    ticks.push({ label: new Date(start.getTime() + d * 86400000).toLocaleDateString(undefined, { month: "short", day: "numeric" }), left: d * pxPerDay });
+  }
+
+  const barStyle = (s: number, e: number) => ({ left: s, width: Math.max(4, e - s) });
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-muted-foreground/25" />Planned</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ backgroundColor: "#3b82f6" }} />Actual</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-px bg-red-500" />Today</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rotate-45" style={{ backgroundColor: TONE_HEX.accent }} />Milestone</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TONE_HEX.success }} />On Track</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TONE_HEX.warn }} />At Risk</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TONE_HEX.danger }} />Delayed</span>
+      </div>
+
+      <div className="flex overflow-hidden rounded-lg border border-border">
+        <div className="w-64 shrink-0 border-r border-border bg-card">
+          <div className="flex items-center gap-2 border-b border-border px-3 text-xs font-medium text-muted-foreground" style={{ height: headerHeight }}>
+            <span className="flex-1">Stage</span><span className="w-16 text-right">% Complete</span><span className="w-20 text-right">Status</span>
+          </div>
+          {phases.map((p) => (
+            <div key={p.key}>
+              <div className="flex items-center gap-1.5 border-b border-border px-2" style={{ height: rowHeight }}>
+                <button type="button" onClick={() => toggle(p.key)} className="shrink-0 text-muted-foreground" aria-label={expanded.has(p.key) ? "Collapse" : "Expand"}>
+                  {p.tasks.length > 0 ? (expanded.has(p.key) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <span className="inline-block h-3.5 w-3.5" />}
+                </button>
+                <span className="flex-1 truncate text-sm text-foreground" title={p.label}>{p.label}</span>
+                <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{p.progressPct}%</span>
+                <span className="w-20 shrink-0 truncate text-right text-xs" style={{ color: GANTT_PHASE_STATUS_COLOR[p.status] }}>{GANTT_PHASE_STATUS_LABEL[p.status]}</span>
+              </div>
+              {expanded.has(p.key) && p.tasks.map((t) => (
+                <div key={t.key} className="flex items-center border-b border-border/60 pl-8 pr-2" style={{ height: subRowHeight }}>
+                  <span className="truncate text-xs text-muted-foreground" title={t.label}>{t.label}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          {phases.length === 0 && <div className="px-3 py-6 text-center text-xs text-muted-foreground">No scheduled tasks yet.</div>}
+        </div>
+
+        <div className="flex-1 overflow-x-auto">
+          <div style={{ width, position: "relative" }}>
+            <div className="relative border-b border-border" style={{ height: headerHeight / 2 }}>
+              {months.map((m) => (
+                <div key={m.label} className="absolute top-0 flex h-full items-center justify-center overflow-hidden border-r border-border text-xs font-medium text-foreground" style={{ left: m.left, width: m.width }}>{m.label}</div>
+              ))}
+            </div>
+            <div className="relative border-b border-border" style={{ height: headerHeight / 2 }}>
+              {ticks.map((t) => (
+                <div key={t.left} className="absolute top-0 flex h-full items-center border-l border-border/60 pl-1 text-[10px] text-muted-foreground" style={{ left: t.left }}>{t.label}</div>
+              ))}
+            </div>
+
+            {todayOffset >= 0 && todayOffset <= totalDays && (
+              <div className="absolute bottom-0 z-10 w-px bg-red-500" style={{ left: todayOffset * pxPerDay, top: headerHeight }} />
+            )}
+            {milestones.map((m) => {
+              const off = dayOffset(m.date);
+              if (off < 0 || off > totalDays) return null;
+              return (
+                <div key={m.key} className="absolute z-10 -translate-x-1/2" style={{ left: off * pxPerDay, top: headerHeight + 4 }} title={`${m.label} — ${m.date}`}>
+                  <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ backgroundColor: TONE_HEX.accent }} />
+                </div>
+              );
+            })}
+
+            {phases.map((p) => {
+              const s = p.plannedStart ? xOf(p.plannedStart) : 0;
+              const plannedEndX = p.plannedEnd ? xOf(p.plannedEnd) : s;
+              const actualEndX = p.actualEnd
+                ? xOf(p.actualEnd)
+                : p.plannedEnd && Date.now() < new Date(p.plannedEnd).getTime()
+                  ? todayOffset * pxPerDay
+                  : plannedEndX;
+              return (
+                <div key={p.key}>
+                  <div className="relative border-b border-border" style={{ height: rowHeight }}>
+                    <div className="absolute top-2.5 h-2 rounded-sm bg-muted-foreground/25" style={barStyle(s, plannedEndX)} />
+                    <div className="absolute bottom-2.5 h-2 rounded-sm" style={{ ...barStyle(s, actualEndX), backgroundColor: GANTT_PHASE_STATUS_COLOR[p.status] }} />
+                  </div>
+                  {expanded.has(p.key) && p.tasks.map((t) => {
+                    const ts = t.start ? xOf(t.start) : s;
+                    const te = t.end ? xOf(t.end) : ts;
+                    const color = t.status === "COMPLETED" || t.status === "APPROVED" ? TONE_HEX.success
+                      : t.status === "IN_PROGRESS" ? TONE_HEX.info
+                      : t.status === "PENDING_REVIEW" || t.status === "CHANGES_REQUESTED" ? TONE_HEX.warn
+                      : TONE_HEX.neutral;
+                    return (
+                      <div key={t.key} className="relative border-b border-border/60" style={{ height: subRowHeight }}>
+                        <div className="absolute top-2 h-2 rounded-sm" style={{ ...barStyle(ts, te), backgroundColor: color }} title={t.label} />
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            {phases.length === 0 && <div className="py-6 text-center text-xs text-muted-foreground">Nothing to show for this range.</div>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

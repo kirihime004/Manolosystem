@@ -1,20 +1,20 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { MoreHorizontal, Clapperboard, ListChecks, CalendarClock, HeartPulse } from "lucide-react";
+import { MoreHorizontal, Clapperboard, ListChecks, CalendarClock, HeartPulse, CalendarDays, Flag, Clock } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useProject, useProjectMutations, useShows, useEpisodes, useSequences, useHierarchyMutations,
   useProjectMembers, useProjectMemberMutations, useMilestones, useMilestoneMutations,
   useDeliverables, useDeliverableMutations, useProductionBudgetSummary, useWorkflowTemplates,
-  useProjectInsights, useProjectDashboard,
+  useProjectInsights, useProjectDashboard, useTasks, useTaskTypes,
 } from "@/features/production/hooks";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { ProductionFilesSection } from "@/components/production/ProductionFilesSection";
 import { ProductionHistorySection } from "@/components/production/ProductionHistorySection";
 import {
-  DonutChart, StackedBarChart, HorizontalBarChart, PhaseTimelineChart, statusChartColor,
-  bucketTaskStatusCounts, DeltaIndicator,
+  DonutChart, StackedBarChart, HorizontalBarChart, PhaseTimelineChart, GanttChart, statusChartColor,
+  bucketTaskStatusCounts, DeltaIndicator, type GanttPhaseRow, type GanttPhaseStatus,
 } from "@/components/production/charts/ProductionCharts";
 import { useEmployees } from "@/features/hr/hooks";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,7 +37,7 @@ import { ErrorScreen } from "@/components/shared/ErrorScreen";
 import { ProductionStatusBadge } from "@/components/shared/ProductionBadges";
 import { Can } from "@/lib/permissions/Can";
 import { PERMISSIONS } from "@/lib/permissions/keys";
-import type { ProductionEpisode, ProductionMilestone, ProductionDeliverable, ProductionSequence, ProductionShow } from "@/types/database";
+import type { ProductionEpisode, ProductionMilestone, ProductionDeliverable, ProductionSequence, ProductionShow, ProductionTask } from "@/types/database";
 
 const EPISODE_STATUSES = ["PLANNING", "IN_PROGRESS", "COMPLETED", "DELIVERED", "ON_HOLD"];
 const SEQUENCE_STATUSES = ["PLANNING", "IN_PROGRESS", "COMPLETED", "ON_HOLD"];
@@ -90,6 +90,8 @@ export default function ProjectDetailPage() {
   const { data: insights } = useProjectInsights(projectId);
   const canViewDashboard = hasPermission(PERMISSIONS.PRODUCTION_PROJECT_DASHBOARD_VIEW);
   const { data: dash, isLoading: dashLoading } = useProjectDashboard(projectId, canViewDashboard);
+  const { data: allTasks } = useTasks(company?.id, { projectId });
+  const { data: taskTypes } = useTaskTypes(company?.id);
   const { data: workflowTemplates } = useWorkflowTemplates(company?.id);
   const taskWorkflowTemplates = (workflowTemplates ?? []).filter((w) => w.entity_type === "TASK");
 
@@ -184,6 +186,65 @@ export default function ProjectDetailPage() {
     const lateMilestones = dash.milestones.filter((m) => m.completed_date && m.due_date && m.completed_date > m.due_date).length;
     if (lateMilestones > 0) dashboardInsights.push({ text: `${lateMilestones} milestone${lateMilestones === 1 ? "" : "s"} completed late.`, tone: "warn" });
   }
+
+  // ---- Timeline tab derived values (independent of the Dashboard permission) ----
+  const tasksTotal = allTasks?.length ?? 0;
+  const tasksDone = (allTasks ?? []).filter((t) => t.status === "COMPLETED" || t.status === "APPROVED").length;
+  const overallPct = tasksTotal > 0 ? Math.round((100 * tasksDone) / tasksTotal) : 0;
+  const daysRemaining = project.target_end_date ? Math.round((new Date(project.target_end_date).getTime() - Date.now()) / 86400000) : null;
+  const projectHealth: GanttPhaseStatus =
+    project.status === "COMPLETED" && project.actual_end_date && project.target_end_date && project.actual_end_date > project.target_end_date ? "LATE"
+    : project.status === "COMPLETED" || project.status === "CANCELLED" || project.status === "ARCHIVED" ? "COMPLETED"
+    : project.target_end_date && project.target_end_date < new Date().toISOString().slice(0, 10) ? "LATE"
+    : project.target_end_date && project.target_end_date <= new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) ? "AT_RISK"
+    : "ON_TRACK";
+
+  let projectedCompletionLabel: string | null = null;
+  let projectedCompletionDiffDays: number | null = null;
+  if (project.start_date && project.target_end_date && overallPct > 0 && overallPct < 100) {
+    const elapsedDays = (Date.now() - new Date(project.start_date).getTime()) / 86400000;
+    if (elapsedDays > 0) {
+      const projectedTotalDays = elapsedDays / (overallPct / 100);
+      const projectedEnd = new Date(new Date(project.start_date).getTime() + projectedTotalDays * 86400000);
+      projectedCompletionDiffDays = Math.round((projectedEnd.getTime() - new Date(project.target_end_date).getTime()) / 86400000);
+      projectedCompletionLabel = projectedEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
+  }
+
+  const taskTypeMap = new Map((taskTypes ?? []).map((tt) => [tt.id, tt]));
+  const tasksByType = new Map<string, ProductionTask[]>();
+  for (const t of allTasks ?? []) {
+    const key = t.task_type_id ?? "__unassigned__";
+    if (!tasksByType.has(key)) tasksByType.set(key, []);
+    tasksByType.get(key)!.push(t);
+  }
+  const ganttPhases: GanttPhaseRow[] = [...tasksByType.entries()]
+    .map(([typeId, typeTasks]) => {
+      const meta = taskTypeMap.get(typeId);
+      const starts = typeTasks.map((t) => t.start_date).filter((d): d is string => !!d);
+      const ends = typeTasks.map((t) => t.due_date).filter((d): d is string => !!d);
+      const plannedStart = starts.length ? starts.reduce((a, b) => (a < b ? a : b)) : null;
+      const plannedEnd = ends.length ? ends.reduce((a, b) => (a > b ? a : b)) : null;
+      const doneCount = typeTasks.filter((t) => t.status === "COMPLETED" || t.status === "APPROVED").length;
+      const progressPct = typeTasks.length ? Math.round((100 * doneCount) / typeTasks.length) : 0;
+      const allDone = typeTasks.length > 0 && doneCount === typeTasks.length;
+      const actualEnd = allDone ? typeTasks.reduce((latest, t) => (!latest || t.updated_at > latest ? t.updated_at : latest), "").slice(0, 10) : null;
+      const anyStarted = typeTasks.some((t) => t.status !== "NOT_STARTED");
+      const status: GanttPhaseStatus = allDone ? "COMPLETED"
+        : typeTasks.some((t) => t.risk_status === "LATE") ? "LATE"
+        : typeTasks.some((t) => t.risk_status === "AT_RISK") ? "AT_RISK"
+        : anyStarted ? "ON_TRACK" : "NOT_STARTED";
+      return {
+        key: typeId, label: meta?.name ?? "Unassigned", sortOrder: meta?.sort_order ?? 999,
+        plannedStart, plannedEnd, actualEnd, progressPct, status,
+        tasks: typeTasks.map((t) => ({ key: t.id, label: t.name, start: t.start_date, end: t.due_date, status: t.status, assignedToName: t.assigned_to ? employeeMap.get(t.assigned_to) : null })),
+      };
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const ganttMilestones = (milestones ?? []).map((m) => ({ key: m.id, label: m.name, date: m.due_date }));
+  const ganttRangeStart = project.start_date ?? new Date().toISOString().slice(0, 10);
+  const ganttRangeEnd = project.target_end_date ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
   const openEditProject = () => {
     setProjectName(project.name);
@@ -362,6 +423,7 @@ export default function ProjectDetailPage() {
       <Tabs defaultValue={canViewDashboard ? "dashboard" : "overview"}>
         <TabsList>
           {canViewDashboard && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="hierarchy">Episodes & Sequences</TabsTrigger>
@@ -513,6 +575,45 @@ export default function ProjectDetailPage() {
             )}
           </TabsContent>
         )}
+
+        <TabsContent value="timeline" className="space-y-4 pt-4">
+          <Card>
+            <CardContent className="pt-6"><GanttChart phases={ganttPhases} milestones={ganttMilestones} rangeStart={ganttRangeStart} rangeEnd={ganttRangeEnd} /></CardContent>
+          </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Project Start</CardDescription><CalendarDays className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-lg font-semibold text-foreground">{project.start_date ?? "—"}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Target Completion</CardDescription><Flag className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-lg font-semibold text-foreground">{project.target_end_date ?? "—"}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Projected Completion</CardDescription><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent>
+                <div className="text-lg font-semibold text-foreground">{projectedCompletionLabel ?? "—"}</div>
+                {projectedCompletionDiffDays != null && projectedCompletionDiffDays !== 0 && (
+                  <p className={`text-xs ${projectedCompletionDiffDays > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {Math.abs(projectedCompletionDiffDays)} day{Math.abs(projectedCompletionDiffDays) === 1 ? "" : "s"} {projectedCompletionDiffDays > 0 ? "late" : "early"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Days Remaining</CardDescription><CalendarClock className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent><div className="text-lg font-semibold text-foreground">{daysRemaining ?? "—"}</div></CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Project Health</CardDescription><HeartPulse className="h-4 w-4 text-muted-foreground" /></CardHeader>
+              <CardContent>
+                <div className={`text-lg font-semibold ${projectHealth === "LATE" ? "text-red-600 dark:text-red-400" : projectHealth === "AT_RISK" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {projectHealth === "LATE" ? "Late" : projectHealth === "AT_RISK" ? "At Risk" : projectHealth === "COMPLETED" ? "Completed" : "On Track"}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
           <Card>
