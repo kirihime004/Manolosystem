@@ -149,6 +149,9 @@ import ProductionSettingsPage from "@/pages/production/ProductionSettingsPage";
 import ApprovedWorkQueuePage from "@/pages/production/work/ApprovedWorkQueuePage";
 import MyEarningsPage from "@/pages/production/work/MyEarningsPage";
 import AllWorkEarningsPage from "@/pages/production/work/AllWorkEarningsPage";
+import MyTasksPage from "@/pages/production/work/MyTasksPage";
+import MyApprovalsPage from "@/pages/production/work/MyApprovalsPage";
+import MyAssetsPage from "@/pages/production/work/MyAssetsPage";
 import FinanceProductionEarningsPage from "@/pages/finance/production/FinanceProductionEarningsPage";
 import ClientLoginPage from "@/pages/client/ClientLoginPage";
 import ClientPortalPage from "@/pages/client/ClientPortalPage";
@@ -1413,6 +1416,30 @@ export function AppRouter() {
                   element={
                     <RequirePermission permission={PERMISSIONS.PRODUCTION_WORK_VIEW_OWN}>
                       <MyEarningsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="my-tasks"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_TASKS_VIEW}>
+                      <MyTasksPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="my-approvals"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_REVIEWS_DECIDE}>
+                      <MyApprovalsPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="my-assets"
+                  element={
+                    <RequirePermission permission={PERMISSIONS.PRODUCTION_ASSETS_VIEW}>
+                      <MyAssetsPage />
                     </RequirePermission>
                   }
                 />

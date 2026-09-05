@@ -20,6 +20,8 @@ import {
   Users,
   ClipboardCheck,
   Banknote,
+  ListChecks,
+  Shapes,
   type LucideIcon,
 } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
@@ -1132,6 +1134,15 @@ export function CompanyShell({ children }: { children: ReactNode }) {
                       )}
                       {hasPermission(PERMISSIONS.PRODUCTION_WORK_VIEW_OWN) && (
                         <NavLink to={`${base}/production/my-earnings`} icon={Banknote} label="My Earnings" active={location.pathname.startsWith(`${base}/production/my-earnings`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_TASKS_VIEW) && (
+                        <NavLink to={`${base}/production/my-tasks`} icon={ListChecks} label="My Tasks" active={location.pathname.startsWith(`${base}/production/my-tasks`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_REVIEWS_DECIDE) && (
+                        <NavLink to={`${base}/production/my-approvals`} icon={ClipboardCheck} label="My Approvals" active={location.pathname.startsWith(`${base}/production/my-approvals`)} />
+                      )}
+                      {hasPermission(PERMISSIONS.PRODUCTION_ASSETS_VIEW) && (
+                        <NavLink to={`${base}/production/my-assets`} icon={Shapes} label="My Assets" active={location.pathname.startsWith(`${base}/production/my-assets`)} />
                       )}
                       {hasPermission(PERMISSIONS.PRODUCTION_WORK_VIEW_ALL) && (
                         <NavLink to={`${base}/production/work-earnings`} icon={Wallet} label="Work Earnings" active={location.pathname.startsWith(`${base}/production/work-earnings`)} />

@@ -77,6 +77,22 @@ export async function listReviews(versionId: string): Promise<ProductionReview[]
   return data as ProductionReview[];
 }
 
+export async function listReviewsForReviewer(employeeId: string): Promise<ProductionReview[]> {
+  const { data, error } = await supabase.from("production_reviews").select("*").eq("reviewer_employee_id", employeeId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as ProductionReview[];
+}
+
+// production_reviews only carries version_id -- the version's own name,
+// shot/asset, and project live on production_versions, so "My Approvals"
+// needs this small batch lookup to show anything beyond a bare version id.
+export async function getVersionsByIds(ids: string[]): Promise<ProductionVersion[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("production_versions").select("*").in("id", ids);
+  if (error) throw error;
+  return data as ProductionVersion[];
+}
+
 export async function requestReview(input: { companyId: string; versionId: string; reviewerEmployeeId: string; requestedBy: string }): Promise<ProductionReview> {
   const { data, error } = await supabase
     .from("production_reviews")

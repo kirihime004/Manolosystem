@@ -190,6 +190,11 @@ export function useAsset(id: string | undefined) {
   return useQuery({ queryKey: ["production-asset", id], queryFn: () => assetsApi.getAsset(id!), enabled: !!id });
 }
 
+export function useAssetsByIds(ids: string[]) {
+  const key = [...ids].sort().join(",");
+  return useQuery({ queryKey: ["production-assets-by-ids", key], queryFn: () => assetsApi.getAssetsByIds(ids), enabled: ids.length > 0 });
+}
+
 export function useAssetMutations(projectId: string | undefined) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["production-assets", projectId] });
@@ -338,6 +343,34 @@ export function useReviewMutations(versionId: string | undefined) {
     onSuccess: invalidate,
   });
   return { request, decide };
+}
+
+// "My Approvals" -- every review assigned to me as reviewer, across every
+// project, rather than useReviews' single-version scope.
+export function useMyReviews(employeeId: string | undefined) {
+  return useQuery({ queryKey: ["production-my-reviews", employeeId], queryFn: () => versionsApi.listReviewsForReviewer(employeeId!), enabled: !!employeeId });
+}
+
+export function useVersionsByIds(ids: string[]) {
+  const key = [...ids].sort().join(",");
+  return useQuery({ queryKey: ["production-versions-by-ids", key], queryFn: () => versionsApi.getVersionsByIds(ids), enabled: ids.length > 0 });
+}
+
+export function useMyReviewDecision(employeeId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["production-my-reviews", employeeId] });
+    queryClient.invalidateQueries({ queryKey: ["production-pending-versions"] });
+    queryClient.invalidateQueries({ queryKey: ["production-versions"] });
+    queryClient.invalidateQueries({ queryKey: ["production-shot"] });
+    queryClient.invalidateQueries({ queryKey: ["production-shots"] });
+    queryClient.invalidateQueries({ queryKey: ["production-asset"] });
+    queryClient.invalidateQueries({ queryKey: ["production-assets"] });
+  };
+  return useMutation({
+    mutationFn: (input: { id: string; decision: "APPROVED" | "CHANGES_REQUESTED" | "REJECTED"; comment?: string | null }) => versionsApi.decideReview(input.id, input.decision, input.comment),
+    onSuccess: invalidate,
+  });
 }
 
 export function useNotes(resourceType: string, resourceId: string | undefined) {

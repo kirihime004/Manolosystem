@@ -13,6 +13,17 @@ export async function getAsset(id: string): Promise<ProductionAsset> {
   return data as ProductionAsset;
 }
 
+// "My Assets" (an employee's self-service view) spans however many
+// projects their tasks touch -- assets themselves carry no assignee
+// column, only tasks do -- so it needs a batch lookup across those
+// projects' assets by id rather than the single-project listAssets above.
+export async function getAssetsByIds(ids: string[]): Promise<ProductionAsset[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("production_assets").select("*").in("id", ids);
+  if (error) throw error;
+  return data as ProductionAsset[];
+}
+
 export async function createAsset(input: { companyId: string; projectId: string; name: string; assetCategory: string; description?: string | null }): Promise<ProductionAsset> {
   const { data, error } = await supabase
     .from("production_assets")
