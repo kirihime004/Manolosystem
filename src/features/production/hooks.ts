@@ -26,6 +26,14 @@ export function useProjectInsights(projectId: string | undefined) {
   return useQuery({ queryKey: ["production-project-insights", projectId], queryFn: () => dashboardApi.getProjectInsights(projectId!), enabled: !!projectId });
 }
 
+export function useProjectDashboard(projectId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["production-project-dashboard", projectId],
+    queryFn: () => dashboardApi.getProjectDashboard(projectId!),
+    enabled: !!projectId && enabled,
+  });
+}
+
 export function useProductionInsightsSummary(companyId: string | undefined, startDate: string, endDate: string) {
   return useQuery({
     queryKey: ["production-insights", companyId, startDate, endDate],

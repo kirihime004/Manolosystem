@@ -3150,6 +3150,57 @@ export interface ProductionBudgetSummary {
   currency_code: string;
 }
 
+export interface ProductionProjectDashboard {
+  header: {
+    client_name: string | null;
+    producer_name: string | null;
+    director_name: string | null;
+    start_date: string;
+    target_end_date: string | null;
+    status: string;
+    overall_completion_pct: number;
+  };
+  stats: {
+    shots_completed: number;
+    shots_total: number;
+    tasks_completed: number;
+    tasks_total: number;
+    days_remaining: number | null;
+    health: "ON_TRACK" | "AT_RISK" | "LATE";
+  };
+  phases: {
+    task_type: string;
+    sort_order: number;
+    planned_start: string | null;
+    planned_end: string | null;
+    actual_start: string | null;
+    actual_end: string | null;
+    progress_pct: number;
+  }[];
+  milestones: {
+    milestone_code: string;
+    name: string;
+    due_date: string;
+    completed_date: string | null;
+    status: string;
+  }[];
+  upcoming_deadlines: {
+    task_name: string;
+    due_date: string;
+    days_left: number;
+    assigned_to_name: string | null;
+  }[];
+  current_focus: {
+    task_type: string;
+    range_start: string | null;
+    range_end: string | null;
+    progress_pct: number;
+    in_progress_count: number;
+    team_count: number;
+  } | null;
+  man_hours: { planned: number; actual: number };
+}
+
 export interface ProductionInsightsSummary {
   stat_cards: {
     total_projects: number;

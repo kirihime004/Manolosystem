@@ -17,6 +17,51 @@ export function statusChartColor(status: string): string {
   return TONE_HEX[STATUS_TONE[status] ?? "neutral"];
 }
 
+// A coarser 4-bucket grouping of the shared task/shot status ladder, used
+// wherever a page wants a simple Completed/In Progress/Review/Not Started
+// donut instead of exposing every raw status value.
+export type TaskStatusBucket = "COMPLETED" | "IN_PROGRESS" | "REVIEW" | "NOT_STARTED";
+
+const TASK_STATUS_BUCKET: Record<string, TaskStatusBucket> = {
+  COMPLETED: "COMPLETED", APPROVED: "COMPLETED",
+  PENDING_REVIEW: "REVIEW", CHANGES_REQUESTED: "REVIEW",
+  NOT_STARTED: "NOT_STARTED", ON_HOLD: "NOT_STARTED", OMITTED: "NOT_STARTED",
+  IN_PROGRESS: "IN_PROGRESS", READY: "IN_PROGRESS",
+};
+
+export const TASK_BUCKET_LABEL: Record<TaskStatusBucket, string> = {
+  COMPLETED: "Completed", IN_PROGRESS: "In Progress", REVIEW: "Review", NOT_STARTED: "Not Started",
+};
+
+export const TASK_BUCKET_COLOR: Record<TaskStatusBucket, string> = {
+  COMPLETED: TONE_HEX.success, IN_PROGRESS: TONE_HEX.info, REVIEW: TONE_HEX.warn, NOT_STARTED: TONE_HEX.neutral,
+};
+
+export function bucketTaskStatusCounts(rows: { status: string; count: number }[]): { label: string; value: number; color: string }[] {
+  const totals: Record<TaskStatusBucket, number> = { COMPLETED: 0, IN_PROGRESS: 0, REVIEW: 0, NOT_STARTED: 0 };
+  for (const r of rows) totals[TASK_STATUS_BUCKET[r.status] ?? "NOT_STARTED"] += r.count;
+  const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
+  if (grandTotal === 0) return [];
+  return (["COMPLETED", "IN_PROGRESS", "REVIEW", "NOT_STARTED"] as const).map((b) => ({ label: TASK_BUCKET_LABEL[b], value: totals[b], color: TASK_BUCKET_COLOR[b] }));
+}
+
+// A small "+12% / -4% / no change" indicator used next to stat-card values
+// throughout Production's analytics pages.
+export function DeltaIndicator({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0) {
+    if (current === 0) return <span className="flex items-center gap-1 text-xs text-muted-foreground">— no change</span>;
+    return <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">↑ new</span>;
+  }
+  const pct = Math.round(((current - previous) / previous) * 100);
+  if (pct === 0) return <span className="flex items-center gap-1 text-xs text-muted-foreground">— 0%</span>;
+  const up = pct > 0;
+  return (
+    <span className={`flex items-center gap-1 text-xs ${up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+      {up ? "↑" : "↓"} {up ? "+" : ""}{pct}%
+    </span>
+  );
+}
+
 function humanize(s: string): string {
   return s.replace(/_/g, " ").replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
@@ -221,6 +266,75 @@ export function ProjectTimelineChart({
           );
         })}
         {rows.length === 0 && <p className="text-xs text-muted-foreground">No projects in this range.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Phase timeline -- like ProjectTimelineChart, but one track per task-type
+// "phase" within a single project, plus a shared ruler of milestone
+// diamonds along the top so the reader can see which phase a milestone
+// landed in.
+// ---------------------------------------------------------------------
+export function PhaseTimelineChart({
+  phases, milestones, rangeStart, rangeEnd,
+}: {
+  phases: { key: string; label: string; plannedStart: string | null; plannedEnd: string | null; actualStart: string | null; actualEnd: string | null; progressPct: number }[];
+  milestones: { key: string; label: string; date: string; done: boolean }[];
+  rangeStart: string;
+  rangeEnd: string;
+}) {
+  const start = new Date(rangeStart).getTime();
+  const end = new Date(rangeEnd).getTime();
+  const span = Math.max(1, end - start);
+  const pct = (d: string) => Math.min(100, Math.max(0, ((new Date(d).getTime() - start) / span) * 100));
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayPct = pct(todayIso);
+  const todayInRange = new Date(todayIso).getTime() >= start && new Date(todayIso).getTime() <= end;
+  const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-4 pb-2 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-muted-foreground/30" />Planned</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ backgroundColor: "#3b82f6" }} />Actual</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-px bg-red-400" />Today</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rotate-45" style={{ backgroundColor: TONE_HEX.accent }} />Milestone</span>
+      </div>
+
+      {milestones.length > 0 && (
+        <div className="relative ml-28 mr-28 h-5">
+          {milestones.map((m) => (
+            <div key={m.key} className="absolute top-0 flex -translate-x-1/2 flex-col items-center" style={{ left: `${pct(m.date)}%` }} title={`${m.label} — ${fmt(m.date)}`}>
+              <span className="inline-block h-2 w-2 rotate-45" style={{ backgroundColor: m.done ? TONE_HEX.success : TONE_HEX.accent }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {phases.map((p) => {
+          const plannedStartPct = p.plannedStart ? pct(p.plannedStart) : 0;
+          const plannedEndPct = p.plannedEnd ? pct(p.plannedEnd) : plannedStartPct;
+          const actualEndPct = p.actualEnd
+            ? pct(p.actualEnd)
+            : p.plannedEnd && Date.now() < new Date(p.plannedEnd).getTime()
+              ? todayPct
+              : plannedEndPct;
+          return (
+            <div key={p.key} className="flex items-center gap-3">
+              <span className="w-28 shrink-0 truncate text-xs text-foreground" title={p.label}>{p.label}</span>
+              <div className="relative h-5 flex-1 rounded bg-muted/20">
+                {todayInRange && <div className="absolute top-0 z-10 h-full w-px bg-red-400" style={{ left: `${todayPct}%` }} />}
+                <div className="absolute top-0.5 h-1.5 rounded-sm bg-muted-foreground/30" style={{ left: `${plannedStartPct}%`, width: `${Math.max(1, plannedEndPct - plannedStartPct)}%` }} />
+                <div className="absolute bottom-0.5 h-1.5 rounded-sm" style={{ left: `${plannedStartPct}%`, width: `${Math.max(1, actualEndPct - plannedStartPct)}%`, backgroundColor: "#3b82f6" }} />
+              </div>
+              <span className="w-28 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">{p.progressPct}%</span>
+            </div>
+          );
+        })}
+        {phases.length === 0 && <p className="text-xs text-muted-foreground">No scheduled tasks yet.</p>}
       </div>
     </div>
   );

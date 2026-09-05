@@ -1,20 +1,23 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Clapperboard, ListChecks, CalendarClock, HeartPulse } from "lucide-react";
 import { useCompany } from "@/lib/tenant/useCompany";
 import {
   useProject, useProjectMutations, useShows, useEpisodes, useSequences, useHierarchyMutations,
   useProjectMembers, useProjectMemberMutations, useMilestones, useMilestoneMutations,
   useDeliverables, useDeliverableMutations, useProductionBudgetSummary, useWorkflowTemplates,
-  useProjectInsights,
+  useProjectInsights, useProjectDashboard,
 } from "@/features/production/hooks";
 import { CustomFieldsSection } from "@/components/production/CustomFieldsSection";
 import { ProductionFilesSection } from "@/components/production/ProductionFilesSection";
 import { ProductionHistorySection } from "@/components/production/ProductionHistorySection";
-import { DonutChart, StackedBarChart, HorizontalBarChart, statusChartColor } from "@/components/production/charts/ProductionCharts";
+import {
+  DonutChart, StackedBarChart, HorizontalBarChart, PhaseTimelineChart, statusChartColor,
+  bucketTaskStatusCounts, DeltaIndicator,
+} from "@/components/production/charts/ProductionCharts";
 import { useEmployees } from "@/features/hr/hooks";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -85,6 +88,8 @@ export default function ProjectDetailPage() {
 
   const { data: budgetSummary } = useProductionBudgetSummary(projectId);
   const { data: insights } = useProjectInsights(projectId);
+  const canViewDashboard = hasPermission(PERMISSIONS.PRODUCTION_PROJECT_DASHBOARD_VIEW);
+  const { data: dash, isLoading: dashLoading } = useProjectDashboard(projectId, canViewDashboard);
   const { data: workflowTemplates } = useWorkflowTemplates(company?.id);
   const taskWorkflowTemplates = (workflowTemplates ?? []).filter((w) => w.entity_type === "TASK");
 
@@ -141,6 +146,44 @@ export default function ProjectDetailPage() {
   if (!project) return <ErrorScreen title="Project not found" description="This project does not exist or you do not have access." />;
 
   const employeeMap = new Map((employees ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
+
+  // ---- Dashboard tab derived values ----
+  const dashRangeStart = project.start_date ?? new Date().toISOString().slice(0, 10);
+  const dashRangeEnd = project.target_end_date ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const phaseRows = (dash?.phases ?? []).map((p) => ({
+    key: p.task_type, label: p.task_type, plannedStart: p.planned_start, plannedEnd: p.planned_end,
+    actualStart: p.actual_start, actualEnd: p.actual_end, progressPct: p.progress_pct,
+  }));
+  const milestoneMarkers = (dash?.milestones ?? []).map((m) => ({ key: m.milestone_code, label: m.name, date: m.due_date, done: m.status === "COMPLETED" }));
+  const taskStatusDonutData = bucketTaskStatusCounts(insights?.task_status_counts ?? []);
+  const pendingReviewCount = (insights?.task_status_counts ?? []).find((s) => s.status === "PENDING_REVIEW")?.count ?? 0;
+
+  const dashboardInsights: { text: string; tone: "success" | "warn" | "info" }[] = [];
+  if (dash) {
+    const { header, stats } = dash;
+    if (stats.health === "LATE" && header.target_end_date) {
+      const overdue = Math.max(0, Math.round((Date.now() - new Date(header.target_end_date).getTime()) / 86400000));
+      dashboardInsights.push({ text: overdue > 0 ? `Project is ${overdue} day${overdue === 1 ? "" : "s"} behind schedule.` : "Project has missed its target completion date.", tone: "warn" });
+    } else if (stats.health === "AT_RISK" && stats.days_remaining != null) {
+      dashboardInsights.push({ text: `Target completion is in ${stats.days_remaining} day${stats.days_remaining === 1 ? "" : "s"} — monitor closely.`, tone: "warn" });
+    } else if (stats.health === "ON_TRACK") {
+      dashboardInsights.push({ text: "Project is on track.", tone: "success" });
+    }
+    if (header.overall_completion_pct > 0 && header.overall_completion_pct < 100 && header.target_end_date) {
+      const elapsedDays = (Date.now() - new Date(header.start_date).getTime()) / 86400000;
+      if (elapsedDays > 0) {
+        const projectedTotalDays = elapsedDays / (header.overall_completion_pct / 100);
+        const projectedEnd = new Date(new Date(header.start_date).getTime() + projectedTotalDays * 86400000);
+        const diffDays = Math.round((projectedEnd.getTime() - new Date(header.target_end_date).getTime()) / 86400000);
+        const projectedLabel = projectedEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        if (diffDays > 0) dashboardInsights.push({ text: `If current pace continues, projected completion is ${projectedLabel} (${diffDays} day${diffDays === 1 ? "" : "s"} late).`, tone: "warn" });
+        else if (diffDays < 0) dashboardInsights.push({ text: `If current pace continues, projected completion is ${projectedLabel} (${-diffDays} day${diffDays === -1 ? "" : "s"} early).`, tone: "success" });
+      }
+    }
+    if (pendingReviewCount > 0) dashboardInsights.push({ text: `${pendingReviewCount} task${pendingReviewCount === 1 ? "" : "s"} pending review.`, tone: "info" });
+    const lateMilestones = dash.milestones.filter((m) => m.completed_date && m.due_date && m.completed_date > m.due_date).length;
+    if (lateMilestones > 0) dashboardInsights.push({ text: `${lateMilestones} milestone${lateMilestones === 1 ? "" : "s"} completed late.`, tone: "warn" });
+  }
 
   const openEditProject = () => {
     setProjectName(project.name);
@@ -316,8 +359,9 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={canViewDashboard ? "dashboard" : "overview"}>
         <TabsList>
+          {canViewDashboard && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="hierarchy">Episodes & Sequences</TabsTrigger>
@@ -326,6 +370,149 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="deliverables">Deliverables</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
         </TabsList>
+
+        {canViewDashboard && (
+          <TabsContent value="dashboard" className="space-y-4 pt-4">
+            {dashLoading ? (
+              <Skeleton className="h-96 w-full" />
+            ) : (
+              <>
+                <Card>
+                  <CardContent className="grid grid-cols-2 gap-4 pt-6 sm:grid-cols-4">
+                    <div><p className="text-xs text-muted-foreground">Client</p><p className="text-sm font-medium text-foreground">{dash?.header.client_name ?? "—"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Producer</p><p className="text-sm font-medium text-foreground">{dash?.header.producer_name ?? "—"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Director</p><p className="text-sm font-medium text-foreground">{dash?.header.director_name ?? "—"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Start Date</p><p className="text-sm font-medium text-foreground">{dash?.header.start_date}</p></div>
+                    <div className="col-span-2 sm:col-span-4">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Overall Completion</span><span className="tabular-nums">{dash?.header.overall_completion_pct ?? 0}%</span></div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted/40"><div className="h-full rounded-full bg-primary" style={{ width: `${dash?.header.overall_completion_pct ?? 0}%` }} /></div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Shots Completed</CardDescription><Clapperboard className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                    <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{dash?.stats.shots_completed ?? 0} / {dash?.stats.shots_total ?? 0}</div></CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Tasks Completed</CardDescription><ListChecks className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                    <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{dash?.stats.tasks_completed ?? 0} / {dash?.stats.tasks_total ?? 0}</div></CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Days Remaining</CardDescription><CalendarClock className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                    <CardContent><div className="text-2xl font-semibold tabular-nums text-foreground">{dash?.stats.days_remaining ?? "—"}</div></CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2"><CardDescription>Project Health</CardDescription><HeartPulse className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                    <CardContent>
+                      <div className={`text-lg font-semibold ${dash?.stats.health === "LATE" ? "text-red-600 dark:text-red-400" : dash?.stats.health === "AT_RISK" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                        {dash?.stats.health === "LATE" ? "Late" : dash?.stats.health === "AT_RISK" ? "At Risk" : "On Track"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <Card className="lg:col-span-2">
+                    <CardHeader><CardTitle className="text-base">Planned vs Actual Timeline</CardTitle></CardHeader>
+                    <CardContent><PhaseTimelineChart phases={phaseRows} milestones={milestoneMarkers} rangeStart={dashRangeStart} rangeEnd={dashRangeEnd} /></CardContent>
+                  </Card>
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader><CardTitle className="text-base">Milestones</CardTitle></CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader><TableRow><TableHead>Milestone</TableHead><TableHead>Due</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {(dash?.milestones ?? []).map((m) => {
+                              const late = !!(m.completed_date && m.completed_date > m.due_date);
+                              const daysLate = late ? Math.round((new Date(m.completed_date!).getTime() - new Date(m.due_date).getTime()) / 86400000) : 0;
+                              return (
+                                <TableRow key={m.milestone_code}>
+                                  <TableCell className="text-sm">{m.name}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{m.due_date}</TableCell>
+                                  <TableCell className="text-xs">
+                                    {m.completed_date
+                                      ? late
+                                        ? <span className="text-amber-600 dark:text-amber-400">{daysLate} day{daysLate === 1 ? "" : "s"} late</span>
+                                        : <span className="text-emerald-600 dark:text-emerald-400">Completed</span>
+                                      : <span className="text-muted-foreground">Pending</span>}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                            {(!dash?.milestones || dash.milestones.length === 0) && (
+                              <TableRow><TableCell colSpan={3} className="py-6 text-center text-xs text-muted-foreground">No milestones yet.</TableCell></TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader><CardTitle className="text-base">Upcoming Deadlines</CardTitle></CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader><TableRow><TableHead>Task</TableHead><TableHead>Due</TableHead><TableHead>Assigned</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {(dash?.upcoming_deadlines ?? []).map((d) => (
+                              <TableRow key={`${d.task_name}-${d.due_date}`}>
+                                <TableCell className="text-sm">{d.task_name}</TableCell>
+                                <TableCell className={`text-xs ${d.days_left <= 3 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>{d.due_date} ({d.days_left}d)</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{d.assigned_to_name ?? "Unassigned"}</TableCell>
+                              </TableRow>
+                            ))}
+                            {(!dash?.upcoming_deadlines || dash.upcoming_deadlines.length === 0) && (
+                              <TableRow><TableCell colSpan={3} className="py-6 text-center text-xs text-muted-foreground">Nothing due soon.</TableCell></TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Current Focus</CardTitle></CardHeader>
+                    <CardContent>
+                      {dash?.current_focus ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-foreground">{dash.current_focus.task_type}</p>
+                          <p className="text-xs text-muted-foreground">{dash.current_focus.range_start ?? "—"} – {dash.current_focus.range_end ?? "—"}</p>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted/40"><div className="h-full rounded-full bg-primary" style={{ width: `${dash.current_focus.progress_pct}%` }} /></div>
+                          <p className="text-xs text-muted-foreground">{dash.current_focus.team_count} team member{dash.current_focus.team_count === 1 ? "" : "s"} working on {dash.current_focus.in_progress_count} open task{dash.current_focus.in_progress_count === 1 ? "" : "s"}.</p>
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground">No active work right now.</p>}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Task Status</CardTitle></CardHeader>
+                    <CardContent><DonutChart data={taskStatusDonutData} size={130} /></CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Man-Hours</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Planned</span><span className="tabular-nums">{dash?.man_hours.planned ?? 0}h</span></div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Actual</span><span className="tabular-nums">{dash?.man_hours.actual ?? 0}h</span></div>
+                      <DeltaIndicator current={dash?.man_hours.actual ?? 0} previous={dash?.man_hours.planned ?? 0} />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Project Insights</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                      {dashboardInsights.length === 0
+                        ? <p className="text-xs text-muted-foreground">Not enough activity yet to surface insights.</p>
+                        : dashboardInsights.map((ins, i) => (
+                            <p key={i} className={`text-xs ${ins.tone === "success" ? "text-emerald-600 dark:text-emerald-400" : ins.tone === "warn" ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>{ins.text}</p>
+                          ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
+          </TabsContent>
+        )}
 
         <TabsContent value="overview" className="space-y-4 pt-4">
           <Card>
